@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EssayLens Mockup - Assessment Tab</title>
+  <link rel="stylesheet" href="./mockup.css" />
+</head>
+<body>
+  <div class="app">
+    <section class="row">
+      <aside class="pane lb">
+        <div class="lb-stack">
+          <div class="lb-icon" aria-hidden="true"></div>
+          <div class="lb-label">LoaderBar</div>
+        </div>
+      </aside>
+
+      <aside class="pane fdb">
+        <h3>FileDisplayBar</h3>
+        <div class="file-list">
+          <ul class="file-names">
+            <li class="file-name">essay_a.docx</li>
+            <li class="file-name">essay_b.pdf</li>
+            <li class="file-name">diagram.jpg</li>
+            <li class="file-name">reflection.docx</li>
+            <li class="file-name">argumentative.pdf</li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="pane main">
+        <div class="main-head">
+          <h3>AssessmentWindow</h3>
+          <div class="tabs">
+            <span class="tab active">AssessmentTab</span>
+            <span class="tab">RubricTab</span>
+          </div>
+        </div>
+
+        <div class="workspace assessment">
+          <section class="subpane">
+            <h4>ImageView (collapsed most of the time)</h4>
+            <div class="content-block">
+              <div class="placeholder-line" style="width: 88%"></div>
+              <div class="placeholder-line" style="width: 61%"></div>
+              <div class="placeholder-line" style="width: 76%"></div>
+            </div>
+          </section>
+
+          <section class="subpane">
+            <h4>OriginalTextView</h4>
+            <div class="content-block">
+              Student essay text appears here. Teacher can read, scroll, and trigger commands from ProcessCommandCenter.
+              <div style="height: 8px"></div>
+              <div class="placeholder-line" style="width: 97%"></div>
+              <div class="placeholder-line" style="width: 92%"></div>
+              <div class="placeholder-line" style="width: 94%"></div>
+              <div class="placeholder-line" style="width: 89%"></div>
+            </div>
+          </section>
+
+          <section class="subpane">
+            <h4>CommentsView</h4>
+            <div class="content-block">
+              <strong>CommentView</strong> and <strong>ScoreTool</strong> live here as internal tabs.
+              <div style="height: 10px"></div>
+              <div class="placeholder-line" style="width: 90%"></div>
+              <div class="placeholder-line" style="width: 84%"></div>
+              <div class="placeholder-line" style="width: 72%"></div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <aside class="pane chat">
+        <h3>ChatView</h3>
+        <div class="chat-log">
+          <div class="msg system">Great. We are now working in folder: ENGL101_Essays.</div>
+          <div class="msg system">Are you ready to assess this essay? Let's do it.</div>
+          <div class="msg teacher">/feedback inline "Clarify your thesis in paragraph two."</div>
+        </div>
+      </aside>
+    </section>
+
+    <footer class="pane chat-interface">
+      <div class="input-sim">Type command, feedback, or question to the assistant...</div>
+      <button class="send" type="button" aria-label="Send message">➤</button>
+    </footer>
+  </div>
+</body>
+</html>
