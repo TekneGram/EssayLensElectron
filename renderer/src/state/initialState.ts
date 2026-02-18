@@ -32,7 +32,9 @@ export const initialRubricState: RubricState = {
 export const initialUiState: UiState = {
   activeTopTab: 'assessment',
   activeCommentsTab: 'comments',
-  theme: 'system'
+  theme: 'system',
+  isChatCollapsed: false,
+  assessmentSplitRatio: 0.66
 };
 
 export const initialAppState: AppState = {

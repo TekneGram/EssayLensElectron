@@ -48,6 +48,8 @@ export type RubricAction =
 export type UiAction =
   | { type: 'ui/setTopTab'; payload: AssessmentTopTab }
   | { type: 'ui/setCommentsTab'; payload: CommentsTab }
-  | { type: 'ui/setTheme'; payload: Theme };
+  | { type: 'ui/setTheme'; payload: Theme }
+  | { type: 'ui/setChatCollapsed'; payload: boolean }
+  | { type: 'ui/setAssessmentSplitRatio'; payload: number };
 
 export type AppAction = WorkspaceAction | ChatAction | FeedbackAction | RubricAction | UiAction;

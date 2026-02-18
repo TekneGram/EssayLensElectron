@@ -26,4 +26,33 @@ describe('uiReducer', () => {
     expect(comments.activeCommentsTab).toBe('score');
     expect(themed.theme).toBe('light');
   });
+
+  it('changes chat collapsed state', () => {
+    const collapsed = uiReducer(initialUiState, {
+      type: 'ui/setChatCollapsed',
+      payload: true
+    });
+
+    expect(collapsed.isChatCollapsed).toBe(true);
+    expect(initialUiState.isChatCollapsed).toBe(false);
+  });
+
+  it('sets and clamps assessment split ratio', () => {
+    const updated = uiReducer(initialUiState, {
+      type: 'ui/setAssessmentSplitRatio',
+      payload: 0.72
+    });
+    const clampedLow = uiReducer(initialUiState, {
+      type: 'ui/setAssessmentSplitRatio',
+      payload: 0.1
+    });
+    const clampedHigh = uiReducer(initialUiState, {
+      type: 'ui/setAssessmentSplitRatio',
+      payload: 1.2
+    });
+
+    expect(updated.assessmentSplitRatio).toBe(0.72);
+    expect(clampedLow.assessmentSplitRatio).toBe(0.35);
+    expect(clampedHigh.assessmentSplitRatio).toBe(0.8);
+  });
 });

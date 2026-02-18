@@ -20,6 +20,8 @@ describe('AssessmentWindow tabs', () => {
 
     expect(assessmentTab.getAttribute('aria-selected')).toBe('true');
     expect(rubricTab.getAttribute('aria-selected')).toBe('false');
+    expect(assessmentTab.className).toContain('active');
+    expect(rubricTab.className).toBe('tab');
     expect(assessmentPanel.hasAttribute('hidden')).toBe(false);
     expect(rubricPanel.hasAttribute('hidden')).toBe(true);
   });
@@ -42,6 +44,8 @@ describe('AssessmentWindow tabs', () => {
 
     expect(assessmentTab.getAttribute('aria-selected')).toBe('false');
     expect(rubricTab.getAttribute('aria-selected')).toBe('true');
+    expect(rubricTab.className).toContain('active');
+    expect(assessmentTab.className).toBe('tab');
     expect(assessmentPanel.hasAttribute('hidden')).toBe(true);
     expect(rubricPanel.hasAttribute('hidden')).toBe(false);
   });

@@ -1,18 +1,19 @@
 # Layout Spec (UI Frame)
 
 ## Purpose
-Define the canonical UI frame and region layout for EssayLens across top-level tab states.
+Define the canonical UI frame and region layout for EssayLens across top-level tab states, including current collapse/resize behavior.
 
 ## Scope
 - In scope:
   - Global shell regions and placement
-  - `AssessmentWindow` layout for both `AssessmentTab` and `RubricTab`
-  - Chat region placement
-  - Baseline sizing intent
+  - `AssessmentWindow` layout for `AssessmentTab` and `RubricTab`
+  - `ChatView` collapse rail behavior
+  - `AssessmentTab` pane split-resize behavior
+  - Baseline sizing intent and responsive fallback
 - Out of scope:
-  - Feature interaction logic
-  - Data fetching/persistence behavior
-  - Detailed resize/collapse mechanics (see pane-resize spec)
+  - Backend/data workflows
+  - Python service internals
+  - Detailed visual token values (see `09_styles_spec.md`)
 
 ## Component Codes
 - `LB` = `LoaderBar`
@@ -21,120 +22,145 @@ Define the canonical UI frame and region layout for EssayLens across top-level t
 - `OTV` = `OriginalTextView`
 - `CV` = `CommentsView`
 - `RSV` = `RubricSelectionView`
+- `RV` = `RubricView`
+- `CH` = `ChatView`
+- `CHR` = collapsed chat rail
+- `CI` = `ChatInterface`
 
 ## Canonical Layout Diagrams
 
-### When `AssessmentWindow` is on `AssessmentTab`
+### `AssessmentWindow` on `AssessmentTab` (image closed, resizable 2-pane)
 ```txt
----------------------------------------------------------
-|LB|FDB|----AssessmentWindow(AssessmentTab)--|-ChatView-|
-|LB|FDB|-----IV----|----OTV----|---CV--------|-ChatView-|
----------------------------------------------------------
-|--------------------ChatInterface----------------------|
----------------------------------------------------------
+-------------------------------------------------------------
+|LB|FDB|------AssessmentWindow(AssessmentTab)------|--CH-----|
+|LB|FDB|---------OTV---|split|---CV---------------|--CH-----|
+-------------------------------------------------------------
+|--------------------------CI--------------------------------|
+-------------------------------------------------------------
 ```
 
-### When `AssessmentWindow` is on `RubricTab`
+### `AssessmentWindow` on `AssessmentTab` (image open, fixed 3-pane)
 ```txt
----------------------------------------------------------
-|LB|FDB|------AssessmentWindow(RubricTab)----|-ChatView-|
-|LB|FDB|---RSV---|-----------RubricView------|-ChatView-|
----------------------------------------------------------
-|--------------------ChatInterface----------------------|
----------------------------------------------------------
+-------------------------------------------------------------------
+|LB|FDB|----------AssessmentWindow(AssessmentTab)---------|--CH-----|
+|LB|FDB|----IV----|--------------OTV--------------|---CV--|--CH-----|
+-------------------------------------------------------------------
+|-------------------------------CI----------------------------------|
+-------------------------------------------------------------------
+```
+
+### `AssessmentWindow` on `RubricTab`
+```txt
+-------------------------------------------------------------
+|LB|FDB|--------AssessmentWindow(RubricTab)--------|--CH-----|
+|LB|FDB|------RSV------|-----------RV--------------|--CH-----|
+-------------------------------------------------------------
+|---------------------------CI-------------------------------|
+-------------------------------------------------------------
+```
+
+### Chat collapsed state
+```txt
+-------------------------------------------------------------
+|LB|FDB|--------------AssessmentWindow---------------|CHRrail|
+-------------------------------------------------------------
+|---------------------------CI-------------------------------|
+-------------------------------------------------------------
 ```
 
 ## Region Model
 
 ### Main row (top)
 Left to right:
-1. `LB` (narrow, tall)
-2. `FDB` (narrow, tall)
-3. `AssessmentWindow` (primary workspace area)
-4. `ChatView` (right-side conversation/history area)
+1. `LB` (fixed narrow column)
+2. `FDB` (fixed narrow column)
+3. `AssessmentWindow` (primary flexible column)
+4. `CH` (expanded chat column) or `CHR` (collapsed rail)
 
 ### Bottom row
-- `ChatInterface` spans full width of the app.
+- `CI` spans full app width in all states.
+
+## Behavior Rules
+1. `AssessmentWindow` always occupies the primary middle workspace column.
+2. `CI` is always visible and full-width.
+3. `CH` may collapse into `CHR`; when collapsed, only the right chat column width changes.
+4. `LB` and `FDB` widths remain fixed; they do not expand when chat collapses.
+5. `AssessmentWindow` absorbs reclaimed width when chat collapses.
+6. Chat intent from `CI` can re-open `CH`.
+7. `AssessmentWindow` tab switch changes only internal content.
 
 ## AssessmentWindow Internal Layout
 
-### `AssessmentTab` mode
-- Primary internal panes:
-  - `OTV`
-  - `CV`
-- Optional pane:
-  - `IV` (visible/open when image file is selected; otherwise collapsed)
+### `AssessmentTab`
+- Two-pane mode (`IV` closed): `OTV | splitter | CV`
+  - splitter is draggable and keyboard-focusable
+  - adjusts relative width between `OTV` and `CV`
+- Three-pane mode (`IV` open): `IV | OTV | CV`
+  - no splitter shown
 
-### `RubricTab` mode
-- Two internal panes:
+### `RubricTab`
+- Two full-height panes:
   - `RSV` (left)
-  - `RubricView` (right, primary)
+  - `RV` (right)
+- Both panes stretch to bottom of `AssessmentWindow`.
 
-## Sizing Intent (Baseline)
-- `LB`, `FDB`: narrow utility columns.
-- `AssessmentWindow`: largest flexible column.
-- `ChatView`: medium-width column.
-- `ChatInterface`: fixed bottom band (full width).
+### `CommentsView` internal layout
+- Tabs row fixed at top.
+- Active tab panel fills remaining vertical space to bottom.
 
-## Layout Rules
-1. `AssessmentWindow` always occupies the primary middle workspace column.
-2. `ChatView` is always visible in the right column.
-3. `ChatInterface` is always visible at the bottom and full-width.
-4. Tab switch in `AssessmentWindow` changes only its internal content, not global shell structure.
+## Sizing Intent (Current Baseline)
+- `LB`: `46px`
+- `FDB`: `170px`
+- `CH` expanded: `320px`
+- `CHR` collapsed rail: `8px`
+- `CI` row height: `72px`
+- Splitter width (Assessment two-pane): `8px`
 
-## Companion: Suggested CSS Grid Template Areas
+## Companion: CSS Grid Template Areas
 
 ### Global shell grid
-Use a 2-row grid:
-- Row 1: main workspace (`LB`, `FDB`, `AssessmentWindow`, `ChatView`)
-- Row 2: full-width `ChatInterface`
-
 ```css
 .app-shell {
   display: grid;
   height: 100vh;
-  gap: 0.5rem;
-  grid-template-rows: minmax(0, 1fr) auto;
-  grid-template-columns: 56px 220px minmax(0, 1fr) 320px;
+  grid-template-rows: minmax(0, 1fr) 72px;
+  grid-template-columns: 46px 170px minmax(0, 1fr) 320px;
   grid-template-areas:
     "loader files assessment chatview"
     "chatinput chatinput chatinput chatinput";
 }
 
+.app-shell[data-chat-collapsed="true"] {
+  grid-template-columns: 46px 170px minmax(0, 1fr) 8px;
+}
+
 .loader-bar { grid-area: loader; }
 .file-display-bar { grid-area: files; }
 .assessment-window { grid-area: assessment; }
-.chat-view { grid-area: chatview; }
+.chat-view, .chat-collapsed-rail { grid-area: chatview; }
 .chat-interface { grid-area: chatinput; }
 ```
 
-### AssessmentWindow internal grid: `AssessmentTab` (3-pane capable)
-- Default (image hidden/collapsed): 2 panes
-- Image selected: 3 panes
-
+### AssessmentWindow internal grid: `AssessmentTab`
 ```css
 .assessment-tab {
   display: grid;
   height: 100%;
-  gap: 0.5rem;
-  min-width: 0;
+  min-height: 0;
 }
 
-/* 2-pane mode */
+/* 2-pane mode with resizable split */
 .assessment-tab[data-mode="two-pane"] {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 36%);
-  grid-template-areas: "otv cv";
+  grid-template-columns:
+    minmax(0, calc((100% - 8px) * var(--assessment-left-ratio, 0.66)))
+    8px
+    minmax(0, calc((100% - 8px) * (1 - var(--assessment-left-ratio, 0.66))));
 }
 
 /* 3-pane mode */
 .assessment-tab[data-mode="three-pane"] {
-  grid-template-columns: minmax(180px, 22%) minmax(0, 1fr) minmax(280px, 32%);
-  grid-template-areas: "iv otv cv";
+  grid-template-columns: minmax(140px, 18%) minmax(0, 1fr) minmax(240px, 34%);
 }
-
-.image-view { grid-area: iv; min-width: 0; }
-.original-text-view { grid-area: otv; min-width: 0; }
-.comments-view { grid-area: cv; min-width: 0; }
 ```
 
 ### AssessmentWindow internal grid: `RubricTab`
@@ -142,51 +168,36 @@ Use a 2-row grid:
 .rubric-tab {
   display: grid;
   height: 100%;
-  gap: 0.5rem;
-  min-width: 0;
+  min-height: 0;
   grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
-  grid-template-areas: "rsv rubric";
 }
-
-.rubric-selection-view { grid-area: rsv; min-width: 0; }
-.rubric-view { grid-area: rubric; min-width: 0; }
 ```
 
-### Responsive fallback (example)
-At narrower widths, stack the global columns and keep `ChatInterface` at bottom.
-
+### Responsive fallback (current)
 ```css
-@media (max-width: 1280px) {
-  .app-shell {
-    grid-template-columns: 56px minmax(180px, 28%) minmax(0, 1fr);
-    grid-template-areas:
-      "loader files assessment"
-      "loader files chatview"
-      "chatinput chatinput chatinput";
-    grid-template-rows: minmax(0, 1fr) minmax(220px, 34%) auto;
-  }
-}
-
-@media (max-width: 980px) {
+@media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "loader"
-      "files"
       "assessment"
       "chatview"
       "chatinput";
-    grid-template-rows: auto auto minmax(0, 1fr) minmax(180px, 32%) auto;
+    grid-template-rows: minmax(0, 1fr) minmax(180px, 32%) auto;
+  }
+
+  .loader-bar,
+  .file-display-bar {
+    display: none;
+  }
+
+  .assessment-tab,
+  .rubric-tab {
+    grid-template-columns: 1fr;
   }
 }
 ```
 
-### Notes
-- Use `min-width: 0` on pane containers to prevent overflow clipping issues.
-- If draggable resizing is enabled, these column values become dynamic inline styles or CSS variables.
-- Keep area names stable so feature components can map consistently.
-
 ## Notes
-- Panel card styling is optional; plain `div` containers are acceptable for initial frame build.
-- Keep this file as the source of truth for macro layout only.
-- Use feature specs for behavior details.
+- Keep `min-width: 0` and `min-height: 0` on pane containers to avoid overflow clipping.
+- Split ratio persistence/state is owned by the UI reducer.
+- This file is the source of truth for macro and pane layout behavior.

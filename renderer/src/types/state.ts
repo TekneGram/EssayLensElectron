@@ -35,6 +35,8 @@ export interface UiState {
   activeTopTab: AssessmentTopTab;
   activeCommentsTab: CommentsTab;
   theme: Theme;
+  isChatCollapsed: boolean;
+  assessmentSplitRatio: number;
 }
 
 export interface AppState {
