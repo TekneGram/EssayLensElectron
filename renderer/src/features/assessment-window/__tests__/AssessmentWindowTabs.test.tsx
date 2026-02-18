@@ -1,10 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { App } from '../../../App';
+import { AppStateProvider } from '../../../state';
 
 describe('AssessmentWindow tabs', () => {
   it('defaults to assessment tab selected', () => {
-    render(<App />);
+    render(
+      <AppStateProvider>
+        <App />
+      </AppStateProvider>
+    );
 
     const assessmentTab = screen.getByRole('tab', { name: 'Assessment' });
     const rubricTab = screen.getByRole('tab', { name: 'Rubric' });
@@ -18,7 +23,11 @@ describe('AssessmentWindow tabs', () => {
   });
 
   it('switches panels and aria-selected on tab click', () => {
-    render(<App />);
+    render(
+      <AppStateProvider>
+        <App />
+      </AppStateProvider>
+    );
 
     const assessmentTab = screen.getByRole('tab', { name: 'Assessment' });
     const rubricTab = screen.getByRole('tab', { name: 'Rubric' });

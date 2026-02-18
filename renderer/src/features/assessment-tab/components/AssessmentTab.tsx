@@ -1,7 +1,5 @@
-import { useState } from 'react';
-
-type SelectedFileType = 'image' | 'docx' | 'pdf' | 'other' | null;
-type CommentsTab = 'comments' | 'score';
+import { selectActiveCommentsTab, useAppDispatch, useAppState } from '../../../state';
+import type { CommentsTab, SelectedFileType } from '../../../state';
 
 interface AssessmentTabProps {
   selectedFileType: SelectedFileType;
@@ -37,7 +35,9 @@ function CommentsView({ activeTab, onTabChange }: { activeTab: CommentsTab; onTa
 }
 
 export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
-  const [activeCommentsTab, setActiveCommentsTab] = useState<CommentsTab>('comments');
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const activeCommentsTab = selectActiveCommentsTab(state);
   const isImageViewOpen = selectedFileType === 'image';
   const mode = isImageViewOpen ? 'three-pane' : 'two-pane';
 
@@ -45,7 +45,10 @@ export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
     <div className="assessment-tab" data-mode={mode}>
       {isImageViewOpen ? <ImageView /> : null}
       <OriginalTextView />
-      <CommentsView activeTab={activeCommentsTab} onTabChange={setActiveCommentsTab} />
+      <CommentsView
+        activeTab={activeCommentsTab}
+        onTabChange={(tab) => dispatch({ type: 'ui/setCommentsTab', payload: tab })}
+      />
     </div>
   );
 }
