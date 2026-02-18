@@ -1,0 +1,55 @@
+.app-shell {
+  display: grid;
+  height: 100vh;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: 56px 220px minmax(0, 1fr) 320px;
+  grid-template-areas:
+    "loader files assessment chatview"
+    "chatinput chatinput chatinput chatinput";
+}
+
+.loader-bar { grid-area: loader; }
+.file-display-bar { grid-area: files; }
+.assessment-window { grid-area: assessment; min-width: 0; }
+.chat-view { grid-area: chatview; }
+.chat-interface { grid-area: chatinput; }
+
+.assessment-tab {
+  display: grid;
+  gap: var(--space-2);
+  height: 100%;
+}
+
+.assessment-tab[data-mode="two-pane"] {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 36%);
+}
+
+.assessment-tab[data-mode="three-pane"] {
+  grid-template-columns: minmax(180px, 22%) minmax(0, 1fr) minmax(280px, 32%);
+}
+
+.rubric-tab {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
+}
+
+@media (max-width: 700px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "assessment"
+      "chatview"
+      "chatinput";
+    grid-template-rows: minmax(0, 1fr) minmax(180px, 32%) auto;
+  }
+
+  .loader-bar,
+  .file-display-bar {
+    display: none;
+  }
+
+  .rubric-tab {
+    grid-template-columns: 1fr;
+  }
+}

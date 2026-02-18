@@ -1,4 +1,6 @@
 # EssayLens
+Read what this app is about before implementing anything.
+Then follow the instructions to implement the relevant phase.
 
 ## What is EssayLens tech stack?
 - This app is an electron app.
@@ -6,7 +8,6 @@
 - Tanstack will manage state in the front end.
 - React with vite will provide the UI and component states
 - Python is spawned in the backend to handle all LLM interactions. Python does not need to touch the database
-- 
 - TypeScript is used everywhere in electron.
 
 ## Product Description
@@ -53,82 +54,22 @@
 
    ## Delivery Mode: Phase-by-Phase (Round 1)
 
-  For each phase:
-  1. Read the listed spec files first.
-  2. Implement only that phase scope.
-  3. Run relevant checks.
-  4. Stop and summarize.
-  5. Wait for user confirmation before next phase.
-  6. On confirmation, run:
-     - `git add ...`
-     - `git commit -m "..."`
-     - `git push`
-     - create PR (or update existing PR)
+  For the phase requested:
+  1. Read `10_round1_implementation_checklist.md` and identify information about the phase requested.
+  2. Read the listed spec files first under the References part of the phase requested in step 1.
+  3. Implement only that phase scope.
+  4. Prepare relevant checks.
+     - Starting at the end of Phase 3, output these commands for the user to run manually (do not run them as the agent):
+       - `npm run dev` (confirm app starts)
+       - `npm run build`
+       - `npm run start:prod`
+       - `npm run package` (or `npm run package:dir` for local packaging smoke)
+  5. Stop and summarize.
+  6. Wait for user confirmation before next phase.
 
   Do not continue to next phase automatically.
 
-  Then define a phase/spec matrix like this:
-
-  ### Phase 0: Repo Structure
-  Read:
-  - 03_folder_system.md
-  - 00_app_architecture_spec.md
-
-  ### Phase 1: Tooling/Scripts
-  Read:
-  - 03_folder_system.md
-  - 00_app_architecture_spec.md
-
-  ### Phase 2: Electron Runtime Skeleton
-  Read:
-  - 03_folder_system.md
-  - 00_app_architecture_spec.md
-  - 06_python_backend_integration_spec.md
-
-  ### Phase 3: Renderer Frame + Layout
-  Read:
-  - 07_layout_spec.md
-  - 09_styles_spec.md
-  - 02_broad_component_hierarchy.md
-  - features/02_assessment_window_tabs_spec.md
-  - features/03_assessment-tab.md
-  - features/04_rubric-tab.md
-  - features/05_assessment-pane-resize.md
-
-  ### Phase 4: Global State
-  Read:
-  - 04_state_management.md
-  - 05_typescript_interfaces.md
-  - 00_app_architecture_spec.md
-
-  ### Phase 5: Types
-  Read:
-  - 05_typescript_interfaces.md
-  - 01_database_plan.md
-
-  ### Phase 6: Query + Notifications
-  Read:
-  - 00_app_architecture_spec.md
-  - 04_state_management.md
-
-  ### Phase 7: First Workflow
-  Read:
-  - features/01_file-control.md
-  - 01_database_plan.md
-  - 05_typescript_interfaces.md
-  - 07_layout_spec.md
-
-  ### Phase 8: Python Baseline
-  Read:
-  - 06_python_backend_integration_spec.md
-  - 00_app_architecture_spec.md
-
-  ### Phase 9: Validation
-  Read:
-  - 10_round1_implementation_checklist.md
-
   ## Git Policy Per Phase
-  - Branch: `feat/round1-phase-<n>-<short-name>`
-  - Commit: `phase <n>: <scope>`
+  Output a set of git commands that I can copy and paste into the terminal, including add, commit, push and pull request using gh.
+  - In the commit include the phase number. Give details in the body.
   - Open/update PR after each phase.
-  - Do not squash or amend unless requested.

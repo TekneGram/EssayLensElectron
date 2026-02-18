@@ -102,8 +102,12 @@ src/
   features/
     assessment-tab/
       AssessmentTabContainer.tsx
+      __tests__/
+        AssessmentTabContainer.test.tsx
       hooks/
         useAssessmentTabLayout.ts
+        __tests__/
+          useAssessmentTabLayout.test.ts
       components/
         AssessmentTab.tsx
         ImageView.tsx
@@ -113,7 +117,16 @@ src/
         CommentsView.tsx
         CommentView.tsx
         ScoreTool.tsx
+        __tests__/
+          AssessmentTab.test.tsx
+          ImageView.test.tsx
+          OriginalTextView.test.tsx
+          CommentsView.test.tsx
+          ScoreTool.test.tsx
       types.ts
+tests/
+  integration/
+    assessment-tab.layout.integration.test.tsx
 ```
 
 ## Notes

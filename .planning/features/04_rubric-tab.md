@@ -86,13 +86,24 @@ src/
   features/
     rubric-tab/
       RubricTabContainer.tsx
+      __tests__/
+        RubricTabContainer.test.tsx
       components/
         RubricTab.tsx
         RubricSelectionView.tsx
         RubricView.tsx
+        __tests__/
+          RubricTab.test.tsx
+          RubricSelectionView.test.tsx
+          RubricView.test.tsx
       hooks/
         useRubricTabLayout.ts
+        __tests__/
+          useRubricTabLayout.test.ts
       types.ts
+tests/
+  integration/
+    rubric-tab.layout.integration.test.tsx
 ```
 
 ## Notes

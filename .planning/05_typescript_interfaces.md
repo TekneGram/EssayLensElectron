@@ -282,7 +282,7 @@ export type AppResult<T> =
 ## Suggested File Placement
 
 ```txt
-src/
+renderer/src/
   types/
     primitives.ts
     workspace.ts
@@ -293,6 +293,12 @@ src/
     actions.ts
     commands.ts
     result.ts
+    __tests__/
+      primitives.test.ts
+      result.test.ts
+tests/
+  integration/
+    ipc-contracts.integration.test.ts
 ```
 
 This split keeps shared contracts discoverable and avoids very large single-file type definitions.

@@ -1,0 +1,19 @@
+html[data-theme="light"] {
+  --bg-app: #f4f6fb;
+  --bg-surface: #ffffff;
+  --bg-muted: #eef2f8;
+  --text-primary: #121826;
+  --border-subtle: #e2e8f0;
+  --accent-primary: #2f5ec4;
+  --accent-contrast: #ffffff;
+}
+
+html[data-theme="dark"] {
+  --bg-app: #0f1420;
+  --bg-surface: #151c2b;
+  --bg-muted: #1f2a3f;
+  --text-primary: #eef2ff;
+  --border-subtle: #2a344a;
+  --accent-primary: #7aa2ff;
+  --accent-contrast: #0f1420;
+}

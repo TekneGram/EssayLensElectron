@@ -12,6 +12,15 @@ Define the high-level technical architecture for EssayLens so UI features and ba
 - AI/LLM integration: Python process spawned by Electron main process
 - User notifications: React-Toastify
 
+## Testing Stack
+- Unit + integration runner: Vitest.
+- Component testing: `@testing-library/react` + `@testing-library/user-event`.
+- Electron end-to-end testing: Playwright (`_electron`).
+
+Round 1 boundary:
+- Use the above stack only.
+- Defer additional tooling (for example dedicated accessibility tooling and expanded DB harnesses) to later rounds.
+
 ## Architecture Layers
 1. Renderer (React UI)
 - Pure UI components, feature containers, hooks.
@@ -76,6 +85,11 @@ For each feature:
 - `hooks/`: reusable feature logic
 - `services/`: adapter calls (IPC-facing in renderer, infra-facing in main)
 - `types.ts`: feature-level TypeScript contracts
+- `__tests__/` and `*.test.ts(x)`: co-located unit/integration tests for that feature's containers/hooks/components
+
+Project-level test placement:
+- `tests/integration/`: cross-layer integration tests (renderer <-> preload <-> main <-> DB/Python)
+- `tests/e2e/`: Electron end-to-end workflows
 
 ## Non-Goals For This Stage
 - Detailed query-key design and cache policy fine-tuning

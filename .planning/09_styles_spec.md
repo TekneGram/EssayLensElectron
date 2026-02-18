@@ -28,12 +28,16 @@ renderer/src/styles/
   layout.css          # app shell, grid areas, pane/layout scaffolding
   components.css      # shared component-level patterns (tabs, buttons, cards, dividers)
   utilities.css       # optional utility classes
+  __tests__/
+    themes.test.ts    # theme token and root selector behavior checks
+    layout.test.tsx   # shell/layout class behavior checks
 ```
 
 Feature-local styles should live with the feature:
 
 ```txt
 renderer/src/features/<feature>/components/<Component>.css
+renderer/src/features/<feature>/components/__tests__/<Component>.style.test.tsx
 ```
 
 Import order recommendation (in `renderer/src/main.tsx`):

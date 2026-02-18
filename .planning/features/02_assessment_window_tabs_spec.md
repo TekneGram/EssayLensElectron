@@ -73,12 +73,22 @@ src/
   features/
     assessment-window/
       AssessmentWindowContainer.tsx
+      __tests__/
+        AssessmentWindowContainer.test.tsx
       components/
         AssessmentWindow.tsx
         AssessmentWindowTabs.tsx
+        __tests__/
+          AssessmentWindow.test.tsx
+          AssessmentWindowTabs.test.tsx
       hooks/
         useAssessmentWindowTabs.ts
+        __tests__/
+          useAssessmentWindowTabs.test.ts
       types.ts
+tests/
+  integration/
+    assessment-window-tabs.integration.test.tsx
 ```
 
 ## Notes

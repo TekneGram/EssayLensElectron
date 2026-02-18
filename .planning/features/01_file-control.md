@@ -79,15 +79,30 @@
 
   src/features/file-control/
     FileControlContainer.tsx
+    __tests__/
+      FileControlContainer.test.tsx
     hooks/useFileControl.ts
+    hooks/__tests__/
+      useFileControl.test.ts
     components/
       FileControl.tsx
       LoaderBar.tsx
       FileDisplayBar.tsx
+      __tests__/
+        FileControl.test.tsx
+        LoaderBar.test.tsx
+        FileDisplayBar.test.tsx
     services/
       openFolderPicker.ts
       scanFilesTwoLevels.ts
       workspaceRepository.ts
+      __tests__/
+        openFolderPicker.test.ts
+        scanFilesTwoLevels.test.ts
+        workspaceRepository.test.ts
+  tests/
+    integration/
+      file-control.workflow.integration.test.ts
 
   ## Notes
 

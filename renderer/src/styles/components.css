@@ -1,0 +1,33 @@
+.loader-bar,
+.file-display-bar,
+.assessment-window,
+.chat-view,
+.chat-interface,
+.image-view,
+.original-text-view,
+.comments-view,
+.rubric-selection-view,
+.rubric-view {
+  border: var(--pane-divider-width) solid var(--border-subtle);
+  background: var(--bg-surface);
+  padding: var(--space-3);
+}
+
+.assessment-window-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.tab {
+  border: var(--pane-divider-width) solid var(--border-subtle);
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.375rem 0.625rem;
+}
+
+.tab.is-active {
+  background: var(--accent-primary);
+  color: var(--accent-contrast);
+}

@@ -30,22 +30,26 @@ project-root/
 │   │   │   ├── workspaceHandlers.ts
 │   │   │   ├── assessmentHandlers.ts
 │   │   │   ├── rubricHandlers.ts
-│   │   │   └── chatHandlers.ts
+│   │   │   ├── chatHandlers.ts
+│   │   │   └── __tests__/
 │   │   ├── db/
 │   │   │   ├── sqlite.ts
 │   │   │   └── repositories/
 │   │   │       ├── workspaceRepository.ts
 │   │   │       ├── feedbackRepository.ts
 │   │   │       ├── rubricRepository.ts
-│   │   │       └── chatRepository.ts
+│   │   │       ├── chatRepository.ts
+│   │   │       └── __tests__/
 │   │   └── services/
 │   │       ├── fileScanner.ts
 │   │       ├── documentExtractor.ts
 │   │       ├── llmOrchestrator.ts
-│   │       └── feedbackFileGenerator.ts
+│   │       ├── feedbackFileGenerator.ts
+│   │       └── __tests__/
 │   └── preload/
 │       ├── index.ts
-│       └── apiTypes.ts
+│       ├── apiTypes.ts
+│       └── __tests__/
 ├── renderer/
 │   ├── index.html
 │   ├── vite.config.ts
@@ -58,11 +62,16 @@ project-root/
 │       ├── state/
 │       ├── services/
 │       ├── types/
-│       └── styles/
+│       ├── styles/
+│       └── test/
+│           └── setup.ts
 ├── python/
 │   ├── worker.py
 │   ├── llm/
 │   └── requirements.txt
+├── tests/
+│   ├── integration/
+│   └── e2e/
 ├── package.json
 └── tsconfig.base.json
 ```
@@ -83,6 +92,11 @@ renderer/src/features/<feature>/
   hooks/
   services/
   types.ts
+  __tests__/
+    <Feature>Container.test.tsx
+  components/__tests__/
+  hooks/__tests__/
+  services/__tests__/
 ```
 
 Rules:
@@ -100,6 +114,7 @@ electron/main/
     assessmentHandlers.ts
     rubricHandlers.ts
     chatHandlers.ts
+    __tests__/
   db/
     sqlite.ts
     repositories/
@@ -107,11 +122,13 @@ electron/main/
       feedbackRepository.ts
       rubricRepository.ts
       chatRepository.ts
+      __tests__/
   services/
     fileScanner.ts
     documentExtractor.ts
     llmOrchestrator.ts
     feedbackFileGenerator.ts
+    __tests__/
 ```
 
 Rules:
@@ -140,10 +157,11 @@ Rules:
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:electron\"",
     "dev:renderer": "vite --config renderer/vite.config.ts",
     "dev:electron": "wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "start:prod": "cross-env NODE_ENV=production electron .",
     "typecheck": "tsc -p renderer/tsconfig.json --noEmit && tsc -p electron/tsconfig.json --noEmit",
     "build": "npm run build:renderer && npm run build:electron",
     "build:renderer": "vite build --config renderer/vite.config.ts",
-    "build:electron": "tsc -p electron/tsconfig.json",
+    "build:electron": "tsc -p electron/tsconfig.build.json",
     "package": "npm run build && electron-builder",
     "package:dir": "npm run build && electron-builder --dir"
   }
@@ -154,6 +172,24 @@ Notes:
 - `concurrently`, `wait-on`, and `cross-env` are expected dev dependencies.
 - `dev:electron` should launch Electron only after renderer dev server is ready.
 - Electron main loads `VITE_DEV_SERVER_URL` in dev and local built files in production.
+- `start:prod` should run Electron against built production assets (no Vite dev server).
+- Agent policy: do not execute `dev`/`start:prod`/`package` commands automatically; output them for manual user run.
+
+## Build Config Exclusion Policy
+
+Production builds must compile runtime code only.
+
+- Add dedicated build tsconfigs:
+  - `renderer/tsconfig.build.json`
+  - `electron/tsconfig.build.json`
+- Build tsconfigs should exclude test/spec and planning content:
+  - `**/*.test.*`
+  - `**/*.spec.*`
+  - `**/__tests__/**`
+  - `**/tests/**`
+  - `.planning/**`
+- `build:electron` and any TypeScript build commands should target build tsconfigs, not test-inclusive configs.
+- Runtime code must never import from test/spec folders or `.planning/`.
 
 ## Build/Package Expectations
 - Dev mode:
@@ -166,6 +202,25 @@ Notes:
   - Bundle Electron app with renderer build assets.
   - Include Python runtime/entrypoints as extra resources.
   - Ensure SQLite DB path resolves to app data directory at runtime.
+
+### Packaging Include/Exclude Rules
+
+Use `electron-builder` with allowlist-first file patterns:
+
+- Include only runtime assets:
+  - `renderer/dist/**`
+  - `dist-electron/**` (or configured Electron output)
+  - required `python/**` runtime files/resources
+- Exclude non-runtime content:
+  - `!**/*.test.*`
+  - `!**/*.spec.*`
+  - `!**/__tests__/**`
+  - `!**/tests/**`
+  - `!.planning/**`
+  - `!**/*.md` (except any explicitly required runtime docs)
+- Python packaging rule:
+  - include worker/runtime modules only
+  - exclude test/dev-only assets
 
 ## Runtime Path Expectations
 - Dev:
@@ -184,3 +239,5 @@ Current baseline assumes a single package root for simplicity.
 - Renderer hot reload works while Electron is open.
 - `npm run build` produces renderer and electron artifacts with no import path conflicts.
 - `npm run package` creates installable artifacts and includes required Python resources.
+- Packaged artifacts do not contain tests/spec files or `.planning/` content.
+- CI packaging smoke check fails if forbidden paths are present (`test`, `spec`, `__tests__`, `.planning`).

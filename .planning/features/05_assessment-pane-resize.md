@@ -115,11 +115,21 @@ src/
     assessment-tab/
       hooks/
         useAssessmentTabLayout.ts
+        __tests__/
+          useAssessmentTabLayout.resize.test.ts
       components/
         AssessmentPaneDivider.tsx
         AssessmentCollapsedHandle.tsx
+        __tests__/
+          AssessmentPaneDivider.test.tsx
+          AssessmentCollapsedHandle.test.tsx
       utils/
         paneLayoutMath.ts
+        __tests__/
+          paneLayoutMath.test.ts
+tests/
+  integration/
+    assessment-pane-resize.integration.test.tsx
 ```
 
 ## Notes
