@@ -1,5 +1,6 @@
 import type { IpcRendererEvent } from 'electron';
 import type { ApiResult, EssayLensApi } from './apiTypes';
+import type { SendChatMessagePayload } from '../shared/chatContracts';
 
 type IpcRendererLike = {
   invoke<TResult = unknown>(channel: string, payload?: unknown): Promise<TResult>;
@@ -33,7 +34,7 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     },
     chat: {
       listMessages: (fileId?: string) => invokeResult('chat/listMessages', { fileId }),
-      sendMessage: (payload: unknown) => invokeResult('chat/sendMessage', payload)
+      sendMessage: (payload: SendChatMessagePayload) => invokeResult('chat/sendMessage', payload)
     }
   };
 }
