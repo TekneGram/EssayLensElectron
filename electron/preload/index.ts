@@ -11,8 +11,8 @@ type ContextBridgeLike = {
 };
 
 export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
-  const invokeResult = (channel: string, payload?: unknown): Promise<ApiResult<unknown>> =>
-    ipcRenderer.invoke<ApiResult<unknown>>(channel, payload);
+  const invokeResult = <T>(channel: string, payload?: unknown): Promise<ApiResult<T>> =>
+    ipcRenderer.invoke<ApiResult<T>>(channel, payload);
 
   return {
     workspace: {

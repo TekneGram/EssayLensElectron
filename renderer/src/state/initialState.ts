@@ -3,6 +3,7 @@ import type { AppState, ChatState, FeedbackState, RubricState, UiState, Workspac
 export const initialWorkspaceState: WorkspaceState = {
   currentFolder: null,
   files: [],
+  status: 'idle',
   selectedFile: {
     fileId: null,
     status: 'idle'

@@ -1,11 +1,12 @@
 import type { AppError, AppResult } from '../shared/appResult';
+import type { SelectFolderResultData } from '../shared/workspaceContracts';
 
 export type ApiError = AppError;
 export type ApiResult<T> = AppResult<T>;
 
 export interface EssayLensApi {
   workspace: {
-    selectFolder(): Promise<ApiResult<unknown>>;
+    selectFolder(): Promise<ApiResult<SelectFolderResultData>>;
     listFiles(folderId: string): Promise<ApiResult<unknown>>;
     getCurrentFolder(): Promise<ApiResult<unknown>>;
   };

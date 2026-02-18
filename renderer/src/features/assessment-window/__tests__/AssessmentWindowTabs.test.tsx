@@ -1,14 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { App } from '../../../App';
-import { AppStateProvider } from '../../../state';
+import { AppProviders } from '../../../app/AppProviders';
+import { createAppQueryClient } from '../../../app/queryClient';
 
 describe('AssessmentWindow tabs', () => {
   it('defaults to assessment tab selected', () => {
+    const queryClient = createAppQueryClient();
     render(
-      <AppStateProvider>
+      <AppProviders queryClient={queryClient}>
         <App />
-      </AppStateProvider>
+      </AppProviders>
     );
 
     const assessmentTab = screen.getByRole('tab', { name: 'Assessment' });
@@ -23,10 +25,11 @@ describe('AssessmentWindow tabs', () => {
   });
 
   it('switches panels and aria-selected on tab click', () => {
+    const queryClient = createAppQueryClient();
     render(
-      <AppStateProvider>
+      <AppProviders queryClient={queryClient}>
         <App />
-      </AppStateProvider>
+      </AppProviders>
     );
 
     const assessmentTab = screen.getByRole('tab', { name: 'Assessment' });

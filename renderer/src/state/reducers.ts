@@ -14,6 +14,16 @@ export function workspaceReducer(state: WorkspaceState = initialWorkspaceState, 
         ...state,
         files: action.payload
       };
+    case 'workspace/setStatus':
+      return {
+        ...state,
+        status: action.payload
+      };
+    case 'workspace/setError':
+      return {
+        ...state,
+        error: action.payload
+      };
     case 'workspace/setSelectedFile':
       return {
         ...state,
