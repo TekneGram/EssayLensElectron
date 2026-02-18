@@ -4,6 +4,22 @@ export interface WorkspaceFolderDto {
   name: string;
 }
 
+export interface WorkspaceFileDto {
+  id: string;
+  folderId: string;
+  name: string;
+  path: string;
+  kind: string;
+}
+
 export interface SelectFolderResultData {
+  folder: WorkspaceFolderDto | null;
+}
+
+export interface ListFilesResultData {
+  files: WorkspaceFileDto[];
+}
+
+export interface GetCurrentFolderResultData {
   folder: WorkspaceFolderDto | null;
 }

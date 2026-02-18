@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import type { AppError } from '../../../../../electron/shared/appResult';
-import type { SelectFolderResultData } from '../../../../../electron/shared/workspaceContracts';
+import type { ListFilesResultData, SelectFolderResultData, WorkspaceFileDto } from '../../../../../electron/shared/workspaceContracts';
 import { useAppDispatch, useAppState } from '../../../state';
-import type { WorkspaceFile, WorkspaceFolder } from '../../../types';
+import { fileKindFromExtension, type WorkspaceFile, type WorkspaceFolder } from '../../../types';
 
 interface AppResultSuccess<T> {
   ok: true;
@@ -16,15 +16,19 @@ interface AppResultFailure {
 }
 
 type SelectFolderResult = AppResultSuccess<SelectFolderResultData> | AppResultFailure;
+type ListFilesResult = AppResultSuccess<ListFilesResultData> | AppResultFailure;
 
 interface UseFileControlResult {
   files: WorkspaceFile[];
+  selectedFileId: string | null;
   isLoading: boolean;
   pickFolder: () => Promise<void>;
+  selectFile: (file: WorkspaceFile) => void;
 }
 
 type WorkspaceApi = {
   selectFolder: () => Promise<SelectFolderResult>;
+  listFiles: (folderId: string) => Promise<ListFilesResult>;
 };
 
 function getWorkspaceApi(): WorkspaceApi {
@@ -46,29 +50,73 @@ function toWorkspaceFolder(folder: SelectFolderResultData['folder']): WorkspaceF
   };
 }
 
+function toWorkspaceFiles(files: WorkspaceFileDto[]): WorkspaceFile[] {
+  return files.map((file) => ({
+    id: file.id,
+    folderId: file.folderId,
+    name: file.name,
+    path: file.path,
+    kind: fileKindFromExtension(file.kind)
+  }));
+}
+
 export function useFileControl(): UseFileControlResult {
   const dispatch = useAppDispatch();
   const state = useAppState();
 
   const mutation = useMutation({
     mutationFn: async () => {
-      return await getWorkspaceApi().selectFolder();
+      const workspaceApi = getWorkspaceApi();
+      const selectResult = await workspaceApi.selectFolder();
+      if (!selectResult.ok || !selectResult.data.folder) {
+        return {
+          selectResult,
+          listResult: null
+        };
+      }
+
+      const listResult = await workspaceApi.listFiles(selectResult.data.folder.id);
+      return {
+        selectResult,
+        listResult
+      };
     },
     onMutate: () => {
       dispatch({ type: 'workspace/setStatus', payload: 'loading' });
       dispatch({ type: 'workspace/setError', payload: undefined });
     },
-    onSuccess: (result) => {
-      if (!result.ok) {
+    onSuccess: ({ selectResult, listResult }) => {
+      if (!selectResult.ok) {
         dispatch({ type: 'workspace/setStatus', payload: 'error' });
-        dispatch({ type: 'workspace/setError', payload: result.error.message });
-        toast.error(result.error.message);
+        dispatch({ type: 'workspace/setError', payload: selectResult.error.message });
+        toast.error(selectResult.error.message);
         return;
       }
 
-      dispatch({ type: 'workspace/setFolder', payload: toWorkspaceFolder(result.data.folder) });
-      dispatch({ type: 'workspace/setStatus', payload: 'idle' });
+      if (!selectResult.data.folder) {
+        dispatch({ type: 'workspace/setStatus', payload: 'idle' });
+        dispatch({ type: 'workspace/setError', payload: undefined });
+        return;
+      }
+
+      dispatch({ type: 'workspace/setFolder', payload: toWorkspaceFolder(selectResult.data.folder) });
+      dispatch({ type: 'workspace/setSelectedFile', payload: { fileId: null, status: 'idle' } });
       dispatch({ type: 'workspace/setError', payload: undefined });
+
+      if (!listResult) {
+        dispatch({ type: 'workspace/setStatus', payload: 'idle' });
+        return;
+      }
+
+      if (!listResult.ok) {
+        dispatch({ type: 'workspace/setStatus', payload: 'error' });
+        dispatch({ type: 'workspace/setError', payload: listResult.error.message });
+        toast.error(listResult.error.message);
+        return;
+      }
+
+      dispatch({ type: 'workspace/setFiles', payload: toWorkspaceFiles(listResult.data.files) });
+      dispatch({ type: 'workspace/setStatus', payload: 'idle' });
     },
     onError: () => {
       const message = 'Could not select a folder.';
@@ -80,9 +128,23 @@ export function useFileControl(): UseFileControlResult {
 
   return {
     files: state.workspace.files,
+    selectedFileId: state.workspace.selectedFile.fileId,
     isLoading: mutation.isPending || state.workspace.status === 'loading',
     pickFolder: async () => {
       await mutation.mutateAsync();
+    },
+    selectFile: (file) => {
+      dispatch({ type: 'workspace/setSelectedFile', payload: { fileId: file.id, status: 'ready' } });
+      dispatch({
+        type: 'chat/addMessage',
+        payload: {
+          id: `system-${file.id}-${Date.now()}`,
+          role: 'system',
+          content: `Selected file: ${file.name}`,
+          relatedFileId: file.id,
+          createdAt: new Date().toISOString()
+        }
+      });
     }
   };
 }
