@@ -7,6 +7,6 @@
     "outDir": "../dist-electron",
     "rootDir": "."
   },
-  "include": ["main/**/*.ts", "preload/**/*.ts"],
+  "include": ["main/**/*.ts", "preload/**/*.ts", "shared/**/*.ts"],
   "exclude": ["../.planning/**", "../dist-electron/**"]
 }

@@ -1,18 +1,7 @@
-export interface ApiResultSuccess<T> {
-  ok: true;
-  data: T;
-}
+import type { AppError, AppResult } from '../shared/appResult';
 
-export interface ApiResultFailure {
-  ok: false;
-  error: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-}
-
-export type ApiResult<T> = ApiResultSuccess<T> | ApiResultFailure;
+export type ApiError = AppError;
+export type ApiResult<T> = AppResult<T>;
 
 export interface EssayLensApi {
   workspace: {

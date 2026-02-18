@@ -1,19 +1,9 @@
-export interface AppError {
-  code: string;
-  message: string;
-  details?: unknown;
-}
-
-export type AppResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: AppError };
+import { appErr } from '../../shared/appResult';
+import type { AppResult } from '../../shared/appResult';
 
 export function notImplementedResult(operation: string): AppResult<never> {
-  return {
-    ok: false,
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: `${operation} is not implemented yet.`
-    }
-  };
+  return appErr({
+    code: 'NOT_IMPLEMENTED',
+    message: `${operation} is not implemented yet.`
+  });
 }

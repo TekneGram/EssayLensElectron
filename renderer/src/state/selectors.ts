@@ -1,6 +1,5 @@
 import type { AppState, SelectedFileType } from './types';
-
-const IMAGE_FILE_KINDS = new Set(['jpeg', 'jpg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif', 'avif', 'tiff', 'tif']);
+import { isImageFileKind } from '../types';
 
 export function selectActiveTopTab(state: AppState) {
   return state.ui.activeTopTab;
@@ -21,7 +20,7 @@ export function selectSelectedFileType(state: AppState): SelectedFileType {
     return null;
   }
 
-  if (IMAGE_FILE_KINDS.has(selectedFile.kind)) {
+  if (isImageFileKind(selectedFile.kind)) {
     return 'image';
   }
   if (selectedFile.kind === 'docx') {
