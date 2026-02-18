@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import type { TopTab } from '../../../App';
+import type { AssessmentTopTab } from '../../../state';
 
 interface AssessmentWindowProps {
-  activeTab: TopTab;
-  onTabChange: (tab: TopTab) => void;
+  activeTab: AssessmentTopTab;
+  onTabChange: (tab: AssessmentTopTab) => void;
   assessmentPanel: ReactNode;
   rubricPanel: ReactNode;
 }

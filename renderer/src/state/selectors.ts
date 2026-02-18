@@ -1,0 +1,35 @@
+import type { AppState, SelectedFileType } from './types';
+
+const IMAGE_FILE_KINDS = new Set(['jpeg', 'jpg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif', 'avif', 'tiff', 'tif']);
+
+export function selectActiveTopTab(state: AppState) {
+  return state.ui.activeTopTab;
+}
+
+export function selectActiveCommentsTab(state: AppState) {
+  return state.ui.activeCommentsTab;
+}
+
+export function selectSelectedFileType(state: AppState): SelectedFileType {
+  const selectedFileId = state.workspace.selectedFile.fileId;
+  if (!selectedFileId) {
+    return null;
+  }
+
+  const selectedFile = state.workspace.files.find((file) => file.id === selectedFileId);
+  if (!selectedFile) {
+    return null;
+  }
+
+  if (IMAGE_FILE_KINDS.has(selectedFile.kind)) {
+    return 'image';
+  }
+  if (selectedFile.kind === 'docx') {
+    return 'docx';
+  }
+  if (selectedFile.kind === 'pdf') {
+    return 'pdf';
+  }
+
+  return 'other';
+}
