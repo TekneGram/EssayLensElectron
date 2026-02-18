@@ -6,11 +6,19 @@ interface AssessmentTabProps {
 }
 
 function ImageView() {
-  return <section className="image-view">ImageView</section>;
+  return (
+    <section className="image-view" data-testid="image-view">
+      ImageView
+    </section>
+  );
 }
 
-function OriginalTextView() {
-  return <section className="original-text-view">OriginalTextView</section>;
+function OriginalTextView({ text }: { text: string }) {
+  return (
+    <section className="original-text-view" data-testid="original-text-view">
+      {text}
+    </section>
+  );
 }
 
 function CommentsView({ activeTab, onTabChange }: { activeTab: CommentsTab; onTabChange: (tab: CommentsTab) => void }) {
@@ -38,13 +46,18 @@ export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const activeCommentsTab = selectActiveCommentsTab(state);
+  const selectedFile = state.workspace.files.find((file) => file.id === state.workspace.selectedFile.fileId) ?? null;
   const isImageViewOpen = selectedFileType === 'image';
   const mode = isImageViewOpen ? 'three-pane' : 'two-pane';
+  const originalText =
+    selectedFileType === 'docx' || selectedFileType === 'pdf'
+      ? `OriginalTextView: ${selectedFile?.name ?? 'No file selected.'}`
+      : 'OriginalTextView';
 
   return (
-    <div className="assessment-tab" data-mode={mode}>
+    <div className="assessment-tab" data-testid="assessment-tab" data-mode={mode}>
       {isImageViewOpen ? <ImageView /> : null}
-      <OriginalTextView />
+      <OriginalTextView text={originalText} />
       <CommentsView
         activeTab={activeCommentsTab}
         onTabChange={(tab) => dispatch({ type: 'ui/setCommentsTab', payload: tab })}

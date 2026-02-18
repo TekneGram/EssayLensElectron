@@ -13,19 +13,29 @@ export interface WorkspaceFileRecord {
 }
 
 export class WorkspaceRepository {
-  async setCurrentFolder(_path: string): Promise<WorkspaceFolderRecord> {
-    return {
-      id: 'phase2-folder-placeholder',
-      path: '',
-      name: ''
+  private currentFolder: WorkspaceFolderRecord | null = null;
+  private filesByFolderId = new Map<string, WorkspaceFileRecord[]>();
+
+  async setCurrentFolder(path: string): Promise<WorkspaceFolderRecord> {
+    const folder: WorkspaceFolderRecord = {
+      id: path,
+      path,
+      name: path.split(/[\\/]/).filter(Boolean).pop() ?? path
     };
+    this.currentFolder = folder;
+    return folder;
   }
 
   async getCurrentFolder(): Promise<WorkspaceFolderRecord | null> {
-    return null;
+    return this.currentFolder;
   }
 
-  async listFiles(_folderId: string): Promise<WorkspaceFileRecord[]> {
-    return [];
+  async upsertFiles(folderId: string, files: WorkspaceFileRecord[]): Promise<WorkspaceFileRecord[]> {
+    this.filesByFolderId.set(folderId, [...files]);
+    return this.filesByFolderId.get(folderId) ?? [];
+  }
+
+  async listFiles(folderId: string): Promise<WorkspaceFileRecord[]> {
+    return this.filesByFolderId.get(folderId) ?? [];
   }
 }

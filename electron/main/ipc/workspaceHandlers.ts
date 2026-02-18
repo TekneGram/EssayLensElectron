@@ -1,7 +1,8 @@
 import path from 'node:path';
 import { appErr, appOk } from '../../shared/appResult';
-import type { SelectFolderResultData } from '../../shared/workspaceContracts';
-import { notImplementedResult } from './result';
+import type { GetCurrentFolderResultData, ListFilesResultData, SelectFolderResultData, WorkspaceFileDto } from '../../shared/workspaceContracts';
+import { WorkspaceRepository } from '../db/repositories/workspaceRepository';
+import { scanFilesInWorkspace, type ScannedFile } from '../services/fileScanner';
 import type { IpcMainLike } from './types';
 
 export const WORKSPACE_CHANNELS = {
@@ -21,13 +22,50 @@ interface DialogLike {
 
 interface WorkspaceHandlerDeps {
   dialog: DialogLike;
+  repository: WorkspaceRepository;
+  scanFiles: (folderPath: string) => Promise<ScannedFile[]>;
 }
 
 function getDefaultDeps(): WorkspaceHandlerDeps {
   const electron = require('electron') as typeof import('electron');
   return {
-    dialog: electron.dialog
+    dialog: electron.dialog,
+    repository: new WorkspaceRepository(),
+    scanFiles: scanFilesInWorkspace
   };
+}
+
+function fileKindFromPath(filePath: string): string {
+  const extension = path.extname(filePath).replace('.', '').toLowerCase();
+  switch (extension) {
+    case 'docx':
+    case 'pdf':
+    case 'jpeg':
+    case 'jpg':
+    case 'png':
+    case 'gif':
+    case 'webp':
+    case 'bmp':
+    case 'svg':
+    case 'heic':
+    case 'heif':
+    case 'avif':
+    case 'tiff':
+    case 'tif':
+      return extension;
+    default:
+      return 'unknown';
+  }
+}
+
+function toWorkspaceFileDtos(folderId: string, scannedFiles: ScannedFile[]): WorkspaceFileDto[] {
+  return scannedFiles.map((file) => ({
+    id: file.path,
+    folderId,
+    name: file.name,
+    path: file.path,
+    kind: fileKindFromPath(file.path)
+  }));
 }
 
 export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceHandlerDeps = getDefaultDeps()): void {
@@ -42,13 +80,12 @@ export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceH
         return appOk<SelectFolderResultData>({ folder: null });
       }
 
-      return appOk<SelectFolderResultData>({
-        folder: {
-          id: selectedPath,
-          path: selectedPath,
-          name: path.basename(selectedPath)
-        }
-      });
+      const folder = await deps.repository.setCurrentFolder(selectedPath);
+      const scannedFiles = await deps.scanFiles(folder.path);
+      const fileRecords = toWorkspaceFileDtos(folder.id, scannedFiles);
+      await deps.repository.upsertFiles(folder.id, fileRecords);
+
+      return appOk<SelectFolderResultData>({ folder });
     } catch (error) {
       return appErr({
         code: 'WORKSPACE_SELECT_FOLDER_FAILED',
@@ -57,10 +94,37 @@ export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceH
       });
     }
   });
-  ipcMain.handle(WORKSPACE_CHANNELS.listFiles, async () =>
-    notImplementedResult('workspace.listFiles')
-  );
-  ipcMain.handle(WORKSPACE_CHANNELS.getCurrentFolder, async () =>
-    notImplementedResult('workspace.getCurrentFolder')
-  );
+  ipcMain.handle(WORKSPACE_CHANNELS.listFiles, async (_event, payload) => {
+    const folderId = typeof payload === 'object' && payload && 'folderId' in payload ? String(payload.folderId) : '';
+    if (!folderId) {
+      return appErr({
+        code: 'WORKSPACE_LIST_FILES_FAILED',
+        message: 'Missing folder id for file listing.'
+      });
+    }
+
+    try {
+      const files = await deps.repository.listFiles(folderId);
+      return appOk<ListFilesResultData>({ files });
+    } catch (error) {
+      return appErr({
+        code: 'WORKSPACE_LIST_FILES_FAILED',
+        message: 'Could not load files for selected folder.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(WORKSPACE_CHANNELS.getCurrentFolder, async () => {
+    try {
+      const folder = await deps.repository.getCurrentFolder();
+      return appOk<GetCurrentFolderResultData>({ folder });
+    } catch (error) {
+      return appErr({
+        code: 'WORKSPACE_GET_CURRENT_FOLDER_FAILED',
+        message: 'Could not load current folder.',
+        details: error
+      });
+    }
+  });
 }
