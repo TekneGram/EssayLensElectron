@@ -14,3 +14,16 @@ steer the chat input message towards different APIs.
 - CommandDisplay: displays the command that was selected, replaces it with a new one if another is selected.
 The user can only select one command at a time.
 
+## Layout
+- CommandDisplay and HighlightDisplay sit side by side, CommandDisplay on the left, and both are positioned above the ChatInput.
+- the CommandDropdown, ChatInput and the send button are side by side horizontally positioned.
+
+## Styles
+- all components are grouped within the ChatInterface border which is very light.
+- no borders around any of the components
+- no background colors within the components.
+- components should look invisible except for the light border around the ChatInterface.
+Look at the styles guide in the .planning folder to recommend concrete styles for these components.
+
+*Create a new folder in .planning folder called chat-interface and write an html and css mockup of the chat interface. Before doing so, look at the current mockups in .planning/
+
