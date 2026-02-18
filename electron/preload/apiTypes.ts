@@ -1,4 +1,5 @@
 import type { AppError, AppResult } from '../shared/appResult';
+import type { ListMessagesResultData, SendChatMessagePayload, SendChatMessageResultData } from '../shared/chatContracts';
 import type { GetCurrentFolderResultData, ListFilesResultData, SelectFolderResultData } from '../shared/workspaceContracts';
 
 export type ApiError = AppError;
@@ -22,8 +23,8 @@ export interface EssayLensApi {
     updateMatrix(payload: unknown): Promise<ApiResult<unknown>>;
   };
   chat: {
-    listMessages(fileId?: string): Promise<ApiResult<unknown>>;
-    sendMessage(payload: unknown): Promise<ApiResult<unknown>>;
+    listMessages(fileId?: string): Promise<ApiResult<ListMessagesResultData>>;
+    sendMessage(payload: SendChatMessagePayload): Promise<ApiResult<SendChatMessageResultData>>;
   };
 }
 

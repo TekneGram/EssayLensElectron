@@ -20,11 +20,11 @@ describe('preload api', () => {
     await api.workspace.selectFolder();
     await api.assessment.extractDocument('file-1');
     await api.rubric.listRubrics();
-    await api.chat.sendMessage({ content: 'hello' });
+    await api.chat.sendMessage({ message: 'hello' });
 
     expect(invoke).toHaveBeenCalledWith('workspace/selectFolder', undefined);
     expect(invoke).toHaveBeenCalledWith('assessment/extractDocument', { fileId: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('rubric/listRubrics', undefined);
-    expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { content: 'hello' });
+    expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { message: 'hello' });
   });
 });
