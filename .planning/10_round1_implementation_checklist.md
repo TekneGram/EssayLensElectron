@@ -210,7 +210,39 @@ References:
 - `03_folder_system.md`
 - `05_typescript_interfaces.md`
 
-## Phase 9: Validation
+## Phase 9: Basic Style Implementation
+- [ ] Align renderer styling with mockup visual baseline for Assessment tab view.
+- [ ] Map/port mockup token intent into app token/theme files (colors, spacing, borders, typography, tab states).
+- [ ] Update component class structure only where needed so stylesheet selectors can apply consistently.
+- [ ] Ensure pane-level layout parity for:
+  - [ ] `LoaderBar`
+  - [ ] `FileDisplayBar`
+  - [ ] `AssessmentWindow` tabs + panel chrome
+  - [ ] `AssessmentTab` subpanes (`ImageView`, `OriginalTextView`, `CommentsView`)
+  - [ ] `ChatView`
+  - [ ] `ChatInterface`
+- [ ] Preserve current behavior and accessibility semantics while applying styling changes.
+- [ ] Test track:
+  - [ ] Keep existing renderer/electron tests green (no behavior regressions from class/markup changes).
+  - [ ] Add focused renderer tests for expected style-structure hooks (key class names / active tab classes).
+  - [ ] Phase gate (required): output manual verification commands for `dev`, `build`, `start:prod`, and `package`/`package:dir` (user runs them).
+
+References:
+- `09_styles_spec.md`
+- `07_layout_spec.md`
+- `mockups/assessment-tab-open.html`
+- `mockups/rubric-tab-open.html`
+- `mockups/mockup.css`
+- `mockups/AssessmentTab.png`
+- `mockups/RubricTab.png`
+- `features/02_assessment_window_tabs_spec.md`
+- `features/03_assessment-tab.md`
+- `features/04_rubric-tab.md`
+- `features/05_assessment-pane-resize.md`
+- `12_testing_strategy.md`
+- `03_folder_system.md`
+
+## Phase 10: Validation
 - [ ] User runs `npm run dev` manually to confirm renderer + Electron launch.
 - [ ] User confirms HMR works in renderer while Electron is open.
 - [ ] `npm run typecheck` passes.

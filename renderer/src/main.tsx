@@ -10,6 +10,10 @@ import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
 
+if (!document.documentElement.dataset.theme) {
+  document.documentElement.dataset.theme = 'system';
+}
+
 const queryClient = createAppQueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

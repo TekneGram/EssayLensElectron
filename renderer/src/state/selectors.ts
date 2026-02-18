@@ -9,6 +9,14 @@ export function selectActiveCommentsTab(state: AppState) {
   return state.ui.activeCommentsTab;
 }
 
+export function selectIsChatCollapsed(state: AppState) {
+  return state.ui.isChatCollapsed;
+}
+
+export function selectAssessmentSplitRatio(state: AppState) {
+  return state.ui.assessmentSplitRatio;
+}
+
 export function selectSelectedFileType(state: AppState): SelectedFileType {
   const selectedFileId = state.workspace.selectedFile.fileId;
   if (!selectedFileId) {

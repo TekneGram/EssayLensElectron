@@ -8,25 +8,28 @@ interface FileDisplayBarProps {
 
 export function FileDisplayBar({ files, selectedFileId, onSelectFile }: FileDisplayBarProps) {
   return (
-    <aside className="file-display-bar" data-testid="file-display-bar" aria-label="File display bar">
-      <h2>Files</h2>
-      <ul>
-        {files.length > 0 ? (
-          files.map((file) => (
-            <li key={file.id}>
-              <button
-                type="button"
-                aria-current={selectedFileId === file.id}
-                onClick={() => onSelectFile(file)}
-              >
-                {file.name}
-              </button>
-            </li>
-          ))
-        ) : (
-          <li>No files selected.</li>
-        )}
-      </ul>
+    <aside className="file-display-bar pane fdb" data-testid="file-display-bar" aria-label="File display bar">
+      <h3>FileDisplayBar</h3>
+      <div className="file-list">
+        <ul className="file-names">
+          {files.length > 0 ? (
+            files.map((file) => (
+              <li key={file.id}>
+                <button
+                  type="button"
+                  className="file-name"
+                  aria-current={selectedFileId === file.id}
+                  onClick={() => onSelectFile(file)}
+                >
+                  {file.name}
+                </button>
+              </li>
+            ))
+          ) : (
+            <li className="file-name-empty">No files selected.</li>
+          )}
+        </ul>
+      </div>
     </aside>
   );
 }

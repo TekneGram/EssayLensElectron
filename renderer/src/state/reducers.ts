@@ -2,6 +2,16 @@ import type { AppAction } from './actions';
 import { initialAppState, initialChatState, initialFeedbackState, initialRubricState, initialUiState, initialWorkspaceState } from './initialState';
 import type { AppState, ChatState, FeedbackState, RubricState, UiState, WorkspaceState } from './types';
 
+const ASSESSMENT_SPLIT_MIN = 0.35;
+const ASSESSMENT_SPLIT_MAX = 0.8;
+
+function clampAssessmentSplitRatio(value: number): number {
+  if (!Number.isFinite(value)) {
+    return initialUiState.assessmentSplitRatio;
+  }
+  return Math.min(ASSESSMENT_SPLIT_MAX, Math.max(ASSESSMENT_SPLIT_MIN, value));
+}
+
 export function workspaceReducer(state: WorkspaceState = initialWorkspaceState, action: AppAction): WorkspaceState {
   switch (action.type) {
     case 'workspace/setFolder':
@@ -157,6 +167,16 @@ export function uiReducer(state: UiState = initialUiState, action: AppAction): U
       return {
         ...state,
         theme: action.payload
+      };
+    case 'ui/setChatCollapsed':
+      return {
+        ...state,
+        isChatCollapsed: action.payload
+      };
+    case 'ui/setAssessmentSplitRatio':
+      return {
+        ...state,
+        assessmentSplitRatio: clampAssessmentSplitRatio(action.payload)
       };
     default:
       return state;
