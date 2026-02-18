@@ -1,17 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
-import { AppStateProvider } from './state';
+import { AppProviders } from './app/AppProviders';
+import { createAppQueryClient } from './app/queryClient';
+import 'react-toastify/dist/ReactToastify.css';
 import './styles/tokens.css';
 import './styles/themes.css';
 import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
 
+const queryClient = createAppQueryClient();
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AppStateProvider>
+    <AppProviders queryClient={queryClient}>
       <App />
-    </AppStateProvider>
+    </AppProviders>
   </React.StrictMode>
 );

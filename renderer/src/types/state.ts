@@ -4,6 +4,8 @@ import type { ChatDataArray, DocumentTextModel, FeedbackItem, RubricMatrix, Rubr
 export interface WorkspaceState {
   currentFolder: WorkspaceFolder | null;
   files: WorkspaceFile[];
+  status: 'idle' | 'loading' | 'error';
+  error?: string;
   selectedFile: SelectedFileState;
   documentTextByFileId: Record<string, DocumentTextModel | undefined>;
 }
