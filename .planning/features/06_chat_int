@@ -1,0 +1,16 @@
+# Outline
+**ignore AGENTS.md** files
+
+## Goal
+- Create subcomponents and layout and state management for ChatInterface component.
+- Ensure styles match current website layout.
+
+## ChatInterface components
+- HighlightDisplay: this component takes any highlighted text from
+the OriginalTextView, truncates it and displays it in this component
+- ChatInput: a simple input field for chatting with LLM
+- CommandDropdown: a dropdown menu containing a list of commands that when chosen
+steer the chat input message towards different APIs.
+- CommandDisplay: displays the command that was selected, replaces it with a new one if another is selected.
+The user can only select one command at a time.
+
