@@ -21,7 +21,6 @@ export function ChatInterface({
   onSubmit,
   onCommandSelected
 }: ChatInterfaceProps) {
-  const submitLabel = chatMode === 'comment' ? 'Add Comment' : 'Send Chat';
   const handleSubmit = () => {
     onChatIntent();
     void onSubmit?.();
@@ -32,15 +31,32 @@ export function ChatInterface({
       <div hidden data-testid="assessment-chat-interface-stub">
         {`${chatMode}:${isModeLockedToChat}:${activeCommand?.id ?? 'no-command'}`}
       </div>
-      <CommandDisplay activeCommand={activeCommand} />
-      <HighlightedTextDisplay pendingSelection={pendingSelection} />
-      <ChatInput draftText={draftText} onDraftChange={onDraftChange} onChatIntent={onChatIntent} onSubmit={handleSubmit} />
-      <div className="chat-interface-controls">
-        <CommandDropdown activeCommand={activeCommand} onCommandSelected={onCommandSelected} />
-        <ChatToggle chatMode={chatMode} isModeLockedToChat={isModeLockedToChat} onModeChange={onModeChange} />
-        <button className="chat-send" type="button" aria-label="Send message" onClick={handleSubmit}>
-          {submitLabel}
-        </button>
+
+      <div className="chat-interface-row chat-interface-row-top">
+        <CommandDisplay activeCommand={activeCommand} onClearCommand={() => onCommandSelected?.(null)} />
+      </div>
+
+      <div className="chat-interface-row chat-interface-row-middle">
+        <div className="chat-interface-cell chat-interface-cell-command">
+          <CommandDropdown activeCommand={activeCommand} onCommandSelected={onCommandSelected} />
+        </div>
+        <div className="chat-interface-cell chat-interface-cell-input">
+          <ChatInput draftText={draftText} onDraftChange={onDraftChange} onChatIntent={onChatIntent} onSubmit={handleSubmit} />
+        </div>
+        <div className="chat-interface-cell chat-interface-cell-send">
+          <button className="chat-send" type="button" aria-label="Send message" onClick={handleSubmit}>
+            ➤
+          </button>
+        </div>
+      </div>
+
+      <div className="chat-interface-row chat-interface-row-bottom">
+        <div className="chat-interface-cell chat-interface-cell-toggle">
+          <ChatToggle chatMode={chatMode} isModeLockedToChat={isModeLockedToChat} onModeChange={onModeChange} />
+        </div>
+        <div className="chat-interface-cell chat-interface-cell-highlight">
+          <HighlightedTextDisplay pendingSelection={pendingSelection} />
+        </div>
       </div>
     </section>
   );

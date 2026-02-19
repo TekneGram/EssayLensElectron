@@ -8,6 +8,7 @@ interface CommandDropdownProps {
 export function CommandDropdown({ activeCommand = null, onCommandSelected }: CommandDropdownProps) {
   return (
     <select
+      className="chat-command-dropdown"
       aria-label="Select command"
       value={activeCommand?.id ?? ''}
       onChange={(event) => {
@@ -26,7 +27,7 @@ export function CommandDropdown({ activeCommand = null, onCommandSelected }: Com
       }}
       onClick={(event) => event.stopPropagation()}
     >
-      <option value="">No command</option>
+      <option value="">Command</option>
       <option value="evaluate-thesis">Evaluate Thesis</option>
       <option value="check-hedging">Check Hedging</option>
     </select>

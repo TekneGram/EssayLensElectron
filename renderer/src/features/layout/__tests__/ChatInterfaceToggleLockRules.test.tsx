@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ChatInterface } from '../components/ChatInterface';
 
 describe('ChatInterface toggle lock rules', () => {
-  it('disables switching to comment mode while lock is active', () => {
+  it('keeps chat mode locked while lock is active', () => {
     const onModeChange = vi.fn();
 
     render(
@@ -15,15 +15,11 @@ describe('ChatInterface toggle lock rules', () => {
       />
     );
 
-    const commentButton = screen.getByRole('button', { name: 'Switch to comment mode' });
-    const chatButton = screen.getByRole('button', { name: 'Switch to chat mode' });
+    const modeSwitch = screen.getByRole('switch', { name: 'Switch chat mode' });
 
-    expect(commentButton.getAttribute('disabled')).not.toBeNull();
-    fireEvent.click(commentButton);
-    expect(onModeChange).not.toHaveBeenCalledWith('comment');
-
-    fireEvent.click(chatButton);
-    expect(onModeChange).toHaveBeenCalledWith('chat');
+    expect(modeSwitch.getAttribute('disabled')).not.toBeNull();
+    fireEvent.click(modeSwitch);
+    expect(onModeChange).not.toHaveBeenCalled();
   });
 
   it('allows mode switches when lock is inactive', () => {
@@ -38,13 +34,11 @@ describe('ChatInterface toggle lock rules', () => {
       />
     );
 
-    const commentButton = screen.getByRole('button', { name: 'Switch to comment mode' });
-    expect(commentButton.getAttribute('disabled')).toBeNull();
+    const modeSwitch = screen.getByRole('switch', { name: 'Switch chat mode' });
+    expect(modeSwitch.getAttribute('disabled')).toBeNull();
 
-    fireEvent.click(commentButton);
-    fireEvent.click(screen.getByRole('button', { name: 'Switch to chat mode' }));
+    fireEvent.click(modeSwitch);
 
     expect(onModeChange).toHaveBeenCalledWith('comment');
-    expect(onModeChange).toHaveBeenCalledWith('chat');
   });
 });
