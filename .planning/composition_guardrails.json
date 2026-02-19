@@ -1,0 +1,11 @@
+{
+  "defaultMaxLines": 220,
+  "manualLineLimitOverrides": {
+    "renderer/src/features/assessment-tab/components/AssessmentTab.tsx": {
+      "maxLines": 420,
+      "justification": "Phase 12 manual gate: orchestration logic remains centralized pending a focused extraction pass.",
+      "approvedInPhase": "12",
+      "approvedOn": "2026-02-19"
+    }
+  }
+}

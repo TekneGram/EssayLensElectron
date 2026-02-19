@@ -1,12 +1,15 @@
 PRAGMA foreign_keys = ON;
 
--- Minimal parent table required by feedback FK for local verification/demo.
-CREATE TABLE IF NOT EXISTS filename (
-  entity_uuid TEXT PRIMARY KEY
-);
+INSERT INTO entities (uuid, type, created_at)
+VALUES ('file-alpha', 'file', '2026-02-19T00:00:00.000Z')
+ON CONFLICT(uuid) DO NOTHING;
 
-INSERT INTO filename(entity_uuid)
-VALUES ('file-alpha')
+INSERT INTO filepath (uuid, path, created_at)
+VALUES ('folder-alpha', '/tmp/alpha', '2026-02-19T00:00:00.000Z')
+ON CONFLICT(uuid) DO NOTHING;
+
+INSERT INTO filename (entity_uuid, filepath_uuid, append_path, file_name, created_at)
+VALUES ('file-alpha', 'folder-alpha', NULL, 'file-alpha.docx', '2026-02-19T00:00:00.000Z')
 ON CONFLICT(entity_uuid) DO NOTHING;
 
 INSERT INTO feedback (
@@ -35,16 +38,17 @@ INSERT INTO feedback (
   NULL
 );
 
-INSERT INTO feedback_anchor (
+INSERT INTO feedback_anchors (
   feedback_uuid,
   anchor_kind,
   part,
   paragraph_index,
   run_index,
+  text_node_index,
   char_offset
 ) VALUES
-  ('feedback-inline-1', 'start', 'body', 2, 0, 5),
-  ('feedback-inline-1', 'end', 'body', 2, 0, 18);
+  ('feedback-inline-1', 'start', 'body', 2, 0, 0, 5),
+  ('feedback-inline-1', 'end', 'body', 2, 0, 0, 18);
 
 INSERT INTO feedback (
   uuid,
@@ -66,7 +70,6 @@ INSERT INTO feedback (
   '2026-02-19T00:12:00.000Z'
 );
 
--- Query example for Phase 4 repository mapping.
 SELECT
   f.uuid,
   f.entity_uuid,
@@ -83,8 +86,9 @@ SELECT
   a.part,
   a.paragraph_index,
   a.run_index,
+  a.text_node_index,
   a.char_offset
 FROM feedback f
-LEFT JOIN feedback_anchor a ON a.feedback_uuid = f.uuid
+LEFT JOIN feedback_anchors a ON a.feedback_uuid = f.uuid
 WHERE f.entity_uuid = 'file-alpha'
 ORDER BY f.created_at ASC, a.anchor_kind ASC;
