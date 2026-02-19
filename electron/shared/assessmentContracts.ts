@@ -38,6 +38,9 @@ export interface ExtractDocumentResponse {
   fileId: string;
   text: string;
   extractedAt?: string;
+  format?: 'docx' | 'pdf' | 'other';
+  fileName?: string;
+  dataBase64?: string;
 }
 
 export interface ListFeedbackRequest {
@@ -107,6 +110,15 @@ export interface SendFeedbackToLlmRequest {
 export interface SendFeedbackToLlmResponse {
   status: 'queued' | 'sent';
   messageId?: string;
+}
+
+export interface GenerateFeedbackDocumentRequest {
+  fileId: string;
+}
+
+export interface GenerateFeedbackDocumentResponse {
+  fileId: string;
+  outputPath: string;
 }
 
 export interface RequestLlmAssessmentRequest {

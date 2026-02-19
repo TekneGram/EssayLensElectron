@@ -42,17 +42,21 @@ describe('CommentsView interactions', () => {
     const onDeleteComment = vi.fn();
     const onSendToLlm = vi.fn();
     const onApplyComment = vi.fn();
+    const onGenerateFeedbackDocument = vi.fn();
 
     render(
       <CommentsView
         comments={[inlineComment]}
         activeCommentId={null}
         isLoading={false}
+        isGeneratePending={false}
+        canGenerateFeedbackDocument={true}
         onSelectComment={onSelectComment}
         onEditComment={onEditComment}
         onDeleteComment={onDeleteComment}
         onSendToLlm={onSendToLlm}
         onApplyComment={onApplyComment}
+        onGenerateFeedbackDocument={onGenerateFeedbackDocument}
         activeTab="comments"
         onTabChange={vi.fn()}
       />
@@ -84,6 +88,9 @@ describe('CommentsView interactions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(onApplyComment).toHaveBeenCalledWith('feedback-inline-1', true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+    expect(onGenerateFeedbackDocument).toHaveBeenCalledTimes(1);
   });
 
   it('maps selected inline comment into OriginalTextView pending quote through AssessmentTab', async () => {

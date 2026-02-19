@@ -220,7 +220,16 @@ describe('registerAssessmentHandlers', () => {
   it('adds feedback through repository and returns AddFeedbackResponse', async () => {
     const harness = createHarness();
     const repository = new FeedbackRepository({ now: () => '2026-02-19T12:34:56.000Z' });
-    registerAssessmentHandlers({ handle: harness.handle }, { repository, makeFeedbackId: () => 'fb-new-1' });
+    registerAssessmentHandlers({ handle: harness.handle }, {
+      repository,
+      makeFeedbackId: () => 'fb-new-1',
+      extractDocument: vi.fn().mockResolvedValue({
+        text: '',
+        extractedAt: '2026-02-19T12:34:56.000Z',
+        format: 'docx',
+        dataBase64: 'ZmFrZQ=='
+      })
+    });
 
     const addFeedbackHandler = harness.getHandler(ASSESSMENT_CHANNELS.addFeedback);
     const extractDocumentHandler = harness.getHandler(ASSESSMENT_CHANNELS.extractDocument);
@@ -261,10 +270,14 @@ describe('registerAssessmentHandlers', () => {
       }
     });
     expect(extractResult).toEqual({
-      ok: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'assessment.extractDocument is not implemented yet.'
+      ok: true,
+      data: {
+        fileId: 'file-1',
+        text: '',
+        extractedAt: '2026-02-19T12:34:56.000Z',
+        format: 'docx',
+        fileName: 'file-1',
+        dataBase64: 'ZmFrZQ=='
       }
     });
     expect(requestLlmResult).toEqual({

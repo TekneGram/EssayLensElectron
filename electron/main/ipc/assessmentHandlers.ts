@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { FeedbackRepository, type FeedbackRecord } from '../db/repositories/feedbackRepository';
 import { appErr, appOk } from '../../shared/appResult';
 import type {
@@ -11,14 +12,19 @@ import type {
   EditFeedbackRequest,
   EditFeedbackResponse,
   ExtractDocumentRequest,
+  ExtractDocumentResponse,
   FeedbackAnchorDto,
   FeedbackDto,
+  GenerateFeedbackDocumentRequest,
+  GenerateFeedbackDocumentResponse,
   ListFeedbackResponse,
   ListFeedbackRequest,
   RequestLlmAssessmentRequest,
   SendFeedbackToLlmRequest,
   SendFeedbackToLlmResponse
 } from '../../shared/assessmentContracts';
+import { extractDocumentText, type ExtractedDocument } from '../services/documentExtractor';
+import { generateFeedbackFile } from '../services/feedbackFileGenerator';
 import { notImplementedResult } from './result';
 import type { IpcMainLike } from './types';
 
@@ -30,6 +36,7 @@ export const ASSESSMENT_CHANNELS = {
   deleteFeedback: 'assessment/deleteFeedback',
   applyFeedback: 'assessment/applyFeedback',
   sendFeedbackToLlm: 'assessment/sendFeedbackToLlm',
+  generateFeedbackDocument: 'assessment/generateFeedbackDocument',
   requestLlmAssessment: 'assessment/requestLlmAssessment'
 } as const;
 
@@ -37,13 +44,17 @@ interface AssessmentHandlerDeps {
   repository: FeedbackRepository;
   makeFeedbackId: () => string;
   makeMessageId?: () => string;
+  extractDocument: (filePath: string) => Promise<ExtractedDocument>;
+  generateFeedbackFile: typeof generateFeedbackFile;
 }
 
 function getDefaultDeps(): AssessmentHandlerDeps {
   return {
     repository: new FeedbackRepository(),
     makeFeedbackId: () => randomUUID(),
-    makeMessageId: () => randomUUID()
+    makeMessageId: () => randomUUID(),
+    extractDocument: extractDocumentText,
+    generateFeedbackFile
   };
 }
 
@@ -108,6 +119,20 @@ function compareAnchorPosition(startAnchor: FeedbackAnchorDto, endAnchor: Feedba
 }
 
 function normalizeExtractDocumentRequest(request: unknown): ExtractDocumentRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+
+  const candidate = request as Record<string, unknown>;
+  const fileId = normalizeNonEmptyString(candidate.fileId);
+  if (!fileId) {
+    return null;
+  }
+
+  return { fileId };
+}
+
+function normalizeGenerateFeedbackDocumentRequest(request: unknown): GenerateFeedbackDocumentRequest | null {
   if (typeof request !== 'object' || request === null) {
     return null;
   }
@@ -344,7 +369,15 @@ function toFeedbackDto(record: FeedbackRecord): FeedbackDto {
   };
 }
 
-export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: AssessmentHandlerDeps = getDefaultDeps()): void {
+export function registerAssessmentHandlers(
+  ipcMain: IpcMainLike,
+  deps: Partial<AssessmentHandlerDeps> = {}
+): void {
+  const resolvedDeps = {
+    ...getDefaultDeps(),
+    ...deps
+  };
+
   ipcMain.handle(ASSESSMENT_CHANNELS.extractDocument, async (_event, request) => {
     const normalizedRequest = normalizeExtractDocumentRequest(request);
     if (!normalizedRequest) {
@@ -353,7 +386,24 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
         message: 'Extract document request must include a non-empty fileId.'
       });
     }
-    return notImplementedResult('assessment.extractDocument');
+
+    try {
+      const extracted = await resolvedDeps.extractDocument(normalizedRequest.fileId);
+      return appOk<ExtractDocumentResponse>({
+        fileId: normalizedRequest.fileId,
+        text: extracted.text,
+        extractedAt: extracted.extractedAt,
+        format: extracted.format,
+        fileName: path.basename(normalizedRequest.fileId),
+        dataBase64: extracted.dataBase64
+      });
+    } catch (error) {
+      return appErr({
+        code: 'ASSESSMENT_EXTRACT_DOCUMENT_FAILED',
+        message: 'Could not extract document.',
+        details: error
+      });
+    }
   });
 
   ipcMain.handle(ASSESSMENT_CHANNELS.listFeedback, async (_event, request) => {
@@ -366,7 +416,7 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
     }
 
     try {
-      const records = await deps.repository.listByFileId(normalizedRequest.fileId);
+      const records = await resolvedDeps.repository.listByFileId(normalizedRequest.fileId);
       const feedback = records.map(toFeedbackDto);
       return appOk<ListFeedbackResponse>({ feedback });
     } catch (error) {
@@ -389,8 +439,8 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
     }
 
     try {
-      const created = await deps.repository.add({
-        id: deps.makeFeedbackId(),
+      const created = await resolvedDeps.repository.add({
+        id: resolvedDeps.makeFeedbackId(),
         fileId: normalizedRequest.fileId,
         kind: normalizedRequest.kind,
         source: normalizedRequest.source,
@@ -423,7 +473,10 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
     }
 
     try {
-      const edited = await deps.repository.editCommentText(normalizedRequest.feedbackId, normalizedRequest.commentText);
+      const edited = await resolvedDeps.repository.editCommentText(
+        normalizedRequest.feedbackId,
+        normalizedRequest.commentText
+      );
       if (!edited) {
         return appErr({
           code: 'ASSESSMENT_EDIT_FEEDBACK_NOT_FOUND',
@@ -452,7 +505,7 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
     }
 
     try {
-      const deleted = await deps.repository.deleteById(normalizedRequest.feedbackId);
+      const deleted = await resolvedDeps.repository.deleteById(normalizedRequest.feedbackId);
       if (!deleted) {
         return appErr({
           code: 'ASSESSMENT_DELETE_FEEDBACK_NOT_FOUND',
@@ -481,7 +534,10 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
     }
 
     try {
-      const updated = await deps.repository.setApplied(normalizedRequest.feedbackId, normalizedRequest.applied);
+      const updated = await resolvedDeps.repository.setApplied(
+        normalizedRequest.feedbackId,
+        normalizedRequest.applied
+      );
       if (!updated) {
         return appErr({
           code: 'ASSESSMENT_APPLY_FEEDBACK_NOT_FOUND',
@@ -510,7 +566,7 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
     }
 
     try {
-      const source = await deps.repository.getById(normalizedRequest.feedbackId);
+      const source = await resolvedDeps.repository.getById(normalizedRequest.feedbackId);
       if (!source) {
         return appErr({
           code: 'ASSESSMENT_SEND_FEEDBACK_TO_LLM_NOT_FOUND',
@@ -520,8 +576,8 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
 
       const commandLabel = normalizedRequest.command ? ` [${normalizedRequest.command}]` : '';
       const generatedCommentText = `LLM follow-up${commandLabel}: ${source.commentText}`;
-      await deps.repository.add({
-        id: deps.makeFeedbackId(),
+      await resolvedDeps.repository.add({
+        id: resolvedDeps.makeFeedbackId(),
         fileId: source.fileId,
         kind: source.kind,
         source: 'llm',
@@ -535,12 +591,59 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
 
       return appOk<SendFeedbackToLlmResponse>({
         status: 'sent',
-        messageId: deps.makeMessageId?.() ?? deps.makeFeedbackId()
+        messageId: resolvedDeps.makeMessageId?.() ?? resolvedDeps.makeFeedbackId()
       });
     } catch (error) {
       return appErr({
         code: 'ASSESSMENT_SEND_FEEDBACK_TO_LLM_FAILED',
         message: 'Could not send feedback to LLM.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(ASSESSMENT_CHANNELS.generateFeedbackDocument, async (_event, request) => {
+    const normalizedRequest = normalizeGenerateFeedbackDocumentRequest(request);
+    if (!normalizedRequest) {
+      return appErr({
+        code: 'ASSESSMENT_GENERATE_FEEDBACK_DOCUMENT_INVALID_PAYLOAD',
+        message: 'Generate feedback document request must include a non-empty fileId.'
+      });
+    }
+
+    try {
+      const feedback = await resolvedDeps.repository.listByFileId(normalizedRequest.fileId);
+      const inlineFeedback = feedback.filter((item) => item.kind === 'inline');
+      const outputPath = normalizedRequest.fileId.replace(/\.docx$/i, '.annotated.docx');
+      const result = await resolvedDeps.generateFeedbackFile({
+        sourceFilePath: normalizedRequest.fileId,
+        outputPath,
+        comments: inlineFeedback.map((item) => ({
+          commentText: item.commentText,
+          exactQuote: item.exactQuote ?? '',
+          startAnchor: item.startAnchor ?? {
+            part: 'word/document.xml',
+            paragraphIndex: 0,
+            runIndex: 0,
+            charOffset: 0
+          },
+          endAnchor: item.endAnchor ?? {
+            part: 'word/document.xml',
+            paragraphIndex: 0,
+            runIndex: 0,
+            charOffset: 0
+          }
+        }))
+      });
+
+      return appOk<GenerateFeedbackDocumentResponse>({
+        fileId: normalizedRequest.fileId,
+        outputPath: result.outputPath
+      });
+    } catch (error) {
+      return appErr({
+        code: 'ASSESSMENT_GENERATE_FEEDBACK_DOCUMENT_FAILED',
+        message: 'Could not generate feedback document.',
         details: error
       });
     }

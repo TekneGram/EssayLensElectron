@@ -6,6 +6,7 @@ import type {
   DeleteFeedbackRequest,
   EditFeedbackRequest,
   ExtractDocumentRequest,
+  GenerateFeedbackDocumentRequest,
   ListFeedbackRequest,
   RequestLlmAssessmentRequest,
   SendFeedbackToLlmRequest
@@ -39,6 +40,8 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
       deleteFeedback: (request: DeleteFeedbackRequest) => invokeApi('assessment/deleteFeedback', request),
       applyFeedback: (request: ApplyFeedbackRequest) => invokeApi('assessment/applyFeedback', request),
       sendFeedbackToLlm: (request: SendFeedbackToLlmRequest) => invokeApi('assessment/sendFeedbackToLlm', request),
+      generateFeedbackDocument: (request: GenerateFeedbackDocumentRequest) =>
+        invokeApi('assessment/generateFeedbackDocument', request),
       requestLlmAssessment: (request: RequestLlmAssessmentRequest) => invokeApi('assessment/requestLlmAssessment', request)
     },
     rubric: {

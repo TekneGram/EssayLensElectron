@@ -12,9 +12,12 @@ export function CommentsView({
   activeCommentId,
   error,
   isLoading,
+  isGeneratePending,
+  canGenerateFeedbackDocument,
   onApplyComment,
   onDeleteComment,
   onEditComment,
+  onGenerateFeedbackDocument,
   onSelectComment,
   onSendToLlm,
   activeTab,
@@ -41,6 +44,15 @@ export function CommentsView({
           onClick={() => onTabChange('score')}
         >
           Score
+        </button>
+      </div>
+      <div className="comments-generate-action">
+        <button
+          type="button"
+          onClick={onGenerateFeedbackDocument}
+          disabled={!canGenerateFeedbackDocument || isGeneratePending}
+        >
+          {isGeneratePending ? 'Generating...' : 'Generate'}
         </button>
       </div>
       <div className="comments-content">

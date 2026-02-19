@@ -4,7 +4,7 @@ import type { AppResult } from '../../../../../electron/shared/appResult';
 import type { SendChatMessageRequest, SendChatMessageResponse } from '../../../../../electron/shared/chatContracts';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
-import { useAddFeedbackMutation, useFeedbackListQuery } from '../hooks';
+import { useAddFeedbackMutation, useFeedbackListQuery, useGenerateFeedbackDocumentMutation } from '../hooks';
 import { applyFeedback, deleteFeedback, editFeedback, sendFeedbackToLlm } from '../hooks/feedbackApi';
 import type { ActiveCommand, AssessmentTabChatBindings, ChatMode, PendingSelection } from '../types';
 import { CommentsView } from './CommentsView';
@@ -41,6 +41,11 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
   const feedbackListQuery = useFeedbackListQuery(selectedFileId);
   const { addFeedback, isPending: isAddFeedbackPending, errorMessage: addFeedbackErrorMessage } =
     useAddFeedbackMutation(selectedFileId);
+  const {
+    generateFeedbackDocumentForFile,
+    isPending: isGenerateFeedbackPending,
+    errorMessage: generateFeedbackErrorMessage
+  } = useGenerateFeedbackDocumentMutation(selectedFileId);
   const comments = selectedFileId ? state.feedback.byFileId[selectedFileId] ?? [] : [];
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const [activeCommand, setActiveCommand] = useState<ActiveCommand | null>(null);
@@ -53,6 +58,7 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
       ? `OriginalTextView: ${selectedFile?.name ?? 'No file selected.'}`
       : 'OriginalTextView';
   const isModeLockedToChat = activeCommand !== null;
+  const canGenerateFeedbackDocument = selectedFileType === 'docx' && comments.length > 0;
 
   const setActiveCommandWithModeRule = useCallback((command: ActiveCommand | null) => {
     setActiveCommand(command);
@@ -265,6 +271,23 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
     [feedbackListQuery, setActiveCommandWithModeRule]
   );
 
+  const handleGenerateFeedbackDocument = useCallback(async () => {
+    if (!canGenerateFeedbackDocument) {
+      return;
+    }
+
+    try {
+      const result = await generateFeedbackDocumentForFile();
+      toast.success(`Generated feedback document: ${result.outputPath}`);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : generateFeedbackErrorMessage ?? 'Unable to generate feedback document.';
+      toast.error(message);
+    }
+  }, [canGenerateFeedbackDocument, generateFeedbackDocumentForFile, generateFeedbackErrorMessage]);
+
   const updateRatioFromClientX = (clientX: number) => {
     const container = containerRef.current;
     if (!container) {
@@ -347,6 +370,8 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
         comments={comments}
         activeCommentId={activeCommentId}
         isLoading={state.feedback.status === 'loading' || isAddFeedbackPending}
+        isGeneratePending={isGenerateFeedbackPending}
+        canGenerateFeedbackDocument={canGenerateFeedbackDocument}
         error={
           state.feedback.status === 'error'
             ? state.feedback.error ?? addFeedbackErrorMessage ?? 'Unable to load comments.'
@@ -357,6 +382,7 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
         onDeleteComment={handleDeleteComment}
         onSendToLlm={handleSendToLlm}
         onApplyComment={handleApplyComment}
+        onGenerateFeedbackDocument={handleGenerateFeedbackDocument}
         activeTab={activeCommentsTab}
         onTabChange={(tab) => dispatch({ type: 'ui/setCommentsTab', payload: tab })}
       />

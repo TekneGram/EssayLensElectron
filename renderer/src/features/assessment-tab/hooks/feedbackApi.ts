@@ -8,18 +8,22 @@ import type {
   DeleteFeedbackResponse,
   EditFeedbackRequest,
   EditFeedbackResponse,
+  ExtractDocumentResponse,
+  GenerateFeedbackDocumentResponse,
   ListFeedbackResponse,
   SendFeedbackToLlmRequest,
   SendFeedbackToLlmResponse
 } from '../../../../../electron/shared/assessmentContracts';
 
 type AssessmentApi = {
+  extractDocument: (request: { fileId: string }) => Promise<AppResult<ExtractDocumentResponse>>;
   listFeedback: (request: { fileId: string }) => Promise<AppResult<ListFeedbackResponse>>;
   addFeedback: (request: AddFeedbackRequest) => Promise<AppResult<AddFeedbackResponse>>;
   editFeedback: (request: EditFeedbackRequest) => Promise<AppResult<EditFeedbackResponse>>;
   deleteFeedback: (request: DeleteFeedbackRequest) => Promise<AppResult<DeleteFeedbackResponse>>;
   applyFeedback: (request: ApplyFeedbackRequest) => Promise<AppResult<ApplyFeedbackResponse>>;
   sendFeedbackToLlm: (request: SendFeedbackToLlmRequest) => Promise<AppResult<SendFeedbackToLlmResponse>>;
+  generateFeedbackDocument: (request: { fileId: string }) => Promise<AppResult<GenerateFeedbackDocumentResponse>>;
 };
 
 function getAssessmentApi(): AssessmentApi {
@@ -41,6 +45,15 @@ export async function listFeedback(fileId: string): Promise<ListFeedbackResponse
     throw toError(result.error);
   }
   return result.data.feedback;
+}
+
+export async function extractDocument(fileId: string): Promise<ExtractDocumentResponse> {
+  const assessmentApi = getAssessmentApi();
+  const result = await assessmentApi.extractDocument({ fileId });
+  if (!result.ok) {
+    throw toError(result.error);
+  }
+  return result.data;
 }
 
 export async function addFeedback(request: AddFeedbackRequest): Promise<AddFeedbackResponse['feedback']> {
@@ -82,4 +95,13 @@ export async function sendFeedbackToLlm(request: SendFeedbackToLlmRequest): Prom
   if (!result.ok) {
     throw toError(result.error);
   }
+}
+
+export async function generateFeedbackDocument(fileId: string): Promise<GenerateFeedbackDocumentResponse> {
+  const assessmentApi = getAssessmentApi();
+  const result = await assessmentApi.generateFeedbackDocument({ fileId });
+  if (!result.ok) {
+    throw toError(result.error);
+  }
+  return result.data;
 }

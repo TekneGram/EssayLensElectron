@@ -30,14 +30,11 @@ Then follow the instructions to implement the relevant phase.
   FileDisplayBar. The ChatViewer displays a message e.g. "Great! We're now working in the folder" + folder name, and this updates the chat
   table. (not a real chat with an LLM, but simulating one)
 3. Teacher can click on a filename in the FileDisplayBar. This opens up the document, gets the text out of it and renders it to the
-  OriginalTextView. Nothing is updated on the database here. The chat displays some information about the text (e.g., "Are you ready to assess
-  this essay? Let's do it!") and this updates the chat table in the database and ChatViewer. 
+  OriginalTextView. Nothing is updated on the database here. The chat displays some information about the text (e.g., "Are you ready to assess this essay? Let's do it!") and this updates the chat table in the database and ChatViewer. 
 4. The teacher adds some feedback to the essay using the ChatInterface (with a specific feedback command). This is sent to the database and
-  updates the feedback table. The CommentsView is also updated with the comment. (There are two types of comment, inline and block, but that is
-  not important right now).
+  updates the feedback table. The CommentsView is also updated with the comment. (There are two types of comment, inline and block, but that is not important right now).
 5. The teacher uses the ChatInterface to request an LLM assessment. The LLM returns some feedback, which is updated in the feedback table in
-  the database, and the CommentsView is updated with the LLM comment. The ChatViewer also displays "comments added", updating the chat table in
-  the database.
+  the database, and the CommentsView is updated with the LLM comment. The ChatViewer also displays "comments added", updating the chat table in the database.
 6. The teacher selects the RubricTab. This pulls in the rubric information from the rubrics table in the database.
 7. The teacher selects one of the rubrics and this brings in information from rubric_details and rubric_scores which are combined in the
   front end to create the rubric layout.
@@ -49,22 +46,10 @@ Then follow the instructions to implement the relevant phase.
   from the rubric, thereby applying a score. This information updates the database tables file_rubric_instances and file_rubric_scores. The
   chat is also updated.
 11. The teacher clicks to generate the feedback file in the OriginalTextView or through the ChatInterface. The feedback table and
-  file_rubric_instances and file_rubric_scores tables are accessed and used to update the student's document, creating a new word document that
-  is output to the folder specified by the information from filepath and filename tables.
+  file_rubric_instances and file_rubric_scores tables are accessed and used to update the student's document, creating a new word document that is output to the folder specified by the information from filepath and filename tables.
 
-   ## Delivery Mode: Phase-by-Phase (Round 2)
 
-  For the phase requested:
-  1. Read `10_Round2_phased_design.md`, read the mini spec and identify information about the phase requested.
-  2. Read the listed spec files under the References part of the phase requested in step 1.
-  3. Implement only that phase scope.
-  4. Stop and summarize.
-  5. Write a summary report in .planning called Phase{number}_report.md which explains what was done in order to hand off to the next phase. (Replace {number} with the phase number).
-  6. Wait for user confirmation before next phase.
-
-  Do not continue to next phase automatically.
-
-  ## Git Policy Per Phase
+  ## Git Policy
   Output a set of git commands that I can copy and paste into the terminal, including add, commit, push and pull request using gh.
   - In the commit include the phase number. Give details in the body.
   - Open/update PR after each phase.

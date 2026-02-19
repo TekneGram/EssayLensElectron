@@ -10,6 +10,8 @@ import type {
   EditFeedbackResponse,
   ExtractDocumentRequest,
   ExtractDocumentResponse,
+  GenerateFeedbackDocumentRequest,
+  GenerateFeedbackDocumentResponse,
   ListFeedbackRequest,
   ListFeedbackResponse,
   RequestLlmAssessmentRequest,
@@ -37,6 +39,9 @@ export interface EssayLensApi {
     deleteFeedback(request: DeleteFeedbackRequest): Promise<ApiResult<DeleteFeedbackResponse>>;
     applyFeedback(request: ApplyFeedbackRequest): Promise<ApiResult<ApplyFeedbackResponse>>;
     sendFeedbackToLlm(request: SendFeedbackToLlmRequest): Promise<ApiResult<SendFeedbackToLlmResponse>>;
+    generateFeedbackDocument(
+      request: GenerateFeedbackDocumentRequest
+    ): Promise<ApiResult<GenerateFeedbackDocumentResponse>>;
     requestLlmAssessment(request: RequestLlmAssessmentRequest): Promise<ApiResult<RequestLlmAssessmentResponse>>;
   };
   rubric: {
