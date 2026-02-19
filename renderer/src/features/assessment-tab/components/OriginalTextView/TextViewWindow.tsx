@@ -1,8 +1,11 @@
+import { useEffect, useRef } from 'react';
 import type { PendingSelection } from '../../types';
 
 interface TextViewWindowProps {
   text: string;
   pendingQuote?: string;
+  pendingSelection?: PendingSelection | null;
+  activeCommentId?: string | null;
   onSelectionCaptured: (selection: PendingSelection | null) => void;
 }
 
@@ -45,8 +48,63 @@ function getParagraphCharOffset(paragraph: HTMLElement, node: Node, offset: numb
   return range.toString().length;
 }
 
-export function TextViewWindow({ text, pendingQuote, onSelectionCaptured }: TextViewWindowProps) {
+export function TextViewWindow({
+  text,
+  pendingQuote,
+  pendingSelection = null,
+  activeCommentId = null,
+  onSelectionCaptured
+}: TextViewWindowProps) {
   const paragraphs = text.split(/\n+/).filter((paragraph) => paragraph.trim().length > 0);
+  const windowRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusedParagraph = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const root = windowRef.current;
+    if (!root || !activeCommentId || !pendingSelection) {
+      return;
+    }
+
+    const startIndex = pendingSelection.startAnchor.paragraphIndex;
+    const endIndex = pendingSelection.endAnchor.paragraphIndex;
+    const startParagraph = root.querySelector<HTMLElement>(`[data-paragraph-index="${startIndex}"]`);
+    if (!startParagraph) {
+      return;
+    }
+
+    if (previousFocusedParagraph.current && previousFocusedParagraph.current !== startParagraph) {
+      previousFocusedParagraph.current.classList.remove('text-paragraph-focused');
+    }
+    startParagraph.classList.add('text-paragraph-focused');
+    previousFocusedParagraph.current = startParagraph;
+    if (typeof startParagraph.scrollIntoView === 'function') {
+      startParagraph.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+
+    const startNode = startParagraph.firstChild;
+    const endParagraph =
+      endIndex === startIndex
+        ? startParagraph
+        : root.querySelector<HTMLElement>(`[data-paragraph-index="${endIndex}"]`) ?? startParagraph;
+    const endNode = endParagraph.firstChild;
+    if (!startNode || !endNode || startNode.nodeType !== Node.TEXT_NODE || endNode.nodeType !== Node.TEXT_NODE) {
+      return;
+    }
+
+    try {
+      const selection = window.getSelection();
+      if (!selection) {
+        return;
+      }
+      const range = document.createRange();
+      range.setStart(startNode, pendingSelection.startAnchor.charOffset);
+      range.setEnd(endNode, pendingSelection.endAnchor.charOffset);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } catch {
+      // Offset mismatches should not break focus behavior.
+    }
+  }, [activeCommentId, pendingSelection]);
 
   const captureSelection = () => {
     const selection = window.getSelection();
@@ -99,6 +157,7 @@ export function TextViewWindow({ text, pendingQuote, onSelectionCaptured }: Text
     <>
       {pendingQuote ? <div className="content-block">Pending quote: {pendingQuote}</div> : null}
       <div
+        ref={windowRef}
         className="content-block"
         data-testid="text-view-window"
         onMouseUp={captureSelection}

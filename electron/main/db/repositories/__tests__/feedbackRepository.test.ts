@@ -124,4 +124,39 @@ describe('FeedbackRepository', () => {
     const file1Feedback = await repository.listByFileId('file-1');
     expect(file1Feedback).toEqual([]);
   });
+
+  it('edits and applies existing feedback', async () => {
+    const repository = new FeedbackRepository({ now: () => '2026-02-19T13:00:00.000Z' });
+    await repository.add({
+      id: 'block-1',
+      fileId: 'file-1',
+      kind: 'block',
+      source: 'teacher',
+      commentText: 'Original comment.'
+    });
+
+    const edited = await repository.editCommentText('block-1', 'Updated comment.');
+    expect(edited).toMatchObject({
+      id: 'block-1',
+      commentText: 'Updated comment.',
+      updatedAt: '2026-02-19T13:00:00.000Z'
+    });
+
+    const applied = await repository.setApplied('block-1', true);
+    expect(applied).toMatchObject({
+      id: 'block-1',
+      applied: true,
+      updatedAt: '2026-02-19T13:00:00.000Z'
+    });
+  });
+
+  it('deletes feedback and anchors by id', async () => {
+    const repository = new FeedbackRepository();
+    await repository.add(makeInlineFeedback('inline-1'));
+
+    expect(await repository.deleteById('inline-1')).toBe(true);
+    expect(await repository.deleteById('inline-1')).toBe(false);
+    expect(await repository.getById('inline-1')).toBeNull();
+    expect(await repository.listByFileId('file-1')).toEqual([]);
+  });
 });

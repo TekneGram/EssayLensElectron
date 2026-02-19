@@ -1,10 +1,14 @@
 import type { IpcRendererEvent } from 'electron';
 import type { ApiResult, EssayLensApi } from './apiTypes';
 import type {
+  ApplyFeedbackRequest,
   AddFeedbackRequest,
+  DeleteFeedbackRequest,
+  EditFeedbackRequest,
   ExtractDocumentRequest,
   ListFeedbackRequest,
-  RequestLlmAssessmentRequest
+  RequestLlmAssessmentRequest,
+  SendFeedbackToLlmRequest
 } from '../shared/assessmentContracts';
 import type { SendChatMessageRequest } from '../shared/chatContracts';
 
@@ -31,6 +35,10 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
       extractDocument: (request: ExtractDocumentRequest) => invokeApi('assessment/extractDocument', request),
       listFeedback: (request: ListFeedbackRequest) => invokeApi('assessment/listFeedback', request),
       addFeedback: (request: AddFeedbackRequest) => invokeApi('assessment/addFeedback', request),
+      editFeedback: (request: EditFeedbackRequest) => invokeApi('assessment/editFeedback', request),
+      deleteFeedback: (request: DeleteFeedbackRequest) => invokeApi('assessment/deleteFeedback', request),
+      applyFeedback: (request: ApplyFeedbackRequest) => invokeApi('assessment/applyFeedback', request),
+      sendFeedbackToLlm: (request: SendFeedbackToLlmRequest) => invokeApi('assessment/sendFeedbackToLlm', request),
       requestLlmAssessment: (request: RequestLlmAssessmentRequest) => invokeApi('assessment/requestLlmAssessment', request)
     },
     rubric: {

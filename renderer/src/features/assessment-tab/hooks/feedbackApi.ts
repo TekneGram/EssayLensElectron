@@ -1,9 +1,25 @@
 import type { AppError, AppResult } from '../../../../../electron/shared/appResult';
-import type { AddFeedbackRequest, AddFeedbackResponse, ListFeedbackResponse } from '../../../../../electron/shared/assessmentContracts';
+import type {
+  AddFeedbackRequest,
+  AddFeedbackResponse,
+  ApplyFeedbackRequest,
+  ApplyFeedbackResponse,
+  DeleteFeedbackRequest,
+  DeleteFeedbackResponse,
+  EditFeedbackRequest,
+  EditFeedbackResponse,
+  ListFeedbackResponse,
+  SendFeedbackToLlmRequest,
+  SendFeedbackToLlmResponse
+} from '../../../../../electron/shared/assessmentContracts';
 
 type AssessmentApi = {
   listFeedback: (request: { fileId: string }) => Promise<AppResult<ListFeedbackResponse>>;
   addFeedback: (request: AddFeedbackRequest) => Promise<AppResult<AddFeedbackResponse>>;
+  editFeedback: (request: EditFeedbackRequest) => Promise<AppResult<EditFeedbackResponse>>;
+  deleteFeedback: (request: DeleteFeedbackRequest) => Promise<AppResult<DeleteFeedbackResponse>>;
+  applyFeedback: (request: ApplyFeedbackRequest) => Promise<AppResult<ApplyFeedbackResponse>>;
+  sendFeedbackToLlm: (request: SendFeedbackToLlmRequest) => Promise<AppResult<SendFeedbackToLlmResponse>>;
 };
 
 function getAssessmentApi(): AssessmentApi {
@@ -34,4 +50,36 @@ export async function addFeedback(request: AddFeedbackRequest): Promise<AddFeedb
     throw toError(result.error);
   }
   return result.data.feedback;
+}
+
+export async function editFeedback(request: EditFeedbackRequest): Promise<void> {
+  const assessmentApi = getAssessmentApi();
+  const result = await assessmentApi.editFeedback(request);
+  if (!result.ok) {
+    throw toError(result.error);
+  }
+}
+
+export async function deleteFeedback(request: DeleteFeedbackRequest): Promise<void> {
+  const assessmentApi = getAssessmentApi();
+  const result = await assessmentApi.deleteFeedback(request);
+  if (!result.ok) {
+    throw toError(result.error);
+  }
+}
+
+export async function applyFeedback(request: ApplyFeedbackRequest): Promise<void> {
+  const assessmentApi = getAssessmentApi();
+  const result = await assessmentApi.applyFeedback(request);
+  if (!result.ok) {
+    throw toError(result.error);
+  }
+}
+
+export async function sendFeedbackToLlm(request: SendFeedbackToLlmRequest): Promise<void> {
+  const assessmentApi = getAssessmentApi();
+  const result = await assessmentApi.sendFeedbackToLlm(request);
+  if (!result.ok) {
+    throw toError(result.error);
+  }
 }

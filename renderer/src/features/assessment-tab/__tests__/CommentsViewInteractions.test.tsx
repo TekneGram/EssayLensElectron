@@ -70,7 +70,7 @@ describe('CommentsView interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onEditComment).toHaveBeenCalledWith('feedback-inline-1', 'Updated comment text from tools.');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
     expect(onDeleteComment).toHaveBeenCalledWith('feedback-inline-1');
 
     fireEvent.click(screen.getByRole('button', { name: 'Send to LLM' }));
@@ -111,12 +111,13 @@ describe('CommentsView interactions', () => {
         ]
       }
     });
-    const listFeedback = vi.fn().mockResolvedValue({
+    const feedbackStore: FeedbackItem[] = [createInlineComment()];
+    const listFeedback = vi.fn().mockImplementation(async () => ({
       ok: true,
       data: {
-        feedback: [createInlineComment()]
+        feedback: feedbackStore
       }
-    });
+    }));
     const addFeedback = vi.fn().mockResolvedValue({
       ok: true,
       data: {
@@ -130,11 +131,50 @@ describe('CommentsView interactions', () => {
         }
       }
     });
+    const editFeedback = vi.fn().mockImplementation(async ({ feedbackId, commentText }: { feedbackId: string; commentText: string }) => {
+      const index = feedbackStore.findIndex((item) => item.id === feedbackId);
+      if (index >= 0) {
+        feedbackStore[index] = {
+          ...feedbackStore[index],
+          commentText
+        };
+      }
+      return { ok: true, data: { feedback: feedbackStore[index] } };
+    });
+    const applyFeedback = vi.fn().mockImplementation(async ({ feedbackId, applied }: { feedbackId: string; applied: boolean }) => {
+      const index = feedbackStore.findIndex((item) => item.id === feedbackId);
+      if (index >= 0) {
+        feedbackStore[index] = {
+          ...feedbackStore[index],
+          applied
+        };
+      }
+      return { ok: true, data: { feedback: feedbackStore[index] } };
+    });
+    const deleteFeedback = vi.fn().mockImplementation(async ({ feedbackId }: { feedbackId: string }) => {
+      const index = feedbackStore.findIndex((item) => item.id === feedbackId);
+      if (index >= 0) {
+        feedbackStore.splice(index, 1);
+      }
+      return { ok: true, data: { deletedFeedbackId: feedbackId } };
+    });
+    const sendFeedbackToLlm = vi.fn().mockImplementation(async ({ feedbackId }: { feedbackId: string }) => {
+      const source = feedbackStore.find((item) => item.id === feedbackId);
+      if (source) {
+        feedbackStore.push({
+          ...source,
+          id: 'feedback-inline-llm-1',
+          source: 'llm',
+          commentText: `LLM follow-up: ${source.commentText}`
+        });
+      }
+      return { ok: true, data: { status: 'sent', messageId: 'msg-1' } };
+    });
 
     Object.defineProperty(window, 'api', {
       value: {
         workspace: { selectFolder, listFiles },
-        assessment: { listFeedback, addFeedback },
+        assessment: { listFeedback, addFeedback, editFeedback, applyFeedback, deleteFeedback, sendFeedbackToLlm },
         rubric: {},
         chat: {}
       },
@@ -164,5 +204,38 @@ describe('CommentsView interactions', () => {
     await waitFor(() => {
       expect(screen.getByText(/Pending quote:/).textContent).toContain('should get truncated');
     });
+    await waitFor(() => {
+      const focusedParagraph = screen.getByTestId('text-view-window').querySelector('.text-paragraph-focused');
+      expect(focusedParagraph).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit comment text' }), {
+      target: { value: 'Updated persisted comment text.' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(editFeedback).toHaveBeenCalledWith({ feedbackId: 'feedback-inline-1', commentText: 'Updated persisted comment text.' });
+    });
+    await waitFor(() => {
+      expect(listFeedback.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => {
+      expect(applyFeedback).toHaveBeenCalledWith({ feedbackId: 'feedback-inline-1', applied: true });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send to LLM' }));
+    await waitFor(() => {
+      expect(sendFeedbackToLlm).toHaveBeenCalledWith({ feedbackId: 'feedback-inline-1', command: undefined });
+    });
+    expect(listFeedback.mock.calls.length).toBeGreaterThan(2);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+    await waitFor(() => {
+      expect(deleteFeedback).toHaveBeenCalledWith({ feedbackId: 'feedback-inline-1' });
+    });
+    expect(listFeedback.mock.calls.length).toBeGreaterThan(3);
   });
 });

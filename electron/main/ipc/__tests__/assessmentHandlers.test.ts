@@ -305,4 +305,84 @@ describe('registerAssessmentHandlers', () => {
       }
     });
   });
+
+  it('edits, applies, deletes, and sends feedback to LLM', async () => {
+    const harness = createHarness();
+    const repository = new FeedbackRepository({ now: () => '2026-02-19T14:00:00.000Z' });
+    await repository.add({
+      id: 'feedback-1',
+      fileId: 'file-1',
+      source: 'teacher',
+      kind: 'inline',
+      commentText: 'Initial comment.',
+      exactQuote: 'selected phrase',
+      prefixText: 'Before ',
+      suffixText: ' after',
+      startAnchor: makeAnchor({ paragraphIndex: 0, runIndex: 0, charOffset: 0 }),
+      endAnchor: makeAnchor({ paragraphIndex: 0, runIndex: 0, charOffset: 15 })
+    });
+    registerAssessmentHandlers(
+      { handle: harness.handle },
+      { repository, makeFeedbackId: () => 'feedback-llm-1', makeMessageId: () => 'msg-1' }
+    );
+
+    const editHandler = harness.getHandler(ASSESSMENT_CHANNELS.editFeedback);
+    const applyHandler = harness.getHandler(ASSESSMENT_CHANNELS.applyFeedback);
+    const sendToLlmHandler = harness.getHandler(ASSESSMENT_CHANNELS.sendFeedbackToLlm);
+    const deleteHandler = harness.getHandler(ASSESSMENT_CHANNELS.deleteFeedback);
+    const listHandler = harness.getHandler(ASSESSMENT_CHANNELS.listFeedback);
+
+    const editResult = await editHandler({}, { feedbackId: 'feedback-1', commentText: 'Edited comment.' });
+    expect(editResult).toMatchObject({
+      ok: true,
+      data: {
+        feedback: {
+          id: 'feedback-1',
+          commentText: 'Edited comment.'
+        }
+      }
+    });
+
+    const applyResult = await applyHandler({}, { feedbackId: 'feedback-1', applied: true });
+    expect(applyResult).toMatchObject({
+      ok: true,
+      data: {
+        feedback: {
+          id: 'feedback-1',
+          applied: true
+        }
+      }
+    });
+
+    const sendToLlmResult = await sendToLlmHandler({}, { feedbackId: 'feedback-1', command: 'check-hedging' });
+    expect(sendToLlmResult).toEqual({
+      ok: true,
+      data: {
+        status: 'sent',
+        messageId: 'msg-1'
+      }
+    });
+
+    const listAfterSend = await listHandler({}, { fileId: 'file-1' });
+    expect(listAfterSend).toMatchObject({
+      ok: true,
+      data: {
+        feedback: expect.arrayContaining([
+          expect.objectContaining({
+            id: 'feedback-llm-1',
+            source: 'llm',
+            kind: 'inline'
+          })
+        ])
+      }
+    });
+
+    const deleteResult = await deleteHandler({}, { feedbackId: 'feedback-1' });
+    expect(deleteResult).toEqual({
+      ok: true,
+      data: {
+        deletedFeedbackId: 'feedback-1'
+      }
+    });
+  });
 });

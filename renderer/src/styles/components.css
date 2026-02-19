@@ -223,6 +223,11 @@
   background: var(--bg-surface);
 }
 
+.content-block p.text-paragraph-focused {
+  background: color-mix(in hsl, var(--bg-accent-soft) 55%, var(--accent-primary) 45%);
+  border-radius: 4px;
+}
+
 .comments-view {
   grid-template-rows: auto auto minmax(0, 1fr);
 }

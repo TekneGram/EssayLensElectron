@@ -5,6 +5,7 @@ import { TextViewWindow } from './TextViewWindow';
 export function OriginalTextView({
   text,
   pendingSelection,
+  activeCommentId,
   isProcessCenterOpen,
   onSelectionCaptured,
   onCommandSelected,
@@ -22,6 +23,8 @@ export function OriginalTextView({
       <TextViewWindow
         text={text}
         pendingQuote={pendingSelection?.exactQuote}
+        pendingSelection={pendingSelection}
+        activeCommentId={activeCommentId}
         onSelectionCaptured={onSelectionCaptured}
       />
     </section>

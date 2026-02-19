@@ -2,14 +2,22 @@ import { randomUUID } from 'node:crypto';
 import { FeedbackRepository, type FeedbackRecord } from '../db/repositories/feedbackRepository';
 import { appErr, appOk } from '../../shared/appResult';
 import type {
+  ApplyFeedbackRequest,
+  ApplyFeedbackResponse,
   AddFeedbackRequest,
   AddFeedbackResponse,
+  DeleteFeedbackRequest,
+  DeleteFeedbackResponse,
+  EditFeedbackRequest,
+  EditFeedbackResponse,
   ExtractDocumentRequest,
   FeedbackAnchorDto,
   FeedbackDto,
   ListFeedbackResponse,
   ListFeedbackRequest,
-  RequestLlmAssessmentRequest
+  RequestLlmAssessmentRequest,
+  SendFeedbackToLlmRequest,
+  SendFeedbackToLlmResponse
 } from '../../shared/assessmentContracts';
 import { notImplementedResult } from './result';
 import type { IpcMainLike } from './types';
@@ -18,18 +26,24 @@ export const ASSESSMENT_CHANNELS = {
   extractDocument: 'assessment/extractDocument',
   listFeedback: 'assessment/listFeedback',
   addFeedback: 'assessment/addFeedback',
+  editFeedback: 'assessment/editFeedback',
+  deleteFeedback: 'assessment/deleteFeedback',
+  applyFeedback: 'assessment/applyFeedback',
+  sendFeedbackToLlm: 'assessment/sendFeedbackToLlm',
   requestLlmAssessment: 'assessment/requestLlmAssessment'
 } as const;
 
 interface AssessmentHandlerDeps {
   repository: FeedbackRepository;
   makeFeedbackId: () => string;
+  makeMessageId?: () => string;
 }
 
 function getDefaultDeps(): AssessmentHandlerDeps {
   return {
     repository: new FeedbackRepository(),
-    makeFeedbackId: () => randomUUID()
+    makeFeedbackId: () => randomUUID(),
+    makeMessageId: () => randomUUID()
   };
 }
 
@@ -216,6 +230,85 @@ function normalizeAddFeedbackRequest(request: unknown): AddFeedbackRequest | nul
   };
 }
 
+function normalizeEditFeedbackRequest(request: unknown): EditFeedbackRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+
+  const candidate = request as Record<string, unknown>;
+  const feedbackId = normalizeNonEmptyString(candidate.feedbackId);
+  const commentText = normalizeNonEmptyString(candidate.commentText);
+  if (!feedbackId || !commentText) {
+    return null;
+  }
+
+  return {
+    feedbackId,
+    commentText
+  };
+}
+
+function normalizeDeleteFeedbackRequest(request: unknown): DeleteFeedbackRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+
+  const candidate = request as Record<string, unknown>;
+  const feedbackId = normalizeNonEmptyString(candidate.feedbackId);
+  if (!feedbackId) {
+    return null;
+  }
+
+  return { feedbackId };
+}
+
+function normalizeApplyFeedbackRequest(request: unknown): ApplyFeedbackRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+
+  const candidate = request as Record<string, unknown>;
+  const feedbackId = normalizeNonEmptyString(candidate.feedbackId);
+  if (!feedbackId || typeof candidate.applied !== 'boolean') {
+    return null;
+  }
+
+  return {
+    feedbackId,
+    applied: candidate.applied
+  };
+}
+
+function normalizeSendFeedbackToLlmRequest(request: unknown): SendFeedbackToLlmRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+
+  const candidate = request as Record<string, unknown>;
+  const feedbackId = normalizeNonEmptyString(candidate.feedbackId);
+  if (!feedbackId) {
+    return null;
+  }
+
+  if (!hasOwnProperty(candidate, 'command')) {
+    return { feedbackId };
+  }
+
+  if (candidate.command === undefined) {
+    return { feedbackId };
+  }
+
+  const command = normalizeNonEmptyString(candidate.command);
+  if (!command) {
+    return null;
+  }
+
+  return {
+    feedbackId,
+    command
+  };
+}
+
 function toFeedbackDto(record: FeedbackRecord): FeedbackDto {
   if (record.kind === 'block') {
     return {
@@ -315,6 +408,139 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: Assessmen
       return appErr({
         code: 'ASSESSMENT_ADD_FEEDBACK_FAILED',
         message: 'Could not persist feedback.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(ASSESSMENT_CHANNELS.editFeedback, async (_event, request) => {
+    const normalizedRequest = normalizeEditFeedbackRequest(request);
+    if (!normalizedRequest) {
+      return appErr({
+        code: 'ASSESSMENT_EDIT_FEEDBACK_INVALID_PAYLOAD',
+        message: 'Edit feedback request must include non-empty feedbackId and commentText.'
+      });
+    }
+
+    try {
+      const edited = await deps.repository.editCommentText(normalizedRequest.feedbackId, normalizedRequest.commentText);
+      if (!edited) {
+        return appErr({
+          code: 'ASSESSMENT_EDIT_FEEDBACK_NOT_FOUND',
+          message: 'Feedback item not found.'
+        });
+      }
+      return appOk<EditFeedbackResponse>({
+        feedback: toFeedbackDto(edited)
+      });
+    } catch (error) {
+      return appErr({
+        code: 'ASSESSMENT_EDIT_FEEDBACK_FAILED',
+        message: 'Could not edit feedback.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(ASSESSMENT_CHANNELS.deleteFeedback, async (_event, request) => {
+    const normalizedRequest = normalizeDeleteFeedbackRequest(request);
+    if (!normalizedRequest) {
+      return appErr({
+        code: 'ASSESSMENT_DELETE_FEEDBACK_INVALID_PAYLOAD',
+        message: 'Delete feedback request must include a non-empty feedbackId.'
+      });
+    }
+
+    try {
+      const deleted = await deps.repository.deleteById(normalizedRequest.feedbackId);
+      if (!deleted) {
+        return appErr({
+          code: 'ASSESSMENT_DELETE_FEEDBACK_NOT_FOUND',
+          message: 'Feedback item not found.'
+        });
+      }
+      return appOk<DeleteFeedbackResponse>({
+        deletedFeedbackId: normalizedRequest.feedbackId
+      });
+    } catch (error) {
+      return appErr({
+        code: 'ASSESSMENT_DELETE_FEEDBACK_FAILED',
+        message: 'Could not delete feedback.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(ASSESSMENT_CHANNELS.applyFeedback, async (_event, request) => {
+    const normalizedRequest = normalizeApplyFeedbackRequest(request);
+    if (!normalizedRequest) {
+      return appErr({
+        code: 'ASSESSMENT_APPLY_FEEDBACK_INVALID_PAYLOAD',
+        message: 'Apply feedback request must include a non-empty feedbackId and boolean applied.'
+      });
+    }
+
+    try {
+      const updated = await deps.repository.setApplied(normalizedRequest.feedbackId, normalizedRequest.applied);
+      if (!updated) {
+        return appErr({
+          code: 'ASSESSMENT_APPLY_FEEDBACK_NOT_FOUND',
+          message: 'Feedback item not found.'
+        });
+      }
+      return appOk<ApplyFeedbackResponse>({
+        feedback: toFeedbackDto(updated)
+      });
+    } catch (error) {
+      return appErr({
+        code: 'ASSESSMENT_APPLY_FEEDBACK_FAILED',
+        message: 'Could not apply feedback.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(ASSESSMENT_CHANNELS.sendFeedbackToLlm, async (_event, request) => {
+    const normalizedRequest = normalizeSendFeedbackToLlmRequest(request);
+    if (!normalizedRequest) {
+      return appErr({
+        code: 'ASSESSMENT_SEND_FEEDBACK_TO_LLM_INVALID_PAYLOAD',
+        message: 'Send feedback to LLM request must include a non-empty feedbackId and optional command.'
+      });
+    }
+
+    try {
+      const source = await deps.repository.getById(normalizedRequest.feedbackId);
+      if (!source) {
+        return appErr({
+          code: 'ASSESSMENT_SEND_FEEDBACK_TO_LLM_NOT_FOUND',
+          message: 'Feedback item not found.'
+        });
+      }
+
+      const commandLabel = normalizedRequest.command ? ` [${normalizedRequest.command}]` : '';
+      const generatedCommentText = `LLM follow-up${commandLabel}: ${source.commentText}`;
+      await deps.repository.add({
+        id: deps.makeFeedbackId(),
+        fileId: source.fileId,
+        kind: source.kind,
+        source: 'llm',
+        commentText: generatedCommentText,
+        exactQuote: source.kind === 'inline' ? source.exactQuote : undefined,
+        prefixText: source.kind === 'inline' ? source.prefixText : undefined,
+        suffixText: source.kind === 'inline' ? source.suffixText : undefined,
+        startAnchor: source.kind === 'inline' ? source.startAnchor : undefined,
+        endAnchor: source.kind === 'inline' ? source.endAnchor : undefined
+      });
+
+      return appOk<SendFeedbackToLlmResponse>({
+        status: 'sent',
+        messageId: deps.makeMessageId?.() ?? deps.makeFeedbackId()
+      });
+    } catch (error) {
+      return appErr({
+        code: 'ASSESSMENT_SEND_FEEDBACK_TO_LLM_FAILED',
+        message: 'Could not send feedback to LLM.',
         details: error
       });
     }

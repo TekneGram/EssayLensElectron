@@ -67,6 +67,14 @@ export class FeedbackRepository {
     return rows.map((row) => this.mapRowToRecord(row));
   }
 
+  async getById(feedbackId: string): Promise<FeedbackRecord | null> {
+    const row = this.feedbackById.get(feedbackId);
+    if (!row) {
+      return null;
+    }
+    return this.mapRowToRecord(row);
+  }
+
   async add(feedback: FeedbackRecord): Promise<FeedbackRecord> {
     const nextFeedbackById = new Map(this.feedbackById);
     const nextAnchorByFeedbackId = this.cloneAnchorMap();
@@ -135,6 +143,60 @@ export class FeedbackRepository {
     this.feedbackById = nextFeedbackById;
     this.anchorByFeedbackId = nextAnchorByFeedbackId;
     return this.mapRowToRecord(this.feedbackById.get(feedback.id)!);
+  }
+
+  async editCommentText(feedbackId: string, commentText: string): Promise<FeedbackRecord | null> {
+    const existing = this.feedbackById.get(feedbackId);
+    if (!existing) {
+      return null;
+    }
+
+    const trimmedText = commentText.trim();
+    if (!trimmedText) {
+      throw new Error('Feedback commentText is required.');
+    }
+
+    const nextFeedbackById = new Map(this.feedbackById);
+    nextFeedbackById.set(feedbackId, {
+      ...existing,
+      comment_text: trimmedText,
+      updated_at: this.now()
+    });
+
+    this.feedbackById = nextFeedbackById;
+    return this.mapRowToRecord(this.feedbackById.get(feedbackId)!);
+  }
+
+  async deleteById(feedbackId: string): Promise<boolean> {
+    if (!this.feedbackById.has(feedbackId)) {
+      return false;
+    }
+
+    const nextFeedbackById = new Map(this.feedbackById);
+    const nextAnchorByFeedbackId = this.cloneAnchorMap();
+    nextFeedbackById.delete(feedbackId);
+    nextAnchorByFeedbackId.delete(feedbackId);
+
+    this.feedbackById = nextFeedbackById;
+    this.anchorByFeedbackId = nextAnchorByFeedbackId;
+    return true;
+  }
+
+  async setApplied(feedbackId: string, applied: boolean): Promise<FeedbackRecord | null> {
+    const existing = this.feedbackById.get(feedbackId);
+    if (!existing) {
+      return null;
+    }
+
+    const nextFeedbackById = new Map(this.feedbackById);
+    nextFeedbackById.set(feedbackId, {
+      ...existing,
+      applied: applied ? 1 : 0,
+      updated_at: this.now()
+    });
+
+    this.feedbackById = nextFeedbackById;
+    return this.mapRowToRecord(this.feedbackById.get(feedbackId)!);
   }
 
   private cloneAnchorMap(): Map<string, Map<AnchorKind, FeedbackAnchorRow>> {
