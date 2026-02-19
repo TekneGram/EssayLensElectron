@@ -19,22 +19,23 @@ CREATE TABLE IF NOT EXISTS feedback (
   )
 );
 
-CREATE TABLE IF NOT EXISTS feedback_anchor (
+CREATE TABLE IF NOT EXISTS feedback_anchors (
   feedback_uuid TEXT NOT NULL,
   anchor_kind TEXT NOT NULL CHECK (anchor_kind IN ('start', 'end')),
   part TEXT NOT NULL,
   paragraph_index INTEGER NOT NULL CHECK (paragraph_index >= 0),
   run_index INTEGER NOT NULL CHECK (run_index >= 0),
+  text_node_index INTEGER NOT NULL CHECK (text_node_index >= 0) DEFAULT 0,
   char_offset INTEGER NOT NULL CHECK (char_offset >= 0),
   PRIMARY KEY (feedback_uuid, anchor_kind),
   FOREIGN KEY (feedback_uuid) REFERENCES feedback(uuid) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_feedback_entity_uuid ON feedback(entity_uuid);
-CREATE INDEX IF NOT EXISTS idx_feedback_anchor_lookup ON feedback_anchor(part, paragraph_index, run_index, char_offset);
+CREATE INDEX IF NOT EXISTS idx_feedback_entity ON feedback(entity_uuid);
+CREATE INDEX IF NOT EXISTS idx_feedback_anchor_lookup ON feedback_anchors(part, paragraph_index, run_index, char_offset);
 
 CREATE TRIGGER IF NOT EXISTS trg_feedback_anchor_requires_inline_insert
-BEFORE INSERT ON feedback_anchor
+BEFORE INSERT ON feedback_anchors
 FOR EACH ROW
 WHEN (SELECT kind FROM feedback WHERE uuid = NEW.feedback_uuid) <> 'inline'
 BEGIN
@@ -42,7 +43,7 @@ BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_feedback_anchor_requires_inline_update
-BEFORE UPDATE OF feedback_uuid ON feedback_anchor
+BEFORE UPDATE OF feedback_uuid ON feedback_anchors
 FOR EACH ROW
 WHEN (SELECT kind FROM feedback WHERE uuid = NEW.feedback_uuid) <> 'inline'
 BEGIN
@@ -55,7 +56,7 @@ FOR EACH ROW
 WHEN NEW.kind = 'block'
   AND EXISTS (
     SELECT 1
-    FROM feedback_anchor fa
+    FROM feedback_anchors fa
     WHERE fa.feedback_uuid = NEW.uuid
   )
 BEGIN
