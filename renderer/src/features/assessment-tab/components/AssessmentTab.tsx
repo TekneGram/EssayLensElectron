@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
+import type { FeedbackItem } from '../../../types';
 import { useAddFeedbackMutation, useFeedbackListQuery } from '../hooks';
 import type { ActiveCommand, AssessmentTabChatBindings, ChatMode, PendingSelection } from '../types';
 import { CommentsView } from './CommentsView';
@@ -99,17 +100,95 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
     dispatch({ type: 'ui/setAssessmentSplitRatio', payload: ratio });
   };
 
-  const handleEditComment = (_commentId: string, _nextText: string) => {
-    // Phase 0 stub: behavior added in later phases.
-  };
+  const updateCurrentFileComments = useCallback(
+    (updater: (currentComments: FeedbackItem[]) => FeedbackItem[]) => {
+      if (!selectedFileId) {
+        return;
+      }
+      const currentComments = state.feedback.byFileId[selectedFileId] ?? [];
+      dispatch({
+        type: 'feedback/setForFile',
+        payload: {
+          fileId: selectedFileId,
+          items: updater(currentComments)
+        }
+      });
+    },
+    [dispatch, selectedFileId, state.feedback.byFileId]
+  );
 
-  const handleDeleteComment = (_commentId: string) => {
-    // Phase 0 stub: behavior added in later phases.
-  };
+  const handleSelectComment = useCallback(
+    (commentId: string) => {
+      setActiveCommentId(commentId);
+      const selectedComment = comments.find((comment) => comment.id === commentId);
+      if (!selectedComment || selectedComment.kind !== 'inline') {
+        setPendingSelection(null);
+        return;
+      }
+      setPendingSelection({
+        exactQuote: selectedComment.exactQuote,
+        prefixText: selectedComment.prefixText,
+        suffixText: selectedComment.suffixText,
+        startAnchor: selectedComment.startAnchor,
+        endAnchor: selectedComment.endAnchor
+      });
+    },
+    [comments]
+  );
 
-  const handleApplyComment = (_commentId: string, _applied: boolean) => {
-    // Phase 0 stub: behavior added in later phases.
-  };
+  const handleEditComment = useCallback(
+    (commentId: string, nextText: string) => {
+      const updatedAt = new Date().toISOString();
+      updateCurrentFileComments((currentComments) =>
+        currentComments.map((comment) =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                commentText: nextText,
+                updatedAt
+              }
+            : comment
+        )
+      );
+    },
+    [updateCurrentFileComments]
+  );
+
+  const handleDeleteComment = useCallback(
+    (commentId: string) => {
+      setActiveCommentId((current) => (current === commentId ? null : current));
+      updateCurrentFileComments((currentComments) => currentComments.filter((comment) => comment.id !== commentId));
+    },
+    [updateCurrentFileComments]
+  );
+
+  const handleApplyComment = useCallback(
+    (commentId: string, applied: boolean) => {
+      updateCurrentFileComments((currentComments) =>
+        currentComments.map((comment) =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                applied
+              }
+            : comment
+        )
+      );
+    },
+    [updateCurrentFileComments]
+  );
+
+  const handleSendToLlm = useCallback(
+    (commentId: string, commandId?: string) => {
+      setActiveCommentId(commentId);
+      setActiveCommandWithModeRule({
+        id: commandId ?? 'send-feedback-to-llm',
+        label: commandId ? commandId.replace(/[-_]/g, ' ') : 'Send Feedback To LLM',
+        source: 'chat-dropdown'
+      });
+    },
+    [setActiveCommandWithModeRule]
+  );
 
   const updateRatioFromClientX = (clientX: number) => {
     const container = containerRef.current;
@@ -198,17 +277,10 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
             ? state.feedback.error ?? addFeedbackMutation.errorMessage ?? 'Unable to load comments.'
             : undefined
         }
-        onSelectComment={setActiveCommentId}
+        onSelectComment={handleSelectComment}
         onEditComment={handleEditComment}
         onDeleteComment={handleDeleteComment}
-        onSendToLlm={(commentId, commandId) => {
-          setActiveCommentId(commentId);
-          setActiveCommandWithModeRule({
-            id: commandId ?? 'send-feedback-to-llm',
-            label: 'Send Feedback To LLM',
-            source: 'chat-dropdown'
-          });
-        }}
+        onSendToLlm={handleSendToLlm}
         onApplyComment={handleApplyComment}
         activeTab={activeCommentsTab}
         onTabChange={(tab) => dispatch({ type: 'ui/setCommentsTab', payload: tab })}

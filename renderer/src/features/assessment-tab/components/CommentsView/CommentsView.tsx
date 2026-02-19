@@ -48,18 +48,22 @@ export function CommentsView({
           {isLoading ? <div>Loading comments...</div> : null}
           {error ? <div>{error}</div> : null}
           {!isLoading && !error && comments.length === 0 ? <div>No comments yet.</div> : null}
-          {comments.map((comment) => (
-            <CommentView
-              key={comment.id}
-              comment={comment}
-              isActive={activeCommentId === comment.id}
-              onApplyComment={onApplyComment}
-              onDeleteComment={onDeleteComment}
-              onEditComment={onEditComment}
-              onSelectComment={onSelectComment}
-              onSendToLlm={onSendToLlm}
-            />
-          ))}
+          {comments.length > 0 ? (
+            <div className="comments-list">
+              {comments.map((comment) => (
+                <CommentView
+                  key={comment.id}
+                  comment={comment}
+                  isActive={activeCommentId === comment.id}
+                  onApplyComment={onApplyComment}
+                  onDeleteComment={onDeleteComment}
+                  onEditComment={onEditComment}
+                  onSelectComment={onSelectComment}
+                  onSendToLlm={onSendToLlm}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className="content-block comments-panel" role="tabpanel" hidden={activeTab !== 'score'}>
           ScoreTool

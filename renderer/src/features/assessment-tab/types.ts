@@ -64,6 +64,7 @@ export interface CommentBodyProps {
 
 export interface CommentToolsProps {
   commentId: string;
+  commentText: string;
   applied: boolean;
   onEditComment: (commentId: string, nextText: string) => void;
   onDeleteComment: (commentId: string) => void;
