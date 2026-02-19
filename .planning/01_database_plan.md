@@ -51,16 +51,33 @@ CREATE TABLE image (
 ```sql
 CREATE TABLE feedback (
     uuid TEXT PRIMARY KEY,
-    entity_uuid TEXT NOT NULL,
-    feedback_type TEXT NOT NULL CHECK (feedback_type IN ('teacher-inline', 'teacher-block', 'LLM-inline', 'LLM-block')),
-    text_span_start INTEGER,
-    text_span_end INTEGER,
-    title TEXT,
-    comment TEXT,
+    entity_uuid TEXT NOT NULL, --file id
+    source TEXT NOT NULL CHECK (source IN ('teacher', 'llm')),
+    kind TEXT NOT NULL CHECK (kind IN ('inline', 'block')),
+    comment_text TEXT NOT NULL,
+    exactl_quote TEXT,
+    prefix_text TEXT,
+    suffix_text TEXT,
     applied INTEGER NOT NULL DEFAULT 0 CHECK (applied IN (0,1)),
     created_at TEXT NOT NULL,
-    FOREIGN KEY (entity_uuid) REFERENCES filename (entity_uuid)
+    FOREIGN KEY (entity_uuid) REFERENCES filename(entity_uuid)
 );
+```
+---
+## Table feedback_anchors
+```sql
+CREATE TABLE feedback_anchors (
+    feedback_uuid TEXT NOT NULL,
+    anchor_kind TEXT NOT NULL CHECK (anchor_kind IN ('start', 'end')),
+    part TEXT NOT NULL,
+    paragraph_index INTEGER NOT NULL,
+    run_index INTEGER NOT NULL,
+    text_node_index INTEGER NOT NULL,
+    char_offset INTEGER NOT NULL,
+    PRIMARY KEY (feedback_uuid, anchor_kind),
+    FOREIGN KEY (feedback_uuid) REFERENCES feedback(uuid) ON DELETE CASCADE
+)
+
 ```
 ---
 ## Table: rubrics
