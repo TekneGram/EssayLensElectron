@@ -4,6 +4,7 @@ node_modules/
 dist-electron/
 renderer/dist/
 dist/
+tutorial/
 
 # Test output
 coverage/
@@ -33,3 +34,5 @@ pnpm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+
+.planning/text-view
