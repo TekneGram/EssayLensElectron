@@ -19,7 +19,11 @@ export function OriginalTextView({
         onClearSelection={() => onSelectionCaptured(null)}
         onSelectCommand={onCommandSelected}
       />
-      <TextViewWindow text={text} pendingQuote={pendingSelection?.exactQuote} />
+      <TextViewWindow
+        text={text}
+        pendingQuote={pendingSelection?.exactQuote}
+        onSelectionCaptured={onSelectionCaptured}
+      />
     </section>
   );
 }

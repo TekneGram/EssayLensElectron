@@ -172,6 +172,7 @@ describe('Assessment tab file selection routing', () => {
       expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('comment:false:no-command');
     });
 
+    fireEvent.click(screen.getByRole('button', { name: 'Show Process Center' }));
     fireEvent.click(screen.getByRole('button', { name: 'Select Command' }));
 
     await waitFor(() => {
@@ -187,5 +188,97 @@ describe('Assessment tab file selection routing', () => {
       expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('comment:false:no-command');
     });
     expect(screen.getByRole('button', { name: 'Switch to comment mode' }).getAttribute('disabled')).toBeNull();
+  });
+
+  it('captures highlighted text in OriginalTextView and propagates it to ChatInterface', async () => {
+    const selectFolder = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        folder: {
+          id: '/workspace/essays',
+          path: '/workspace/essays',
+          name: 'essays'
+        }
+      }
+    });
+    const listFiles = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        files: [
+          {
+            id: '/workspace/essays/draft.docx',
+            folderId: '/workspace/essays',
+            name: 'draft.docx',
+            path: '/workspace/essays/draft.docx',
+            kind: 'docx'
+          }
+        ]
+      }
+    });
+    const listFeedback = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        feedback: []
+      }
+    });
+    const addFeedback = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        feedback: {
+          id: 'feedback-1',
+          fileId: '/workspace/essays/draft.docx',
+          source: 'teacher',
+          kind: 'block',
+          commentText: 'Nice work.',
+          createdAt: new Date().toISOString()
+        }
+      }
+    });
+
+    Object.defineProperty(window, 'api', {
+      value: {
+        workspace: { selectFolder, listFiles },
+        assessment: { listFeedback, addFeedback },
+        rubric: {},
+        chat: {}
+      },
+      configurable: true
+    });
+
+    const queryClient = createAppQueryClient();
+    render(
+      <AppProviders queryClient={queryClient}>
+        <App />
+      </AppProviders>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select Folder' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'draft.docx' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'draft.docx' }));
+
+    const windowNode = await screen.findByTestId('text-view-window');
+    const paragraphNode = windowNode.querySelector('p');
+    expect(paragraphNode).toBeTruthy();
+    if (!paragraphNode?.firstChild) {
+      throw new Error('Expected paragraph text node to exist');
+    }
+
+    const quoteStart = paragraphNode.textContent?.indexOf('draft.docx') ?? -1;
+    expect(quoteStart).toBeGreaterThanOrEqual(0);
+    const quoteEnd = quoteStart + 'draft.docx'.length;
+
+    const range = document.createRange();
+    range.setStart(paragraphNode.firstChild, quoteStart);
+    range.setEnd(paragraphNode.firstChild, quoteEnd);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.mouseUp(windowNode);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('highlighted-text-stub').textContent).toBe('draft.docx');
+    });
   });
 });
