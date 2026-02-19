@@ -21,6 +21,12 @@ export function ChatInterface({
   onSubmit,
   onCommandSelected
 }: ChatInterfaceProps) {
+  const submitLabel = chatMode === 'comment' ? 'Add Comment' : 'Send Chat';
+  const handleSubmit = () => {
+    onChatIntent();
+    void onSubmit?.();
+  };
+
   return (
     <section className="chat-interface pane" data-testid="chat-interface" aria-label="Chat interface">
       <div hidden data-testid="assessment-chat-interface-stub">
@@ -28,15 +34,14 @@ export function ChatInterface({
       </div>
       <CommandDisplay activeCommand={activeCommand} />
       <HighlightedTextDisplay pendingSelection={pendingSelection} />
-      <ChatInput draftText={draftText} onDraftChange={onDraftChange} onChatIntent={onChatIntent} />
-      <CommandDropdown activeCommand={activeCommand} onCommandSelected={onCommandSelected} />
-      <ChatToggle isModeLockedToChat={isModeLockedToChat} onModeChange={onModeChange} />
-      <button className="chat-send" type="button" aria-label="Send message" onClick={onChatIntent}>
-        Send
-      </button>
-      <button className="chat-send" type="button" aria-label="Submit draft" onClick={() => onSubmit?.()}>
-        Submit
-      </button>
+      <ChatInput draftText={draftText} onDraftChange={onDraftChange} onChatIntent={onChatIntent} onSubmit={handleSubmit} />
+      <div className="chat-interface-controls">
+        <CommandDropdown activeCommand={activeCommand} onCommandSelected={onCommandSelected} />
+        <ChatToggle chatMode={chatMode} isModeLockedToChat={isModeLockedToChat} onModeChange={onModeChange} />
+        <button className="chat-send" type="button" aria-label="Send message" onClick={handleSubmit}>
+          {submitLabel}
+        </button>
+      </div>
     </section>
   );
 }

@@ -5,5 +5,9 @@ interface CommandDisplayProps {
 }
 
 export function CommandDisplay({ activeCommand = null }: CommandDisplayProps) {
-  return <div hidden data-testid="command-display-stub">{activeCommand?.label ?? 'No command selected'}</div>;
+  return (
+    <div className="chat-command-display" data-testid="command-display">
+      <strong>Command:</strong> {activeCommand?.label ?? 'None'}
+    </div>
+  );
 }

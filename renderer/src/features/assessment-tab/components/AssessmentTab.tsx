@@ -1,16 +1,34 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'react-toastify';
+import type { AppResult } from '../../../../../electron/shared/appResult';
+import type { SendChatMessageRequest, SendChatMessageResponse } from '../../../../../electron/shared/chatContracts';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
-import type { ActiveCommand, ChatMode, PendingSelection } from '../types';
+import { useAddFeedbackMutation, useFeedbackListQuery, useGenerateFeedbackDocumentMutation } from '../hooks';
+import { applyFeedback, deleteFeedback, editFeedback, sendFeedbackToLlm } from '../hooks/feedbackApi';
+import type { ActiveCommand, AssessmentTabChatBindings, ChatMode, PendingSelection } from '../types';
 import { CommentsView } from './CommentsView';
 import { ImageView } from './ImageView';
 import { OriginalTextView } from './OriginalTextView';
 
 interface AssessmentTabProps {
   selectedFileType: SelectedFileType;
+  onChatBindingsChange?: (bindings: AssessmentTabChatBindings) => void;
 }
 
-export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
+type ChatApi = {
+  sendMessage: (request: SendChatMessageRequest) => Promise<AppResult<SendChatMessageResponse>>;
+};
+
+function getChatApi(): ChatApi {
+  const appWindow = window as Window & { api?: { chat?: ChatApi } };
+  if (!appWindow.api?.chat) {
+    throw new Error('window.api.chat is not available.');
+  }
+  return appWindow.api.chat;
+}
+
+export function AssessmentTab({ selectedFileType, onChatBindingsChange }: AssessmentTabProps) {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const activeCommentsTab = selectActiveCommentsTab(state);
@@ -20,44 +38,255 @@ export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
   const selectedFileId = selectedFile?.id ?? null;
   const isImageViewOpen = selectedFileType === 'image';
   const mode = isImageViewOpen ? 'three-pane' : 'two-pane';
+  const feedbackListQuery = useFeedbackListQuery(selectedFileId);
+  const { addFeedback, isPending: isAddFeedbackPending, errorMessage: addFeedbackErrorMessage } =
+    useAddFeedbackMutation(selectedFileId);
+  const {
+    generateFeedbackDocumentForFile,
+    isPending: isGenerateFeedbackPending,
+    errorMessage: generateFeedbackErrorMessage
+  } = useGenerateFeedbackDocumentMutation(selectedFileId);
   const comments = selectedFileId ? state.feedback.byFileId[selectedFileId] ?? [] : [];
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const [activeCommand, setActiveCommand] = useState<ActiveCommand | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>('comment');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [isProcessCenterOpen, setIsProcessCenterOpen] = useState(false);
+  const [draftText, setDraftText] = useState('');
   const originalText =
     selectedFileType === 'docx' || selectedFileType === 'pdf'
       ? `OriginalTextView: ${selectedFile?.name ?? 'No file selected.'}`
       : 'OriginalTextView';
   const isModeLockedToChat = activeCommand !== null;
+  const canGenerateFeedbackDocument = selectedFileType === 'docx' && comments.length > 0;
 
-  const setActiveCommandWithModeRule = (command: ActiveCommand | null) => {
+  const setActiveCommandWithModeRule = useCallback((command: ActiveCommand | null) => {
     setActiveCommand(command);
-    if (command) {
-      setChatMode('chat');
+    setChatMode((currentMode) => {
+      if (command) {
+        return 'chat';
+      }
+      return currentMode;
+    });
+  }, []);
+
+  const handleModeChange = useCallback(
+    (mode: ChatMode) => {
+      if (isModeLockedToChat && mode === 'comment') {
+        return;
+      }
+      setChatMode(mode);
+    },
+    [isModeLockedToChat]
+  );
+
+  const handleSubmit = useCallback(async () => {
+    const message = draftText.trim();
+    if (!message) {
       return;
     }
-    if (isModeLockedToChat) {
-      setChatMode('comment');
+
+    if (chatMode === 'comment') {
+      try {
+        if (pendingSelection) {
+          await addFeedback({
+            kind: 'inline',
+            source: 'teacher',
+            commentText: message,
+            exactQuote: pendingSelection.exactQuote,
+            prefixText: pendingSelection.prefixText,
+            suffixText: pendingSelection.suffixText,
+            startAnchor: pendingSelection.startAnchor,
+            endAnchor: pendingSelection.endAnchor
+          });
+          setPendingSelection(null);
+        } else {
+          await addFeedback({
+            kind: 'block',
+            source: 'teacher',
+            commentText: message
+          });
+        }
+        setDraftText('');
+      } catch {
+        // Mutation hook is responsible for setting feedback error state + toast.
+      }
+      return;
     }
-  };
+
+    dispatch({ type: 'chat/setStatus', payload: 'sending' });
+    dispatch({ type: 'chat/setError', payload: undefined });
+    try {
+      const chatApi = getChatApi();
+      const result = await chatApi.sendMessage({
+        fileId: selectedFileId ?? undefined,
+        message,
+        contextText: pendingSelection?.exactQuote
+      });
+      if (!result.ok) {
+        throw new Error(result.error.message || 'Unable to send chat message.');
+      }
+
+      const createdAt = new Date().toISOString();
+      dispatch({
+        type: 'chat/addMessage',
+        payload: {
+          id: `teacher-${Date.now()}`,
+          role: 'teacher',
+          content: message,
+          relatedFileId: selectedFileId ?? undefined,
+          createdAt
+        }
+      });
+      dispatch({
+        type: 'chat/addMessage',
+        payload: {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: result.data.reply,
+          relatedFileId: selectedFileId ?? undefined,
+          createdAt
+        }
+      });
+      dispatch({ type: 'chat/setStatus', payload: 'idle' });
+      setDraftText('');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unable to send chat message.';
+      dispatch({ type: 'chat/setStatus', payload: 'error' });
+      dispatch({ type: 'chat/setError', payload: errorMessage });
+      toast.error(errorMessage);
+    }
+  }, [addFeedback, chatMode, dispatch, draftText, pendingSelection, selectedFileId]);
+
+  const chatBindings = useMemo<AssessmentTabChatBindings>(
+    () => ({
+      activeCommand,
+      pendingSelection,
+      chatMode,
+      isModeLockedToChat,
+      draftText,
+      onDraftChange: setDraftText,
+      onSubmit: handleSubmit,
+      onModeChange: handleModeChange,
+      onCommandSelected: setActiveCommandWithModeRule
+    }),
+    [
+      activeCommand,
+      pendingSelection,
+      chatMode,
+      isModeLockedToChat,
+      draftText,
+      handleSubmit,
+      handleModeChange,
+      setActiveCommandWithModeRule
+    ]
+  );
+
+  useEffect(() => {
+    if (!onChatBindingsChange) {
+      return;
+    }
+    onChatBindingsChange(chatBindings);
+  }, [chatBindings, onChatBindingsChange]);
 
   const setSplitRatio = (ratio: number) => {
     dispatch({ type: 'ui/setAssessmentSplitRatio', payload: ratio });
   };
 
-  const handleEditComment = (_commentId: string, _nextText: string) => {
-    // Phase 0 stub: behavior added in later phases.
-  };
+  const handleSelectComment = useCallback(
+    (commentId: string) => {
+      setActiveCommentId(commentId);
+      const selectedComment = comments.find((comment) => comment.id === commentId);
+      if (!selectedComment || selectedComment.kind !== 'inline') {
+        setPendingSelection(null);
+        return;
+      }
+      setPendingSelection({
+        exactQuote: selectedComment.exactQuote,
+        prefixText: selectedComment.prefixText,
+        suffixText: selectedComment.suffixText,
+        startAnchor: selectedComment.startAnchor,
+        endAnchor: selectedComment.endAnchor
+      });
+    },
+    [comments]
+  );
 
-  const handleDeleteComment = (_commentId: string) => {
-    // Phase 0 stub: behavior added in later phases.
-  };
+  const handleEditComment = useCallback(
+    async (commentId: string, nextText: string) => {
+      try {
+        await editFeedback({ feedbackId: commentId, commentText: nextText });
+        await feedbackListQuery.refetch();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to edit comment.';
+        toast.error(message);
+      }
+    },
+    [feedbackListQuery]
+  );
 
-  const handleApplyComment = (_commentId: string, _applied: boolean) => {
-    // Phase 0 stub: behavior added in later phases.
-  };
+  const handleDeleteComment = useCallback(
+    async (commentId: string) => {
+      try {
+        await deleteFeedback({ feedbackId: commentId });
+        setActiveCommentId((current) => (current === commentId ? null : current));
+        await feedbackListQuery.refetch();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to delete comment.';
+        toast.error(message);
+      }
+    },
+    [feedbackListQuery]
+  );
+
+  const handleApplyComment = useCallback(
+    async (commentId: string, applied: boolean) => {
+      try {
+        await applyFeedback({ feedbackId: commentId, applied });
+        await feedbackListQuery.refetch();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to update apply state.';
+        toast.error(message);
+      }
+    },
+    [feedbackListQuery]
+  );
+
+  const handleSendToLlm = useCallback(
+    async (commentId: string, commandId?: string) => {
+      try {
+        setActiveCommentId(commentId);
+        setActiveCommandWithModeRule({
+          id: commandId ?? 'send-feedback-to-llm',
+          label: commandId ? commandId.replace(/[-_]/g, ' ') : 'Send Feedback To LLM',
+          source: 'chat-dropdown'
+        });
+        await sendFeedbackToLlm({ feedbackId: commentId, command: commandId });
+        await feedbackListQuery.refetch();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to send comment to LLM.';
+        toast.error(message);
+      }
+    },
+    [feedbackListQuery, setActiveCommandWithModeRule]
+  );
+
+  const handleGenerateFeedbackDocument = useCallback(async () => {
+    if (!canGenerateFeedbackDocument) {
+      return;
+    }
+
+    try {
+      const result = await generateFeedbackDocumentForFile();
+      toast.success(`Generated feedback document: ${result.outputPath}`);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : generateFeedbackErrorMessage ?? 'Unable to generate feedback document.';
+      toast.error(message);
+    }
+  }, [canGenerateFeedbackDocument, generateFeedbackDocumentForFile, generateFeedbackErrorMessage]);
 
   const updateRatioFromClientX = (clientX: number) => {
     const container = containerRef.current;
@@ -140,19 +369,20 @@ export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
       <CommentsView
         comments={comments}
         activeCommentId={activeCommentId}
-        isLoading={state.feedback.status === 'loading'}
-        error={state.feedback.status === 'error' ? state.feedback.error ?? 'Unable to load comments.' : undefined}
-        onSelectComment={setActiveCommentId}
+        isLoading={state.feedback.status === 'loading' || isAddFeedbackPending}
+        isGeneratePending={isGenerateFeedbackPending}
+        canGenerateFeedbackDocument={canGenerateFeedbackDocument}
+        error={
+          state.feedback.status === 'error'
+            ? state.feedback.error ?? addFeedbackErrorMessage ?? 'Unable to load comments.'
+            : undefined
+        }
+        onSelectComment={handleSelectComment}
         onEditComment={handleEditComment}
         onDeleteComment={handleDeleteComment}
-        onSendToLlm={() => {
-          setActiveCommandWithModeRule({
-            id: 'send-feedback-to-llm',
-            label: 'Send Feedback To LLM',
-            source: 'chat-dropdown'
-          });
-        }}
+        onSendToLlm={handleSendToLlm}
         onApplyComment={handleApplyComment}
+        onGenerateFeedbackDocument={handleGenerateFeedbackDocument}
         activeTab={activeCommentsTab}
         onTabChange={(tab) => dispatch({ type: 'ui/setCommentsTab', payload: tab })}
       />

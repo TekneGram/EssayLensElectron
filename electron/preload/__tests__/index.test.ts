@@ -19,11 +19,24 @@ describe('preload api', () => {
 
     await api.workspace.selectFolder();
     await api.assessment.extractDocument({ fileId: 'file-1' });
+    await api.assessment.editFeedback({ feedbackId: 'fb-1', commentText: 'Updated.' });
+    await api.assessment.deleteFeedback({ feedbackId: 'fb-1' });
+    await api.assessment.applyFeedback({ feedbackId: 'fb-1', applied: true });
+    await api.assessment.sendFeedbackToLlm({ feedbackId: 'fb-1', command: 'evaluate-thesis' });
+    await api.assessment.generateFeedbackDocument({ fileId: 'file-1' });
     await api.rubric.listRubrics();
     await api.chat.sendMessage({ message: 'hello' });
 
     expect(invoke).toHaveBeenCalledWith('workspace/selectFolder', undefined);
     expect(invoke).toHaveBeenCalledWith('assessment/extractDocument', { fileId: 'file-1' });
+    expect(invoke).toHaveBeenCalledWith('assessment/editFeedback', { feedbackId: 'fb-1', commentText: 'Updated.' });
+    expect(invoke).toHaveBeenCalledWith('assessment/deleteFeedback', { feedbackId: 'fb-1' });
+    expect(invoke).toHaveBeenCalledWith('assessment/applyFeedback', { feedbackId: 'fb-1', applied: true });
+    expect(invoke).toHaveBeenCalledWith('assessment/sendFeedbackToLlm', {
+      feedbackId: 'fb-1',
+      command: 'evaluate-thesis'
+    });
+    expect(invoke).toHaveBeenCalledWith('assessment/generateFeedbackDocument', { fileId: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('rubric/listRubrics', undefined);
     expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { message: 'hello' });
   });

@@ -3,8 +3,10 @@ import { ProcessCommandCenter } from './ProcessCommandCenter';
 import { TextViewWindow } from './TextViewWindow';
 
 export function OriginalTextView({
+  selectedFileId,
   text,
   pendingSelection,
+  activeCommentId,
   isProcessCenterOpen,
   onSelectionCaptured,
   onCommandSelected,
@@ -19,7 +21,14 @@ export function OriginalTextView({
         onClearSelection={() => onSelectionCaptured(null)}
         onSelectCommand={onCommandSelected}
       />
-      <TextViewWindow text={text} pendingQuote={pendingSelection?.exactQuote} />
+      <TextViewWindow
+        selectedFileId={selectedFileId}
+        text={text}
+        pendingQuote={pendingSelection?.exactQuote}
+        pendingSelection={pendingSelection}
+        activeCommentId={activeCommentId}
+        onSelectionCaptured={onSelectionCaptured}
+      />
     </section>
   );
 }

@@ -1,13 +1,23 @@
 import type { AppError, AppResult } from '../shared/appResult';
 import type {
+  ApplyFeedbackRequest,
+  ApplyFeedbackResponse,
   AddFeedbackRequest,
   AddFeedbackResponse,
+  DeleteFeedbackRequest,
+  DeleteFeedbackResponse,
+  EditFeedbackRequest,
+  EditFeedbackResponse,
   ExtractDocumentRequest,
   ExtractDocumentResponse,
+  GenerateFeedbackDocumentRequest,
+  GenerateFeedbackDocumentResponse,
   ListFeedbackRequest,
   ListFeedbackResponse,
   RequestLlmAssessmentRequest,
-  RequestLlmAssessmentResponse
+  RequestLlmAssessmentResponse,
+  SendFeedbackToLlmRequest,
+  SendFeedbackToLlmResponse
 } from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
 import type { GetCurrentFolderResponse, ListFilesResponse, SelectFolderResponse } from '../shared/workspaceContracts';
@@ -25,6 +35,13 @@ export interface EssayLensApi {
     extractDocument(request: ExtractDocumentRequest): Promise<ApiResult<ExtractDocumentResponse>>;
     listFeedback(request: ListFeedbackRequest): Promise<ApiResult<ListFeedbackResponse>>;
     addFeedback(request: AddFeedbackRequest): Promise<ApiResult<AddFeedbackResponse>>;
+    editFeedback(request: EditFeedbackRequest): Promise<ApiResult<EditFeedbackResponse>>;
+    deleteFeedback(request: DeleteFeedbackRequest): Promise<ApiResult<DeleteFeedbackResponse>>;
+    applyFeedback(request: ApplyFeedbackRequest): Promise<ApiResult<ApplyFeedbackResponse>>;
+    sendFeedbackToLlm(request: SendFeedbackToLlmRequest): Promise<ApiResult<SendFeedbackToLlmResponse>>;
+    generateFeedbackDocument(
+      request: GenerateFeedbackDocumentRequest
+    ): Promise<ApiResult<GenerateFeedbackDocumentResponse>>;
     requestLlmAssessment(request: RequestLlmAssessmentRequest): Promise<ApiResult<RequestLlmAssessmentResponse>>;
   };
   rubric: {

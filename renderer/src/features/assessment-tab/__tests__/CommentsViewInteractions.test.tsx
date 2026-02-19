@@ -1,0 +1,248 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { App } from '../../../App';
+import { AppProviders } from '../../../app/AppProviders';
+import { createAppQueryClient } from '../../../app/queryClient';
+import { CommentsView } from '../components/CommentsView';
+import type { FeedbackItem } from '../../../types';
+
+function createInlineComment(): FeedbackItem {
+  return {
+    id: 'feedback-inline-1',
+    fileId: '/workspace/essays/draft.docx',
+    source: 'teacher',
+    kind: 'inline',
+    commentText: 'Clarify this sentence for precision.',
+    exactQuote:
+      'This is a much longer quote that should get truncated in the preview because it exceeds the component limit.',
+    prefixText: 'Some prefix context',
+    suffixText: 'Some suffix context',
+    startAnchor: {
+      part: 'renderer://original-text-view',
+      paragraphIndex: 0,
+      runIndex: 0,
+      charOffset: 5
+    },
+    endAnchor: {
+      part: 'renderer://original-text-view',
+      paragraphIndex: 0,
+      runIndex: 0,
+      charOffset: 28
+    },
+    createdAt: new Date('2026-02-19T12:00:00.000Z').toISOString(),
+    applied: false
+  };
+}
+
+describe('CommentsView interactions', () => {
+  it('renders comment rows and emits tool actions', () => {
+    const inlineComment = createInlineComment();
+    const onSelectComment = vi.fn();
+    const onEditComment = vi.fn();
+    const onDeleteComment = vi.fn();
+    const onSendToLlm = vi.fn();
+    const onApplyComment = vi.fn();
+    const onGenerateFeedbackDocument = vi.fn();
+
+    render(
+      <CommentsView
+        comments={[inlineComment]}
+        activeCommentId={null}
+        isLoading={false}
+        isGeneratePending={false}
+        canGenerateFeedbackDocument={true}
+        onSelectComment={onSelectComment}
+        onEditComment={onEditComment}
+        onDeleteComment={onDeleteComment}
+        onSendToLlm={onSendToLlm}
+        onApplyComment={onApplyComment}
+        onGenerateFeedbackDocument={onGenerateFeedbackDocument}
+        activeTab="comments"
+        onTabChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Quote:')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Select Inline comment/i }));
+    expect(onSelectComment).toHaveBeenCalledWith('feedback-inline-1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit comment text' }), {
+      target: { value: 'Updated comment text from tools.' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onEditComment).toHaveBeenCalledWith('feedback-inline-1', 'Updated comment text from tools.');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+    expect(onDeleteComment).toHaveBeenCalledWith('feedback-inline-1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send to LLM' }));
+    expect(onSendToLlm).toHaveBeenCalledWith('feedback-inline-1', undefined);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Send command' }), {
+      target: { value: 'check-hedging' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send to LLM' }));
+    expect(onSendToLlm).toHaveBeenCalledWith('feedback-inline-1', 'check-hedging');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(onApplyComment).toHaveBeenCalledWith('feedback-inline-1', true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+    expect(onGenerateFeedbackDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps selected inline comment into OriginalTextView pending quote through AssessmentTab', async () => {
+    const selectFolder = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        folder: {
+          id: '/workspace/essays',
+          path: '/workspace/essays',
+          name: 'essays'
+        }
+      }
+    });
+    const listFiles = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        files: [
+          {
+            id: '/workspace/essays/draft.docx',
+            folderId: '/workspace/essays',
+            name: 'draft.docx',
+            path: '/workspace/essays/draft.docx',
+            kind: 'docx'
+          }
+        ]
+      }
+    });
+    const feedbackStore: FeedbackItem[] = [createInlineComment()];
+    const listFeedback = vi.fn().mockImplementation(async () => ({
+      ok: true,
+      data: {
+        feedback: feedbackStore
+      }
+    }));
+    const addFeedback = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        feedback: {
+          id: 'feedback-1',
+          fileId: '/workspace/essays/draft.docx',
+          source: 'teacher',
+          kind: 'block',
+          commentText: 'Nice work.',
+          createdAt: new Date().toISOString()
+        }
+      }
+    });
+    const editFeedback = vi.fn().mockImplementation(async ({ feedbackId, commentText }: { feedbackId: string; commentText: string }) => {
+      const index = feedbackStore.findIndex((item) => item.id === feedbackId);
+      if (index >= 0) {
+        feedbackStore[index] = {
+          ...feedbackStore[index],
+          commentText
+        };
+      }
+      return { ok: true, data: { feedback: feedbackStore[index] } };
+    });
+    const applyFeedback = vi.fn().mockImplementation(async ({ feedbackId, applied }: { feedbackId: string; applied: boolean }) => {
+      const index = feedbackStore.findIndex((item) => item.id === feedbackId);
+      if (index >= 0) {
+        feedbackStore[index] = {
+          ...feedbackStore[index],
+          applied
+        };
+      }
+      return { ok: true, data: { feedback: feedbackStore[index] } };
+    });
+    const deleteFeedback = vi.fn().mockImplementation(async ({ feedbackId }: { feedbackId: string }) => {
+      const index = feedbackStore.findIndex((item) => item.id === feedbackId);
+      if (index >= 0) {
+        feedbackStore.splice(index, 1);
+      }
+      return { ok: true, data: { deletedFeedbackId: feedbackId } };
+    });
+    const sendFeedbackToLlm = vi.fn().mockImplementation(async ({ feedbackId }: { feedbackId: string }) => {
+      const source = feedbackStore.find((item) => item.id === feedbackId);
+      if (source) {
+        feedbackStore.push({
+          ...source,
+          id: 'feedback-inline-llm-1',
+          source: 'llm',
+          commentText: `LLM follow-up: ${source.commentText}`
+        });
+      }
+      return { ok: true, data: { status: 'sent', messageId: 'msg-1' } };
+    });
+
+    Object.defineProperty(window, 'api', {
+      value: {
+        workspace: { selectFolder, listFiles },
+        assessment: { listFeedback, addFeedback, editFeedback, applyFeedback, deleteFeedback, sendFeedbackToLlm },
+        rubric: {},
+        chat: {}
+      },
+      configurable: true
+    });
+
+    const queryClient = createAppQueryClient();
+    render(
+      <AppProviders queryClient={queryClient}>
+        <App />
+      </AppProviders>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select Folder' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'draft.docx' })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'draft.docx' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Clarify this sentence for precision.')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Select Inline comment/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Pending quote:/).textContent).toContain('should get truncated');
+    });
+    await waitFor(() => {
+      const focusedParagraph = screen.getByTestId('text-view-window').querySelector('.text-paragraph-focused');
+      expect(focusedParagraph).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit comment text' }), {
+      target: { value: 'Updated persisted comment text.' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(editFeedback).toHaveBeenCalledWith({ feedbackId: 'feedback-inline-1', commentText: 'Updated persisted comment text.' });
+    });
+    await waitFor(() => {
+      expect(listFeedback.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => {
+      expect(applyFeedback).toHaveBeenCalledWith({ feedbackId: 'feedback-inline-1', applied: true });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send to LLM' }));
+    await waitFor(() => {
+      expect(sendFeedbackToLlm).toHaveBeenCalledWith({ feedbackId: 'feedback-inline-1', command: undefined });
+    });
+    expect(listFeedback.mock.calls.length).toBeGreaterThan(2);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+    await waitFor(() => {
+      expect(deleteFeedback).toHaveBeenCalledWith({ feedbackId: 'feedback-inline-1' });
+    });
+    expect(listFeedback.mock.calls.length).toBeGreaterThan(3);
+  });
+});
