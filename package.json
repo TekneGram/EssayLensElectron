@@ -16,6 +16,7 @@
     "build:electron": "tsc -p electron/tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "guard:phase0_5": "node scripts/phase0_5_guard.mjs",
     "package": "npm run build && electron-builder",
     "package:dir": "npm run build && electron-builder --dir"
   },
