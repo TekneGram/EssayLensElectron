@@ -1,4 +1,14 @@
 import type { AppError, AppResult } from '../shared/appResult';
+import type {
+  AddFeedbackRequest,
+  AddFeedbackResponse,
+  ExtractDocumentRequest,
+  ExtractDocumentResponse,
+  ListFeedbackRequest,
+  ListFeedbackResponse,
+  RequestLlmAssessmentRequest,
+  RequestLlmAssessmentResponse
+} from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
 import type { GetCurrentFolderResponse, ListFilesResponse, SelectFolderResponse } from '../shared/workspaceContracts';
 
@@ -12,10 +22,10 @@ export interface EssayLensApi {
     getCurrentFolder(): Promise<ApiResult<GetCurrentFolderResponse>>;
   };
   assessment: {
-    extractDocument(fileId: string): Promise<ApiResult<unknown>>;
-    listFeedback(fileId: string): Promise<ApiResult<unknown>>;
-    addFeedback(request: unknown): Promise<ApiResult<unknown>>;
-    requestLlmAssessment(request: unknown): Promise<ApiResult<unknown>>;
+    extractDocument(request: ExtractDocumentRequest): Promise<ApiResult<ExtractDocumentResponse>>;
+    listFeedback(request: ListFeedbackRequest): Promise<ApiResult<ListFeedbackResponse>>;
+    addFeedback(request: AddFeedbackRequest): Promise<ApiResult<AddFeedbackResponse>>;
+    requestLlmAssessment(request: RequestLlmAssessmentRequest): Promise<ApiResult<RequestLlmAssessmentResponse>>;
   };
   rubric: {
     listRubrics(): Promise<ApiResult<unknown>>;

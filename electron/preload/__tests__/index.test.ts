@@ -18,7 +18,7 @@ describe('preload api', () => {
     expect(api.chat).toBeDefined();
 
     await api.workspace.selectFolder();
-    await api.assessment.extractDocument('file-1');
+    await api.assessment.extractDocument({ fileId: 'file-1' });
     await api.rubric.listRubrics();
     await api.chat.sendMessage({ message: 'hello' });
 
