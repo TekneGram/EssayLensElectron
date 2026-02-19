@@ -52,19 +52,14 @@ Then follow the instructions to implement the relevant phase.
   file_rubric_instances and file_rubric_scores tables are accessed and used to update the student's document, creating a new word document that
   is output to the folder specified by the information from filepath and filename tables.
 
-   ## Delivery Mode: Phase-by-Phase (Round 1)
+   ## Delivery Mode: Phase-by-Phase (Round 2)
 
   For the phase requested:
-  1. Read `10_round1_implementation_checklist.md` and identify information about the phase requested.
-  2. Read the listed spec files first under the References part of the phase requested in step 1.
+  1. Read `10_Round2_phased_design.md`, read the mini spec and identify information about the phase requested.
+  2. Read the listed spec files under the References part of the phase requested in step 1.
   3. Implement only that phase scope.
-  4. Prepare relevant checks.
-     - Starting at the end of Phase 3, output these commands for the user to run manually (do not run them as the agent):
-       - `npm run dev` (confirm app starts)
-       - `npm run build`
-       - `npm run start:prod`
-       - `npm run package` (or `npm run package:dir` for local packaging smoke)
-  5. Stop and summarize.
+  4. Stop and summarize.
+  5. Write a summary report in .planning called Phase{number}_report.md which explains what was done in order to hand off to the next phase. (Replace {number} with the phase number).
   6. Wait for user confirmation before next phase.
 
   Do not continue to next phase automatically.

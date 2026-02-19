@@ -12,6 +12,7 @@ export type {
   ChatDataArray,
   ChatMessage,
   DocumentTextModel,
+  FeedbackAnchor,
   FeedbackItem,
   RubricCategory,
   RubricCell,
