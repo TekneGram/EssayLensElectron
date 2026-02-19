@@ -3,6 +3,7 @@ import { ProcessCommandCenter } from './ProcessCommandCenter';
 import { TextViewWindow } from './TextViewWindow';
 
 export function OriginalTextView({
+  selectedFileId,
   text,
   pendingSelection,
   activeCommentId,
@@ -21,6 +22,7 @@ export function OriginalTextView({
         onSelectCommand={onCommandSelected}
       />
       <TextViewWindow
+        selectedFileId={selectedFileId}
         text={text}
         pendingQuote={pendingSelection?.exactQuote}
         pendingSelection={pendingSelection}

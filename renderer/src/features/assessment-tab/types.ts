@@ -33,12 +33,15 @@ export interface CommentsViewProps {
   comments: FeedbackItem[];
   activeCommentId: string | null;
   isLoading: boolean;
+  isGeneratePending: boolean;
+  canGenerateFeedbackDocument: boolean;
   error?: string;
   onSelectComment: (commentId: string) => void;
   onEditComment: (commentId: string, nextText: string) => void;
   onDeleteComment: (commentId: string) => void;
   onSendToLlm: (commentId: string, command?: CommandId) => void;
   onApplyComment: (commentId: string, applied: boolean) => void;
+  onGenerateFeedbackDocument: () => void;
 }
 
 export interface CommentViewProps {

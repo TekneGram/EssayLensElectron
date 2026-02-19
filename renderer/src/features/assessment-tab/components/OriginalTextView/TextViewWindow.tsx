@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react';
 import type { PendingSelection } from '../../types';
+import { useTextViewDocument } from './hooks/useTextViewDocument';
+import { useTextViewFocus } from './hooks/useTextViewFocus';
+import { useTextViewSelection } from './hooks/useTextViewSelection';
 
 interface TextViewWindowProps {
+  selectedFileId: string | null;
   text: string;
   pendingQuote?: string;
   pendingSelection?: PendingSelection | null;
@@ -49,6 +53,7 @@ function getParagraphCharOffset(paragraph: HTMLElement, node: Node, offset: numb
 }
 
 export function TextViewWindow({
+  selectedFileId,
   text,
   pendingQuote,
   pendingSelection = null,
@@ -56,17 +61,36 @@ export function TextViewWindow({
   onSelectionCaptured
 }: TextViewWindowProps) {
   const paragraphs = text.split(/\n+/).filter((paragraph) => paragraph.trim().length > 0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const windowRef = useRef<HTMLDivElement | null>(null);
   const previousFocusedParagraph = useRef<HTMLElement | null>(null);
 
+  const { document, bridgeRef, statusMessage, isLoading } = useTextViewDocument({
+    selectedFileId,
+    containerRef,
+    onSelectionCleared: () => onSelectionCaptured(null)
+  });
+
+  const { captureSelection } = useTextViewSelection({
+    document,
+    bridgeRef,
+    onSelectionCaptured
+  });
+
+  useTextViewFocus({
+    activeCommentId,
+    pendingSelection,
+    document,
+    bridgeRef
+  });
+
   useEffect(() => {
     const root = windowRef.current;
-    if (!root || !activeCommentId || !pendingSelection) {
+    if (!root || document || !activeCommentId || !pendingSelection) {
       return;
     }
 
     const startIndex = pendingSelection.startAnchor.paragraphIndex;
-    const endIndex = pendingSelection.endAnchor.paragraphIndex;
     const startParagraph = root.querySelector<HTMLElement>(`[data-paragraph-index="${startIndex}"]`);
     if (!startParagraph) {
       return;
@@ -80,33 +104,9 @@ export function TextViewWindow({
     if (typeof startParagraph.scrollIntoView === 'function') {
       startParagraph.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
+  }, [activeCommentId, document, pendingSelection]);
 
-    const startNode = startParagraph.firstChild;
-    const endParagraph =
-      endIndex === startIndex
-        ? startParagraph
-        : root.querySelector<HTMLElement>(`[data-paragraph-index="${endIndex}"]`) ?? startParagraph;
-    const endNode = endParagraph.firstChild;
-    if (!startNode || !endNode || startNode.nodeType !== Node.TEXT_NODE || endNode.nodeType !== Node.TEXT_NODE) {
-      return;
-    }
-
-    try {
-      const selection = window.getSelection();
-      if (!selection) {
-        return;
-      }
-      const range = document.createRange();
-      range.setStart(startNode, pendingSelection.startAnchor.charOffset);
-      range.setEnd(endNode, pendingSelection.endAnchor.charOffset);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    } catch {
-      // Offset mismatches should not break focus behavior.
-    }
-  }, [activeCommentId, pendingSelection]);
-
-  const captureSelection = () => {
+  const captureFallbackSelection = () => {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
       onSelectionCaptured(null);
@@ -153,23 +153,35 @@ export function TextViewWindow({
     });
   };
 
+  const captureCurrentSelection = () => {
+    if (document) {
+      captureSelection();
+      return;
+    }
+    captureFallbackSelection();
+  };
+
   return (
     <>
       {pendingQuote ? <div className="content-block">Pending quote: {pendingQuote}</div> : null}
+      <div className="content-block">{isLoading ? 'Loading...' : statusMessage}</div>
       <div
         ref={windowRef}
         className="content-block"
         data-testid="text-view-window"
-        onMouseUp={captureSelection}
-        onKeyUp={captureSelection}
+        onMouseUp={captureCurrentSelection}
+        onKeyUp={captureCurrentSelection}
       >
-        {paragraphs.length > 0
-          ? paragraphs.map((paragraph, index) => (
-              <p key={`${paragraph.slice(0, 24)}-${index}`} data-paragraph-index={index}>
-                {paragraph}
-              </p>
-            ))
-          : text}
+        {document ? <div ref={containerRef} /> : null}
+        {!document
+          ? paragraphs.length > 0
+            ? paragraphs.map((paragraph, index) => (
+                <p key={`${paragraph.slice(0, 24)}-${index}`} data-paragraph-index={index}>
+                  {paragraph}
+                </p>
+              ))
+            : text
+          : null}
       </div>
     </>
   );

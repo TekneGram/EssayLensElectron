@@ -23,6 +23,7 @@ describe('preload api', () => {
     await api.assessment.deleteFeedback({ feedbackId: 'fb-1' });
     await api.assessment.applyFeedback({ feedbackId: 'fb-1', applied: true });
     await api.assessment.sendFeedbackToLlm({ feedbackId: 'fb-1', command: 'evaluate-thesis' });
+    await api.assessment.generateFeedbackDocument({ fileId: 'file-1' });
     await api.rubric.listRubrics();
     await api.chat.sendMessage({ message: 'hello' });
 
@@ -35,6 +36,7 @@ describe('preload api', () => {
       feedbackId: 'fb-1',
       command: 'evaluate-thesis'
     });
+    expect(invoke).toHaveBeenCalledWith('assessment/generateFeedbackDocument', { fileId: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('rubric/listRubrics', undefined);
     expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { message: 'hello' });
   });
