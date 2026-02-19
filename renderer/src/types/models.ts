@@ -40,19 +40,37 @@ export interface ChatMessage {
 
 export type ChatDataArray = ChatMessage[];
 
-export interface FeedbackItem {
+export interface FeedbackAnchor {
+  part: string;
+  paragraphIndex: number;
+  runIndex: number;
+  charOffset: number;
+}
+
+export interface FeedbackItemBase {
   id: EntityId;
   fileId: EntityId;
   source: 'teacher' | 'llm';
-  kind: CommentKind;
-  content: string;
-  anchor?: {
-    start: number;
-    end: number;
-  };
+  commentText: string;
   createdAt: ISODateString;
   updatedAt?: ISODateString;
+  applied?: boolean;
 }
+
+export interface InlineFeedbackItem extends FeedbackItemBase {
+  kind: 'inline';
+  exactQuote: string;
+  prefixText: string;
+  suffixText: string;
+  startAnchor: FeedbackAnchor;
+  endAnchor: FeedbackAnchor;
+}
+
+export interface BlockFeedbackItem extends FeedbackItemBase {
+  kind: 'block';
+}
+
+export type FeedbackItem = InlineFeedbackItem | BlockFeedbackItem;
 
 export interface RubricSummary {
   id: EntityId;
