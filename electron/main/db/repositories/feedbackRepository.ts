@@ -3,7 +3,22 @@ export interface FeedbackRecord {
   fileId: string;
   kind: 'inline' | 'block';
   source: 'teacher' | 'llm';
-  content: string;
+  commentText: string;
+  exactQuote?: string;
+  prefixText?: string;
+  suffixText?: string;
+  startAnchor?: {
+    part: string;
+    paragraphIndex: number;
+    runIndex: number;
+    charOffset: number;
+  };
+  endAnchor?: {
+    part: string;
+    paragraphIndex: number;
+    runIndex: number;
+    charOffset: number;
+  };
 }
 
 export class FeedbackRepository {
@@ -17,7 +32,7 @@ export class FeedbackRepository {
       fileId: '',
       kind: 'block',
       source: 'teacher',
-      content: ''
+      commentText: ''
     };
   }
 }

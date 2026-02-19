@@ -1,10 +1,12 @@
-interface ChatInterfaceProps {
+interface ChatInputProps {
+  draftText?: string;
+  onDraftChange?: (text: string) => void;
   onChatIntent: () => void;
 }
 
-export function ChatInterface({ onChatIntent }: ChatInterfaceProps) {
+export function ChatInput({ draftText = '', onDraftChange, onChatIntent }: ChatInputProps) {
   return (
-    <section className="chat-interface pane" data-testid="chat-interface" aria-label="Chat interface">
+    <>
       <label htmlFor="chat-input" className="visually-hidden">
         Message
       </label>
@@ -13,11 +15,10 @@ export function ChatInterface({ onChatIntent }: ChatInterfaceProps) {
         className="chat-input"
         rows={2}
         placeholder="Type command, feedback, or question to the assistant..."
+        value={draftText}
+        onChange={(event) => onDraftChange?.(event.target.value)}
         onFocus={onChatIntent}
       />
-      <button className="chat-send" type="button" aria-label="Send message" onClick={onChatIntent}>
-        Send
-      </button>
-    </section>
+    </>
   );
 }

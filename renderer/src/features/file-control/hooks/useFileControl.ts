@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import type { AppError } from '../../../../../electron/shared/appResult';
-import type { ListFilesResultData, SelectFolderResultData, WorkspaceFileDto } from '../../../../../electron/shared/workspaceContracts';
+import type { ListFilesResponse, SelectFolderResponse, WorkspaceFileDto } from '../../../../../electron/shared/workspaceContracts';
 import { useAppDispatch, useAppState } from '../../../state';
 import { fileKindFromExtension, type WorkspaceFile, type WorkspaceFolder } from '../../../types';
 
@@ -15,8 +15,8 @@ interface AppResultFailure {
   error: AppError;
 }
 
-type SelectFolderResult = AppResultSuccess<SelectFolderResultData> | AppResultFailure;
-type ListFilesResult = AppResultSuccess<ListFilesResultData> | AppResultFailure;
+type SelectFolderResult = AppResultSuccess<SelectFolderResponse> | AppResultFailure;
+type ListFilesResult = AppResultSuccess<ListFilesResponse> | AppResultFailure;
 
 interface UseFileControlResult {
   files: WorkspaceFile[];
@@ -39,7 +39,7 @@ function getWorkspaceApi(): WorkspaceApi {
   return appWindow.api.workspace;
 }
 
-function toWorkspaceFolder(folder: SelectFolderResultData['folder']): WorkspaceFolder | null {
+function toWorkspaceFolder(folder: SelectFolderResponse['folder']): WorkspaceFolder | null {
   if (!folder) {
     return null;
   }

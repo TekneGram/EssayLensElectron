@@ -1,4 +1,5 @@
-import type { CommentKind, EntityId } from './primitives';
+import type { EntityId } from './primitives';
+import type { FeedbackAnchor } from './models';
 
 export interface SelectFolderCommand {
   path: string;
@@ -8,15 +9,26 @@ export interface SelectFileCommand {
   fileId: EntityId;
 }
 
-export interface AddFeedbackCommand {
+interface AddFeedbackCommandBase {
   fileId: EntityId;
-  kind: CommentKind;
-  content: string;
-  anchor?: {
-    start: number;
-    end: number;
-  };
+  source: 'teacher' | 'llm';
+  commentText: string;
 }
+
+export interface AddInlineFeedbackCommand extends AddFeedbackCommandBase {
+  kind: 'inline';
+  exactQuote: string;
+  prefixText: string;
+  suffixText: string;
+  startAnchor: FeedbackAnchor;
+  endAnchor: FeedbackAnchor;
+}
+
+export interface AddBlockFeedbackCommand extends AddFeedbackCommandBase {
+  kind: 'block';
+}
+
+export type AddFeedbackCommand = AddInlineFeedbackCommand | AddBlockFeedbackCommand;
 
 export interface RequestLlmAssessmentCommand {
   fileId: EntityId;

@@ -12,6 +12,7 @@ export type {
   ChatDataArray,
   ChatMessage,
   DocumentTextModel,
+  FeedbackAnchor,
   FeedbackItem,
   RubricCategory,
   RubricCell,
@@ -24,7 +25,9 @@ export type {
 } from './models';
 export type { AppState, ChatState, FeedbackState, RubricState, SelectedFileType, UiState, WorkspaceState } from './state';
 export type {
+  AddBlockFeedbackCommand,
   AddFeedbackCommand,
+  AddInlineFeedbackCommand,
   RequestLlmAssessmentCommand,
   SelectFileCommand,
   SelectFolderCommand,

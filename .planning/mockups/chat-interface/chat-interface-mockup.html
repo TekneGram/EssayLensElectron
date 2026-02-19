@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EssayLens Chat Interface Mockup</title>
+  <link rel="stylesheet" href="./chat-interface-mockup.css" />
+</head>
+<body>
+  <main class="chat-interface" aria-label="ChatInterface mockup">
+    <section class="context-row" aria-label="Selected command and highlighted text">
+      <div class="command-display" title="topic sentence">Command: topic sentence</div>
+      <div
+        class="highlight-display"
+        title="The current thesis statement is broad and could be narrowed to one argumentative claim.">
+        Highlight: "The current thesis statement is broad and could be narrowed to one argumentative claim…"
+      </div>
+    </section>
+
+    <section class="input-row" aria-label="Message composer">
+      <label class="visually-hidden" for="command-select">Select command</label>
+      <select id="command-select" class="command-dropdown">
+        <option value="">No command</option>
+        <option selected>topic sentence</option>
+        <option>bulk</option>
+        <option>comment</option>
+      </select>
+
+      <label class="visually-hidden" for="chat-input">Chat input</label>
+      <input id="chat-input" class="chat-input" type="text" value="Please improve this paragraph flow." readonly />
+
+      <button type="button" class="send-button" aria-label="Send message">Send</button>
+    </section>
+  </main>
+</body>
+</html>

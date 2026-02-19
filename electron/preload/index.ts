@@ -1,9 +1,9 @@
 import type { IpcRendererEvent } from 'electron';
 import type { ApiResult, EssayLensApi } from './apiTypes';
-import type { SendChatMessagePayload } from '../shared/chatContracts';
+import type { SendChatMessageRequest } from '../shared/chatContracts';
 
 type IpcRendererLike = {
-  invoke<TResult = unknown>(channel: string, payload?: unknown): Promise<TResult>;
+  invoke<TResult = unknown>(channel: string, request?: unknown): Promise<TResult>;
   on(channel: string, listener: (event: IpcRendererEvent, ...args: unknown[]) => void): void;
 };
 
@@ -12,29 +12,29 @@ type ContextBridgeLike = {
 };
 
 export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
-  const invokeResult = <T>(channel: string, payload?: unknown): Promise<ApiResult<T>> =>
-    ipcRenderer.invoke<ApiResult<T>>(channel, payload);
+  const invokeApi = <T>(channel: string, request?: unknown): Promise<ApiResult<T>> =>
+    ipcRenderer.invoke<ApiResult<T>>(channel, request);
 
   return {
     workspace: {
-      selectFolder: () => invokeResult('workspace/selectFolder'),
-      listFiles: (folderId: string) => invokeResult('workspace/listFiles', { folderId }),
-      getCurrentFolder: () => invokeResult('workspace/getCurrentFolder')
+      selectFolder: () => invokeApi('workspace/selectFolder'),
+      listFiles: (folderId: string) => invokeApi('workspace/listFiles', { folderId }),
+      getCurrentFolder: () => invokeApi('workspace/getCurrentFolder')
     },
     assessment: {
-      extractDocument: (fileId: string) => invokeResult('assessment/extractDocument', { fileId }),
-      listFeedback: (fileId: string) => invokeResult('assessment/listFeedback', { fileId }),
-      addFeedback: (payload: unknown) => invokeResult('assessment/addFeedback', payload),
-      requestLlmAssessment: (payload: unknown) => invokeResult('assessment/requestLlmAssessment', payload)
+      extractDocument: (fileId: string) => invokeApi('assessment/extractDocument', { fileId }),
+      listFeedback: (fileId: string) => invokeApi('assessment/listFeedback', { fileId }),
+      addFeedback: (request: unknown) => invokeApi('assessment/addFeedback', request),
+      requestLlmAssessment: (request: unknown) => invokeApi('assessment/requestLlmAssessment', request)
     },
     rubric: {
-      listRubrics: () => invokeResult('rubric/listRubrics'),
-      getMatrix: (rubricId: string) => invokeResult('rubric/getMatrix', { rubricId }),
-      updateMatrix: (payload: unknown) => invokeResult('rubric/updateMatrix', payload)
+      listRubrics: () => invokeApi('rubric/listRubrics'),
+      getMatrix: (rubricId: string) => invokeApi('rubric/getMatrix', { rubricId }),
+      updateMatrix: (request: unknown) => invokeApi('rubric/updateMatrix', request)
     },
     chat: {
-      listMessages: (fileId?: string) => invokeResult('chat/listMessages', { fileId }),
-      sendMessage: (payload: SendChatMessagePayload) => invokeResult('chat/sendMessage', payload)
+      listMessages: (fileId?: string) => invokeApi('chat/listMessages', { fileId }),
+      sendMessage: (request: SendChatMessageRequest) => invokeApi('chat/sendMessage', request)
     }
   };
 }
