@@ -82,3 +82,5 @@ export interface ChatInterfaceProps {
   onModeChange: (mode: ChatMode) => void;
   onCommandSelected: (command: ActiveCommand | null) => void;
 }
+
+export type AssessmentTabChatBindings = ChatInterfaceProps;

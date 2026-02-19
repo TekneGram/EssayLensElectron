@@ -1,17 +1,18 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
 import { useAddFeedbackMutation, useFeedbackListQuery } from '../hooks';
-import type { ActiveCommand, ChatMode, PendingSelection } from '../types';
+import type { ActiveCommand, AssessmentTabChatBindings, ChatMode, PendingSelection } from '../types';
 import { CommentsView } from './CommentsView';
 import { ImageView } from './ImageView';
 import { OriginalTextView } from './OriginalTextView';
 
 interface AssessmentTabProps {
   selectedFileType: SelectedFileType;
+  onChatBindingsChange?: (bindings: AssessmentTabChatBindings) => void;
 }
 
-export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
+export function AssessmentTab({ selectedFileType, onChatBindingsChange }: AssessmentTabProps) {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const activeCommentsTab = selectActiveCommentsTab(state);
@@ -29,22 +30,70 @@ export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
   const [chatMode, setChatMode] = useState<ChatMode>('comment');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [isProcessCenterOpen, setIsProcessCenterOpen] = useState(false);
+  const [draftText, setDraftText] = useState('');
   const originalText =
     selectedFileType === 'docx' || selectedFileType === 'pdf'
       ? `OriginalTextView: ${selectedFile?.name ?? 'No file selected.'}`
       : 'OriginalTextView';
   const isModeLockedToChat = activeCommand !== null;
 
-  const setActiveCommandWithModeRule = (command: ActiveCommand | null) => {
+  const setActiveCommandWithModeRule = useCallback((command: ActiveCommand | null) => {
     setActiveCommand(command);
-    if (command) {
-      setChatMode('chat');
+    setChatMode((currentMode) => {
+      if (command) {
+        return 'chat';
+      }
+      return currentMode === 'chat' ? 'comment' : currentMode;
+    });
+  }, []);
+
+  const handleModeChange = useCallback(
+    (mode: ChatMode) => {
+      if (isModeLockedToChat && mode === 'comment') {
+        return;
+      }
+      setChatMode(mode);
+    },
+    [isModeLockedToChat]
+  );
+
+  const handleSubmit = useCallback(() => {
+    if (!draftText.trim()) {
       return;
     }
-    if (isModeLockedToChat) {
-      setChatMode('comment');
+    setDraftText('');
+  }, [draftText]);
+
+  const chatBindings = useMemo<AssessmentTabChatBindings>(
+    () => ({
+      activeCommand,
+      pendingSelection,
+      chatMode,
+      isModeLockedToChat,
+      draftText,
+      onDraftChange: setDraftText,
+      onSubmit: handleSubmit,
+      onModeChange: handleModeChange,
+      onCommandSelected: setActiveCommandWithModeRule
+    }),
+    [
+      activeCommand,
+      pendingSelection,
+      chatMode,
+      isModeLockedToChat,
+      draftText,
+      handleSubmit,
+      handleModeChange,
+      setActiveCommandWithModeRule
+    ]
+  );
+
+  useEffect(() => {
+    if (!onChatBindingsChange) {
+      return;
     }
-  };
+    onChatBindingsChange(chatBindings);
+  }, [chatBindings, onChatBindingsChange]);
 
   const setSplitRatio = (ratio: number) => {
     dispatch({ type: 'ui/setAssessmentSplitRatio', payload: ratio });
@@ -152,9 +201,10 @@ export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
         onSelectComment={setActiveCommentId}
         onEditComment={handleEditComment}
         onDeleteComment={handleDeleteComment}
-        onSendToLlm={() => {
+        onSendToLlm={(commentId, commandId) => {
+          setActiveCommentId(commentId);
           setActiveCommandWithModeRule({
-            id: 'send-feedback-to-llm',
+            id: commandId ?? 'send-feedback-to-llm',
             label: 'Send Feedback To LLM',
             source: 'chat-dropdown'
           });

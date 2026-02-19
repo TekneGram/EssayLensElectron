@@ -99,4 +99,93 @@ describe('Assessment tab file selection routing', () => {
     expect(screen.getByTestId('original-text-view').textContent).toContain('draft.docx');
     expect(screen.getByText('[system] Selected file: draft.docx')).toBeTruthy();
   });
+
+  it('syncs command selection into ChatInterface mode lock rules through AssessmentTab orchestration', async () => {
+    const selectFolder = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        folder: {
+          id: '/workspace/essays',
+          path: '/workspace/essays',
+          name: 'essays'
+        }
+      }
+    });
+    const listFiles = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        files: [
+          {
+            id: '/workspace/essays/draft.docx',
+            folderId: '/workspace/essays',
+            name: 'draft.docx',
+            path: '/workspace/essays/draft.docx',
+            kind: 'docx'
+          }
+        ]
+      }
+    });
+    const listFeedback = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        feedback: []
+      }
+    });
+    const addFeedback = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        feedback: {
+          id: 'feedback-1',
+          fileId: '/workspace/essays/draft.docx',
+          source: 'teacher',
+          kind: 'block',
+          commentText: 'Nice work.',
+          createdAt: new Date().toISOString()
+        }
+      }
+    });
+
+    Object.defineProperty(window, 'api', {
+      value: {
+        workspace: { selectFolder, listFiles },
+        assessment: { listFeedback, addFeedback },
+        rubric: {},
+        chat: {}
+      },
+      configurable: true
+    });
+
+    const queryClient = createAppQueryClient();
+    render(
+      <AppProviders queryClient={queryClient}>
+        <App />
+      </AppProviders>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select Folder' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'draft.docx' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'draft.docx' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('comment:false:no-command');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select Command' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('chat:true:evaluate-thesis');
+    });
+    expect(screen.getByRole('button', { name: 'Switch to comment mode' }).getAttribute('disabled')).not.toBeNull();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Select command' }), {
+      target: { value: '' }
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('comment:false:no-command');
+    });
+    expect(screen.getByRole('button', { name: 'Switch to comment mode' }).getAttribute('disabled')).toBeNull();
+  });
 });

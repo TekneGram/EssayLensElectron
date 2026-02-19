@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { AssessmentWindow } from './features/assessment-window/components/AssessmentWindow';
 import { AssessmentTab } from './features/assessment-tab/components/AssessmentTab';
+import type { AssessmentTabChatBindings } from './features/assessment-tab/types';
 import { FileControlContainer } from './features/file-control/FileControlContainer';
 import { ChatCollapsedRail } from './features/layout/components/ChatCollapsedRail';
 import { ChatInterface } from './features/layout/components/ChatInterface';
@@ -10,6 +12,7 @@ import { selectActiveTopTab, selectIsChatCollapsed, selectSelectedFileType, useA
 export function App() {
   const state = useAppState();
   const dispatch = useAppDispatch();
+  const [assessmentChatBindings, setAssessmentChatBindings] = useState<AssessmentTabChatBindings | null>(null);
   const activeTopTab = selectActiveTopTab(state);
   const selectedFileType = selectSelectedFileType(state);
   const isChatCollapsed = selectIsChatCollapsed(state);
@@ -23,11 +26,11 @@ export function App() {
       <AssessmentWindow
         activeTab={activeTopTab}
         onTabChange={(tab) => dispatch({ type: 'ui/setTopTab', payload: tab })}
-        assessmentPanel={<AssessmentTab selectedFileType={selectedFileType} />}
+        assessmentPanel={<AssessmentTab selectedFileType={selectedFileType} onChatBindingsChange={setAssessmentChatBindings} />}
         rubricPanel={<RubricTab />}
       />
       {isChatCollapsed ? <ChatCollapsedRail onExpand={expandChat} /> : <ChatView onCollapse={collapseChat} />}
-      <ChatInterface onChatIntent={expandChat} />
+      <ChatInterface onChatIntent={expandChat} {...(assessmentChatBindings ?? {})} />
     </div>
   );
 }
