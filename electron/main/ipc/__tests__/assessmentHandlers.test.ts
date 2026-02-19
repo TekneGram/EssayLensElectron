@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { FeedbackRepository } from '../../db/repositories/feedbackRepository';
 import { ASSESSMENT_CHANNELS, registerAssessmentHandlers } from '../assessmentHandlers';
 
 function createHarness() {
@@ -14,7 +15,14 @@ function createHarness() {
   };
 }
 
-function makeAnchor(overrides: Partial<Record<'part' | 'paragraphIndex' | 'runIndex' | 'charOffset', unknown>> = {}) {
+function makeAnchor(
+  overrides: Partial<{
+    part: string;
+    paragraphIndex: number;
+    runIndex: number;
+    charOffset: number;
+  }> = {}
+) {
   return {
     part: 'body',
     paragraphIndex: 1,
@@ -37,6 +45,75 @@ describe('registerAssessmentHandlers', () => {
       error: {
         code: 'ASSESSMENT_LIST_FEEDBACK_INVALID_PAYLOAD',
         message: 'List feedback request must include a non-empty fileId.'
+      }
+    });
+  });
+
+  it('returns listFeedback from repository in the shared DTO envelope', async () => {
+    const harness = createHarness();
+    const repository = new FeedbackRepository({ now: () => '2026-02-19T12:00:00.000Z' });
+    await repository.add({
+      id: 'fb-inline-1',
+      fileId: 'file-1',
+      kind: 'inline',
+      source: 'teacher',
+      commentText: 'Tighten this phrase.',
+      exactQuote: 'in my opinion',
+      prefixText: 'However, ',
+      suffixText: ', this point is weak.',
+      startAnchor: makeAnchor({ paragraphIndex: 0, runIndex: 0, charOffset: 0 }),
+      endAnchor: makeAnchor({ paragraphIndex: 0, runIndex: 0, charOffset: 13 })
+    });
+    registerAssessmentHandlers({ handle: harness.handle }, { repository, makeFeedbackId: () => 'unused' });
+
+    const listFeedbackHandler = harness.getHandler(ASSESSMENT_CHANNELS.listFeedback);
+    const result = await listFeedbackHandler({}, { fileId: 'file-1' });
+
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        feedback: [
+          {
+            id: 'fb-inline-1',
+            fileId: 'file-1',
+            kind: 'inline',
+            source: 'teacher',
+            commentText: 'Tighten this phrase.',
+            createdAt: '2026-02-19T12:00:00.000Z',
+            updatedAt: undefined,
+            applied: false,
+            exactQuote: 'in my opinion',
+            prefixText: 'However, ',
+            suffixText: ', this point is weak.',
+            startAnchor: makeAnchor({ paragraphIndex: 0, runIndex: 0, charOffset: 0 }),
+            endAnchor: makeAnchor({ paragraphIndex: 0, runIndex: 0, charOffset: 13 })
+          }
+        ]
+      }
+    });
+  });
+
+  it('returns normalized failure when repository listFeedback fails', async () => {
+    const harness = createHarness();
+    registerAssessmentHandlers(
+      { handle: harness.handle },
+      {
+        repository: {
+          listByFileId: vi.fn().mockRejectedValue(new Error('list failed')),
+          add: vi.fn()
+        } as unknown as FeedbackRepository,
+        makeFeedbackId: () => 'unused'
+      }
+    );
+
+    const listFeedbackHandler = harness.getHandler(ASSESSMENT_CHANNELS.listFeedback);
+    const result = await listFeedbackHandler({}, { fileId: 'file-1' });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: 'ASSESSMENT_LIST_FEEDBACK_FAILED',
+        message: 'Could not load feedback for this file.'
       }
     });
   });
@@ -140,9 +217,10 @@ describe('registerAssessmentHandlers', () => {
     });
   });
 
-  it('passes valid payload validation and returns not implemented (current phase behavior)', async () => {
+  it('adds feedback through repository and returns AddFeedbackResponse', async () => {
     const harness = createHarness();
-    registerAssessmentHandlers({ handle: harness.handle });
+    const repository = new FeedbackRepository({ now: () => '2026-02-19T12:34:56.000Z' });
+    registerAssessmentHandlers({ handle: harness.handle }, { repository, makeFeedbackId: () => 'fb-new-1' });
 
     const addFeedbackHandler = harness.getHandler(ASSESSMENT_CHANNELS.addFeedback);
     const extractDocumentHandler = harness.getHandler(ASSESSMENT_CHANNELS.extractDocument);
@@ -163,10 +241,23 @@ describe('registerAssessmentHandlers', () => {
     const requestLlmResult = await requestLlmAssessmentHandler({}, { fileId: 'file-1', instruction: '  evaluate cohesion  ' });
 
     expect(addResult).toEqual({
-      ok: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'assessment.addFeedback is not implemented yet.'
+      ok: true,
+      data: {
+        feedback: {
+          id: 'fb-new-1',
+          fileId: 'file-1',
+          source: 'teacher',
+          kind: 'inline',
+          commentText: 'Good transitional phrase.',
+          createdAt: '2026-02-19T12:34:56.000Z',
+          updatedAt: undefined,
+          applied: false,
+          exactQuote: 'As a result',
+          prefixText: '  ',
+          suffixText: ', the outcome improved.',
+          startAnchor: makeAnchor({ paragraphIndex: 0, runIndex: 0, charOffset: 0 }),
+          endAnchor: makeAnchor({ paragraphIndex: 0, runIndex: 0, charOffset: 9 })
+        }
       }
     });
     expect(extractResult).toEqual({
@@ -181,6 +272,36 @@ describe('registerAssessmentHandlers', () => {
       error: {
         code: 'NOT_IMPLEMENTED',
         message: 'assessment.requestLlmAssessment is not implemented yet.'
+      }
+    });
+  });
+
+  it('returns normalized failure when repository addFeedback fails', async () => {
+    const harness = createHarness();
+    registerAssessmentHandlers(
+      { handle: harness.handle },
+      {
+        repository: {
+          listByFileId: vi.fn(),
+          add: vi.fn().mockRejectedValue(new Error('add failed'))
+        } as unknown as FeedbackRepository,
+        makeFeedbackId: () => 'fb-new-1'
+      }
+    );
+
+    const addFeedbackHandler = harness.getHandler(ASSESSMENT_CHANNELS.addFeedback);
+    const result = await addFeedbackHandler({}, {
+      fileId: 'file-1',
+      source: 'teacher',
+      kind: 'block',
+      commentText: 'Overall structure is clear.'
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: 'ASSESSMENT_ADD_FEEDBACK_FAILED',
+        message: 'Could not persist feedback.'
       }
     });
   });

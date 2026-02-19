@@ -1,8 +1,13 @@
-import { appErr } from '../../shared/appResult';
+import { randomUUID } from 'node:crypto';
+import { FeedbackRepository, type FeedbackRecord } from '../db/repositories/feedbackRepository';
+import { appErr, appOk } from '../../shared/appResult';
 import type {
   AddFeedbackRequest,
+  AddFeedbackResponse,
   ExtractDocumentRequest,
   FeedbackAnchorDto,
+  FeedbackDto,
+  ListFeedbackResponse,
   ListFeedbackRequest,
   RequestLlmAssessmentRequest
 } from '../../shared/assessmentContracts';
@@ -15,6 +20,18 @@ export const ASSESSMENT_CHANNELS = {
   addFeedback: 'assessment/addFeedback',
   requestLlmAssessment: 'assessment/requestLlmAssessment'
 } as const;
+
+interface AssessmentHandlerDeps {
+  repository: FeedbackRepository;
+  makeFeedbackId: () => string;
+}
+
+function getDefaultDeps(): AssessmentHandlerDeps {
+  return {
+    repository: new FeedbackRepository(),
+    makeFeedbackId: () => randomUUID()
+  };
+}
 
 function normalizeNonEmptyString(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -199,7 +216,42 @@ function normalizeAddFeedbackRequest(request: unknown): AddFeedbackRequest | nul
   };
 }
 
-export function registerAssessmentHandlers(ipcMain: IpcMainLike): void {
+function toFeedbackDto(record: FeedbackRecord): FeedbackDto {
+  if (record.kind === 'block') {
+    return {
+      id: record.id,
+      fileId: record.fileId,
+      kind: 'block',
+      source: record.source,
+      commentText: record.commentText,
+      createdAt: record.createdAt ?? new Date().toISOString(),
+      updatedAt: record.updatedAt,
+      applied: record.applied
+    };
+  }
+
+  if (!record.startAnchor || !record.endAnchor || !record.exactQuote) {
+    throw new Error(`Inline feedback ${record.id} is missing required inline fields.`);
+  }
+
+  return {
+    id: record.id,
+    fileId: record.fileId,
+    kind: 'inline',
+    source: record.source,
+    commentText: record.commentText,
+    createdAt: record.createdAt ?? new Date().toISOString(),
+    updatedAt: record.updatedAt,
+    applied: record.applied,
+    exactQuote: record.exactQuote,
+    prefixText: record.prefixText ?? '',
+    suffixText: record.suffixText ?? '',
+    startAnchor: record.startAnchor,
+    endAnchor: record.endAnchor
+  };
+}
+
+export function registerAssessmentHandlers(ipcMain: IpcMainLike, deps: AssessmentHandlerDeps = getDefaultDeps()): void {
   ipcMain.handle(ASSESSMENT_CHANNELS.extractDocument, async (_event, request) => {
     const normalizedRequest = normalizeExtractDocumentRequest(request);
     if (!normalizedRequest) {
@@ -219,7 +271,18 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike): void {
         message: 'List feedback request must include a non-empty fileId.'
       });
     }
-    return notImplementedResult('assessment.listFeedback');
+
+    try {
+      const records = await deps.repository.listByFileId(normalizedRequest.fileId);
+      const feedback = records.map(toFeedbackDto);
+      return appOk<ListFeedbackResponse>({ feedback });
+    } catch (error) {
+      return appErr({
+        code: 'ASSESSMENT_LIST_FEEDBACK_FAILED',
+        message: 'Could not load feedback for this file.',
+        details: error
+      });
+    }
   });
 
   ipcMain.handle(ASSESSMENT_CHANNELS.addFeedback, async (_event, request) => {
@@ -231,7 +294,30 @@ export function registerAssessmentHandlers(ipcMain: IpcMainLike): void {
           'Add feedback payload is invalid. Ensure required fields are present, inline anchors are valid, and block comments do not include inline fields.'
       });
     }
-    return notImplementedResult('assessment.addFeedback');
+
+    try {
+      const created = await deps.repository.add({
+        id: deps.makeFeedbackId(),
+        fileId: normalizedRequest.fileId,
+        kind: normalizedRequest.kind,
+        source: normalizedRequest.source,
+        commentText: normalizedRequest.commentText,
+        exactQuote: normalizedRequest.kind === 'inline' ? normalizedRequest.exactQuote : undefined,
+        prefixText: normalizedRequest.kind === 'inline' ? normalizedRequest.prefixText : undefined,
+        suffixText: normalizedRequest.kind === 'inline' ? normalizedRequest.suffixText : undefined,
+        startAnchor: normalizedRequest.kind === 'inline' ? normalizedRequest.startAnchor : undefined,
+        endAnchor: normalizedRequest.kind === 'inline' ? normalizedRequest.endAnchor : undefined
+      });
+      return appOk<AddFeedbackResponse>({
+        feedback: toFeedbackDto(created)
+      });
+    } catch (error) {
+      return appErr({
+        code: 'ASSESSMENT_ADD_FEEDBACK_FAILED',
+        message: 'Could not persist feedback.',
+        details: error
+      });
+    }
   });
 
   ipcMain.handle(ASSESSMENT_CHANNELS.requestLlmAssessment, async (_event, request) => {
