@@ -430,11 +430,43 @@
 .chat-interface {
   padding: 8px 10px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
   border-top: 1px solid var(--divider-color);
   border-right: 0;
+}
+
+.chat-command-display,
+.chat-highlighted-text {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.74rem;
+  line-height: 1.3;
+  background: var(--bg-muted);
+  color: var(--text-primary);
+}
+
+.chat-interface-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.chat-interface-controls select {
+  min-height: 34px;
+  border: 1px solid var(--divider-color);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.chat-toggle-group {
+  display: inline-flex;
+  gap: 6px;
 }
 
 .chat-collapsed-rail {
@@ -491,6 +523,11 @@
   color: var(--accent-primary);
   padding: 8px 12px;
   cursor: pointer;
+}
+
+.chat-send[aria-pressed="true"] {
+  border-color: color-mix(in hsl, var(--accent-primary) 50%, var(--border-subtle));
+  background: color-mix(in hsl, var(--bg-accent-soft) 70%, var(--accent-primary) 30%);
 }
 
 .visually-hidden {

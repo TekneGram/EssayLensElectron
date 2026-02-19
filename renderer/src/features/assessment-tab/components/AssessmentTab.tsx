@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'react-toastify';
+import type { AppResult } from '../../../../../electron/shared/appResult';
+import type { SendChatMessageRequest, SendChatMessageResponse } from '../../../../../electron/shared/chatContracts';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
 import type { FeedbackItem } from '../../../types';
@@ -13,6 +16,18 @@ interface AssessmentTabProps {
   onChatBindingsChange?: (bindings: AssessmentTabChatBindings) => void;
 }
 
+type ChatApi = {
+  sendMessage: (request: SendChatMessageRequest) => Promise<AppResult<SendChatMessageResponse>>;
+};
+
+function getChatApi(): ChatApi {
+  const appWindow = window as Window & { api?: { chat?: ChatApi } };
+  if (!appWindow.api?.chat) {
+    throw new Error('window.api.chat is not available.');
+  }
+  return appWindow.api.chat;
+}
+
 export function AssessmentTab({ selectedFileType, onChatBindingsChange }: AssessmentTabProps) {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -24,7 +39,8 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
   const isImageViewOpen = selectedFileType === 'image';
   const mode = isImageViewOpen ? 'three-pane' : 'two-pane';
   useFeedbackListQuery(selectedFileId);
-  const addFeedbackMutation = useAddFeedbackMutation(selectedFileId);
+  const { addFeedback, isPending: isAddFeedbackPending, errorMessage: addFeedbackErrorMessage } =
+    useAddFeedbackMutation(selectedFileId);
   const comments = selectedFileId ? state.feedback.byFileId[selectedFileId] ?? [] : [];
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const [activeCommand, setActiveCommand] = useState<ActiveCommand | null>(null);
@@ -44,7 +60,7 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
       if (command) {
         return 'chat';
       }
-      return currentMode === 'chat' ? 'comment' : currentMode;
+      return currentMode;
     });
   }, []);
 
@@ -58,12 +74,83 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
     [isModeLockedToChat]
   );
 
-  const handleSubmit = useCallback(() => {
-    if (!draftText.trim()) {
+  const handleSubmit = useCallback(async () => {
+    const message = draftText.trim();
+    if (!message) {
       return;
     }
-    setDraftText('');
-  }, [draftText]);
+
+    if (chatMode === 'comment') {
+      try {
+        if (pendingSelection) {
+          await addFeedback({
+            kind: 'inline',
+            source: 'teacher',
+            commentText: message,
+            exactQuote: pendingSelection.exactQuote,
+            prefixText: pendingSelection.prefixText,
+            suffixText: pendingSelection.suffixText,
+            startAnchor: pendingSelection.startAnchor,
+            endAnchor: pendingSelection.endAnchor
+          });
+          setPendingSelection(null);
+        } else {
+          await addFeedback({
+            kind: 'block',
+            source: 'teacher',
+            commentText: message
+          });
+        }
+        setDraftText('');
+      } catch {
+        // Mutation hook is responsible for setting feedback error state + toast.
+      }
+      return;
+    }
+
+    dispatch({ type: 'chat/setStatus', payload: 'sending' });
+    dispatch({ type: 'chat/setError', payload: undefined });
+    try {
+      const chatApi = getChatApi();
+      const result = await chatApi.sendMessage({
+        fileId: selectedFileId ?? undefined,
+        message,
+        contextText: pendingSelection?.exactQuote
+      });
+      if (!result.ok) {
+        throw new Error(result.error.message || 'Unable to send chat message.');
+      }
+
+      const createdAt = new Date().toISOString();
+      dispatch({
+        type: 'chat/addMessage',
+        payload: {
+          id: `teacher-${Date.now()}`,
+          role: 'teacher',
+          content: message,
+          relatedFileId: selectedFileId ?? undefined,
+          createdAt
+        }
+      });
+      dispatch({
+        type: 'chat/addMessage',
+        payload: {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: result.data.reply,
+          relatedFileId: selectedFileId ?? undefined,
+          createdAt
+        }
+      });
+      dispatch({ type: 'chat/setStatus', payload: 'idle' });
+      setDraftText('');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unable to send chat message.';
+      dispatch({ type: 'chat/setStatus', payload: 'error' });
+      dispatch({ type: 'chat/setError', payload: errorMessage });
+      toast.error(errorMessage);
+    }
+  }, [addFeedback, chatMode, dispatch, draftText, pendingSelection, selectedFileId]);
 
   const chatBindings = useMemo<AssessmentTabChatBindings>(
     () => ({
@@ -271,10 +358,10 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
       <CommentsView
         comments={comments}
         activeCommentId={activeCommentId}
-        isLoading={state.feedback.status === 'loading' || addFeedbackMutation.isPending}
+        isLoading={state.feedback.status === 'loading' || isAddFeedbackPending}
         error={
           state.feedback.status === 'error'
-            ? state.feedback.error ?? addFeedbackMutation.errorMessage ?? 'Unable to load comments.'
+            ? state.feedback.error ?? addFeedbackErrorMessage ?? 'Unable to load comments.'
             : undefined
         }
         onSelectComment={handleSelectComment}

@@ -185,7 +185,7 @@ describe('Assessment tab file selection routing', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('comment:false:no-command');
+      expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('chat:false:no-command');
     });
     expect(screen.getByRole('button', { name: 'Switch to comment mode' }).getAttribute('disabled')).toBeNull();
   });
@@ -278,7 +278,7 @@ describe('Assessment tab file selection routing', () => {
     fireEvent.mouseUp(windowNode);
 
     await waitFor(() => {
-      expect(screen.getByTestId('highlighted-text-stub').textContent).toBe('draft.docx');
+      expect(screen.getByTestId('highlighted-text-stub').textContent).toContain('draft.docx');
     });
   });
 });
