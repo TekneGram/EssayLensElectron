@@ -37,10 +37,30 @@ function setupApi() {
     }
   });
 
+  const listFeedback = vi.fn().mockResolvedValue({
+    ok: true,
+    data: {
+      feedback: []
+    }
+  });
+  const addFeedback = vi.fn().mockResolvedValue({
+    ok: true,
+    data: {
+      feedback: {
+        id: 'feedback-1',
+        fileId: '/workspace/essays/draft.docx',
+        source: 'teacher',
+        kind: 'block',
+        commentText: 'Looks good.',
+        createdAt: new Date().toISOString()
+      }
+    }
+  });
+
   Object.defineProperty(window, 'api', {
     value: {
       workspace: { selectFolder, listFiles },
-      assessment: {},
+      assessment: { listFeedback, addFeedback },
       rubric: {},
       chat: {}
     },

@@ -38,10 +38,30 @@ describe('Assessment tab file selection routing', () => {
       }
     });
 
+    const listFeedback = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        feedback: []
+      }
+    });
+    const addFeedback = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        feedback: {
+          id: 'feedback-1',
+          fileId: '/workspace/essays/draft.docx',
+          source: 'teacher',
+          kind: 'block',
+          commentText: 'Nice work.',
+          createdAt: new Date().toISOString()
+        }
+      }
+    });
+
     Object.defineProperty(window, 'api', {
       value: {
         workspace: { selectFolder, listFiles },
-        assessment: {},
+        assessment: { listFeedback, addFeedback },
         rubric: {},
         chat: {}
       },
@@ -74,6 +94,7 @@ describe('Assessment tab file selection routing', () => {
     await waitFor(() => {
       expect(screen.getByTestId('assessment-tab').getAttribute('data-mode')).toBe('two-pane');
     });
+    expect(listFeedback).toHaveBeenCalledWith({ fileId: '/workspace/essays/draft.docx' });
     expect(screen.queryByTestId('image-view')).toBeNull();
     expect(screen.getByTestId('original-text-view').textContent).toContain('draft.docx');
     expect(screen.getByText('[system] Selected file: draft.docx')).toBeTruthy();

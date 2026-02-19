@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
+import { useAddFeedbackMutation, useFeedbackListQuery } from '../hooks';
 import type { ActiveCommand, ChatMode, PendingSelection } from '../types';
 import { CommentsView } from './CommentsView';
 import { ImageView } from './ImageView';
@@ -20,6 +21,8 @@ export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
   const selectedFileId = selectedFile?.id ?? null;
   const isImageViewOpen = selectedFileType === 'image';
   const mode = isImageViewOpen ? 'three-pane' : 'two-pane';
+  useFeedbackListQuery(selectedFileId);
+  const addFeedbackMutation = useAddFeedbackMutation(selectedFileId);
   const comments = selectedFileId ? state.feedback.byFileId[selectedFileId] ?? [] : [];
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const [activeCommand, setActiveCommand] = useState<ActiveCommand | null>(null);
@@ -140,8 +143,12 @@ export function AssessmentTab({ selectedFileType }: AssessmentTabProps) {
       <CommentsView
         comments={comments}
         activeCommentId={activeCommentId}
-        isLoading={state.feedback.status === 'loading'}
-        error={state.feedback.status === 'error' ? state.feedback.error ?? 'Unable to load comments.' : undefined}
+        isLoading={state.feedback.status === 'loading' || addFeedbackMutation.isPending}
+        error={
+          state.feedback.status === 'error'
+            ? state.feedback.error ?? addFeedbackMutation.errorMessage ?? 'Unable to load comments.'
+            : undefined
+        }
         onSelectComment={setActiveCommentId}
         onEditComment={handleEditComment}
         onDeleteComment={handleDeleteComment}
