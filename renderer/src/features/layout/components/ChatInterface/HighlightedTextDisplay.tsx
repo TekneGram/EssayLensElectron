@@ -6,11 +6,11 @@ interface HighlightedTextDisplayProps {
 
 export function HighlightedTextDisplay({ pendingSelection = null }: HighlightedTextDisplayProps) {
   const quote = pendingSelection?.exactQuote;
-  const preview = quote ? (quote.length > 120 ? `${quote.slice(0, 120)}…` : quote) : 'No selection';
+  const preview = quote ?? 'No selection';
 
   return (
     <div className="chat-highlighted-text" data-testid="highlighted-text-stub" title={quote ?? undefined}>
-      <strong>Selection:</strong> {preview}
+      {preview}
     </div>
   );
 }

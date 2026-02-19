@@ -7,26 +7,24 @@ interface ChatToggleProps {
 }
 
 export function ChatToggle({ chatMode = 'comment', isModeLockedToChat = false, onModeChange }: ChatToggleProps) {
+  const nextMode: ChatMode = chatMode === 'comment' ? 'chat' : 'comment';
+
   return (
-    <div className="chat-toggle-group" role="group" aria-label="Chat mode">
+    <div className="chat-mode-toggle" role="group" aria-label="Chat mode">
+      <div className="chat-mode-toggle-labels" aria-hidden="true">
+        <span>comment</span>
+        <span>chat</span>
+      </div>
       <button
-        className="chat-send"
+        className="chat-mode-toggle-track"
         type="button"
-        aria-label="Switch to comment mode"
-        aria-pressed={chatMode === 'comment'}
-        disabled={isModeLockedToChat}
-        onClick={() => onModeChange?.('comment')}
+        role="switch"
+        aria-label="Switch chat mode"
+        aria-checked={chatMode === 'chat'}
+        disabled={isModeLockedToChat && chatMode === 'chat'}
+        onClick={() => onModeChange?.(nextMode)}
       >
-        Comment
-      </button>
-      <button
-        className="chat-send"
-        type="button"
-        aria-label="Switch to chat mode"
-        aria-pressed={chatMode === 'chat'}
-        onClick={() => onModeChange?.('chat')}
-      >
-        Chat
+        <span className="chat-mode-toggle-thumb" />
       </button>
     </div>
   );
