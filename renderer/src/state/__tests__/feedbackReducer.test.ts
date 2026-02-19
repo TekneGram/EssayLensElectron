@@ -14,7 +14,22 @@ describe('feedbackReducer', () => {
             fileId: 'f1',
             source: 'teacher',
             kind: 'inline',
-            content: 'Clarify this sentence',
+            commentText: 'Clarify this sentence',
+            exactQuote: 'quoted text',
+            prefixText: 'prefix',
+            suffixText: 'suffix',
+            startAnchor: {
+              part: 'word/document.xml',
+              paragraphIndex: 1,
+              runIndex: 1,
+              charOffset: 10
+            },
+            endAnchor: {
+              part: 'word/document.xml',
+              paragraphIndex: 1,
+              runIndex: 2,
+              charOffset: 25
+            },
             createdAt: '2026-02-18T00:00:00.000Z'
           }
         ]
@@ -35,7 +50,22 @@ describe('feedbackReducer', () => {
             fileId: 'f1',
             source: 'teacher' as const,
             kind: 'inline' as const,
-            content: 'First',
+            commentText: 'First',
+            exactQuote: 'first quote',
+            prefixText: 'first prefix',
+            suffixText: 'first suffix',
+            startAnchor: {
+              part: 'word/document.xml',
+              paragraphIndex: 1,
+              runIndex: 0,
+              charOffset: 0
+            },
+            endAnchor: {
+              part: 'word/document.xml',
+              paragraphIndex: 1,
+              runIndex: 1,
+              charOffset: 5
+            },
             createdAt: '2026-02-18T00:00:00.000Z'
           }
         ]
@@ -49,7 +79,7 @@ describe('feedbackReducer', () => {
         fileId: 'f1',
         source: 'llm',
         kind: 'block',
-        content: 'Second',
+        commentText: 'Second',
         createdAt: '2026-02-18T00:00:01.000Z'
       }
     });
