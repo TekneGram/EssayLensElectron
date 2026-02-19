@@ -1,5 +1,10 @@
 import type { EntityId } from './primitives';
-import type { FeedbackAnchor } from './models';
+import type {
+  AddBlockFeedbackRequest,
+  AddFeedbackRequest,
+  AddInlineFeedbackRequest,
+  RequestLlmAssessmentRequest
+} from '../../../electron/shared/assessmentContracts';
 
 export interface SelectFolderCommand {
   path: string;
@@ -9,31 +14,10 @@ export interface SelectFileCommand {
   fileId: EntityId;
 }
 
-interface AddFeedbackCommandBase {
-  fileId: EntityId;
-  source: 'teacher' | 'llm';
-  commentText: string;
-}
-
-export interface AddInlineFeedbackCommand extends AddFeedbackCommandBase {
-  kind: 'inline';
-  exactQuote: string;
-  prefixText: string;
-  suffixText: string;
-  startAnchor: FeedbackAnchor;
-  endAnchor: FeedbackAnchor;
-}
-
-export interface AddBlockFeedbackCommand extends AddFeedbackCommandBase {
-  kind: 'block';
-}
-
-export type AddFeedbackCommand = AddInlineFeedbackCommand | AddBlockFeedbackCommand;
-
-export interface RequestLlmAssessmentCommand {
-  fileId: EntityId;
-  instruction?: string;
-}
+export type AddInlineFeedbackCommand = AddInlineFeedbackRequest;
+export type AddBlockFeedbackCommand = AddBlockFeedbackRequest;
+export type AddFeedbackCommand = AddFeedbackRequest;
+export type RequestLlmAssessmentCommand = RequestLlmAssessmentRequest;
 
 export interface SendChatMessageCommand {
   fileId?: EntityId;

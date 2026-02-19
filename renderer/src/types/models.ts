@@ -1,4 +1,10 @@
 import type { ChatRole, CommentKind, EntityId, FileKind, ISODateString } from './primitives';
+import type {
+  BlockFeedbackDto,
+  FeedbackAnchorDto,
+  FeedbackDto,
+  InlineFeedbackDto
+} from '../../../electron/shared/assessmentContracts';
 
 export interface WorkspaceFolder {
   id: EntityId;
@@ -40,37 +46,10 @@ export interface ChatMessage {
 
 export type ChatDataArray = ChatMessage[];
 
-export interface FeedbackAnchor {
-  part: string;
-  paragraphIndex: number;
-  runIndex: number;
-  charOffset: number;
-}
-
-export interface FeedbackItemBase {
-  id: EntityId;
-  fileId: EntityId;
-  source: 'teacher' | 'llm';
-  commentText: string;
-  createdAt: ISODateString;
-  updatedAt?: ISODateString;
-  applied?: boolean;
-}
-
-export interface InlineFeedbackItem extends FeedbackItemBase {
-  kind: 'inline';
-  exactQuote: string;
-  prefixText: string;
-  suffixText: string;
-  startAnchor: FeedbackAnchor;
-  endAnchor: FeedbackAnchor;
-}
-
-export interface BlockFeedbackItem extends FeedbackItemBase {
-  kind: 'block';
-}
-
-export type FeedbackItem = InlineFeedbackItem | BlockFeedbackItem;
+export type FeedbackAnchor = FeedbackAnchorDto;
+export type InlineFeedbackItem = InlineFeedbackDto;
+export type BlockFeedbackItem = BlockFeedbackDto;
+export type FeedbackItem = FeedbackDto;
 
 export interface RubricSummary {
   id: EntityId;
