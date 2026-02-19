@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { appErr, appOk } from '../../shared/appResult';
-import type { GetCurrentFolderResultData, ListFilesResultData, SelectFolderResultData, WorkspaceFileDto } from '../../shared/workspaceContracts';
+import type { GetCurrentFolderResponse, ListFilesRequest, ListFilesResponse, SelectFolderResponse, WorkspaceFileDto } from '../../shared/workspaceContracts';
 import { WorkspaceRepository } from '../db/repositories/workspaceRepository';
 import { scanFilesInWorkspace, type ScannedFile } from '../services/fileScanner';
 import type { IpcMainLike } from './types';
@@ -77,7 +77,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceH
       });
       const selectedPath = selection.filePaths[0];
       if (selection.canceled || !selectedPath) {
-        return appOk<SelectFolderResultData>({ folder: null });
+        return appOk<SelectFolderResponse>({ folder: null });
       }
 
       const folder = await deps.repository.setCurrentFolder(selectedPath);
@@ -85,7 +85,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceH
       const fileRecords = toWorkspaceFileDtos(folder.id, scannedFiles);
       await deps.repository.upsertFiles(folder.id, fileRecords);
 
-      return appOk<SelectFolderResultData>({ folder });
+      return appOk<SelectFolderResponse>({ folder });
     } catch (error) {
       return appErr({
         code: 'WORKSPACE_SELECT_FOLDER_FAILED',
@@ -94,8 +94,12 @@ export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceH
       });
     }
   });
-  ipcMain.handle(WORKSPACE_CHANNELS.listFiles, async (_event, payload) => {
-    const folderId = typeof payload === 'object' && payload && 'folderId' in payload ? String(payload.folderId) : '';
+  ipcMain.handle(WORKSPACE_CHANNELS.listFiles, async (_event, requestPayload) => {
+    const request =
+      typeof requestPayload === 'object' && requestPayload !== null && 'folderId' in requestPayload
+        ? (requestPayload as ListFilesRequest)
+        : null;
+    const folderId = typeof request?.folderId === 'string' ? request.folderId : '';
     if (!folderId) {
       return appErr({
         code: 'WORKSPACE_LIST_FILES_FAILED',
@@ -105,7 +109,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceH
 
     try {
       const files = await deps.repository.listFiles(folderId);
-      return appOk<ListFilesResultData>({ files });
+      return appOk<ListFilesResponse>({ files });
     } catch (error) {
       return appErr({
         code: 'WORKSPACE_LIST_FILES_FAILED',
@@ -118,7 +122,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceH
   ipcMain.handle(WORKSPACE_CHANNELS.getCurrentFolder, async () => {
     try {
       const folder = await deps.repository.getCurrentFolder();
-      return appOk<GetCurrentFolderResultData>({ folder });
+      return appOk<GetCurrentFolderResponse>({ folder });
     } catch (error) {
       return appErr({
         code: 'WORKSPACE_GET_CURRENT_FOLDER_FAILED',

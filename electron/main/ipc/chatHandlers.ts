@@ -1,5 +1,5 @@
 import { appErr, appOk } from '../../shared/appResult';
-import type { ListMessagesResultData, SendChatMessagePayload, SendChatMessageResultData } from '../../shared/chatContracts';
+import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../../shared/chatContracts';
 import { ChatRepository } from '../db/repositories/chatRepository';
 import { LlmOrchestrator } from '../services/llmOrchestrator';
 import type { IpcMainLike } from './types';
@@ -21,12 +21,12 @@ function getDefaultDeps(): ChatHandlerDeps {
   };
 }
 
-function normalizeSendPayload(payload: unknown): SendChatMessagePayload | null {
-  if (typeof payload !== 'object' || payload === null) {
+function normalizeSendMessageRequest(request: unknown): SendChatMessageRequest | null {
+  if (typeof request !== 'object' || request === null) {
     return null;
   }
 
-  const candidate = payload as Record<string, unknown>;
+  const candidate = request as Record<string, unknown>;
   const messageFromValue = typeof candidate.message === 'string' ? candidate.message : null;
   const legacyContentValue = typeof candidate.content === 'string' ? candidate.content : null;
   const message = (messageFromValue ?? legacyContentValue)?.trim();
@@ -55,15 +55,15 @@ function getReplyText(data: unknown): string | null {
 }
 
 export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps = getDefaultDeps()): void {
-  ipcMain.handle(CHAT_CHANNELS.listMessages, async (_event, payload) => {
+  ipcMain.handle(CHAT_CHANNELS.listMessages, async (_event, request) => {
     const fileId =
-      typeof payload === 'object' && payload && 'fileId' in payload && typeof payload.fileId === 'string'
-        ? payload.fileId
+      typeof request === 'object' && request && 'fileId' in request && typeof request.fileId === 'string'
+        ? request.fileId
         : undefined;
 
     try {
       const messages = await deps.repository.listMessages(fileId);
-      return appOk<ListMessagesResultData>({ messages });
+      return appOk<ListMessagesResponse>({ messages });
     } catch (error) {
       return appErr({
         code: 'CHAT_LIST_MESSAGES_FAILED',
@@ -73,9 +73,9 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
     }
   });
 
-  ipcMain.handle(CHAT_CHANNELS.sendMessage, async (_event, payload) => {
-    const normalizedPayload = normalizeSendPayload(payload);
-    if (!normalizedPayload) {
+  ipcMain.handle(CHAT_CHANNELS.sendMessage, async (_event, request) => {
+    const normalizedRequest = normalizeSendMessageRequest(request);
+    if (!normalizedRequest) {
       return appErr({
         code: 'CHAT_SEND_INVALID_PAYLOAD',
         message: 'Chat message payload must include a non-empty message.'
@@ -83,9 +83,9 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
     }
 
     const llmResult = await deps.llmOrchestrator.requestAction<
-      SendChatMessagePayload,
-      SendChatMessageResultData
-    >('llm.chat', normalizedPayload);
+      SendChatMessageRequest,
+      SendChatMessageResponse
+    >('llm.chat', normalizedRequest);
     if (!llmResult.ok) {
       return appErr(llmResult.error);
     }
@@ -104,18 +104,18 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
       await deps.repository.addMessage({
         id: makeMessageId('teacher'),
         role: 'teacher',
-        content: normalizedPayload.message,
-        relatedFileId: normalizedPayload.fileId,
+        content: normalizedRequest.message,
+        relatedFileId: normalizedRequest.fileId,
         createdAt
       });
       await deps.repository.addMessage({
         id: makeMessageId('assistant'),
         role: 'assistant',
         content: reply,
-        relatedFileId: normalizedPayload.fileId,
+        relatedFileId: normalizedRequest.fileId,
         createdAt
       });
-      return appOk<SendChatMessageResultData>({ reply });
+      return appOk<SendChatMessageResponse>({ reply });
     } catch (error) {
       return appErr({
         code: 'CHAT_SEND_PERSIST_FAILED',
@@ -125,4 +125,3 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
     }
   });
 }
-

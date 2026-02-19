@@ -12,14 +12,18 @@ export interface WorkspaceFileDto {
   kind: string;
 }
 
-export interface SelectFolderResultData {
+export interface SelectFolderResponse {
   folder: WorkspaceFolderDto | null;
 }
 
-export interface ListFilesResultData {
+export interface ListFilesRequest {
+  folderId: string;
+}
+
+export interface ListFilesResponse {
   files: WorkspaceFileDto[];
 }
 
-export interface GetCurrentFolderResultData {
+export interface GetCurrentFolderResponse {
   folder: WorkspaceFolderDto | null;
 }

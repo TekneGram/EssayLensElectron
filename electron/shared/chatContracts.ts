@@ -6,17 +6,20 @@ export interface ChatMessageDto {
   createdAt: string;
 }
 
-export interface ListMessagesResultData {
+export interface ListMessagesRequest {
+  fileId?: string;
+}
+
+export interface ListMessagesResponse {
   messages: ChatMessageDto[];
 }
 
-export interface SendChatMessagePayload {
+export interface SendChatMessageRequest {
   fileId?: string;
   message: string;
   contextText?: string;
 }
 
-export interface SendChatMessageResultData {
+export interface SendChatMessageResponse {
   reply: string;
 }
-
