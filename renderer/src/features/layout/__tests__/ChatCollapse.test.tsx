@@ -39,7 +39,7 @@ describe('Chat collapse behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Collapse chat panel' }));
     expect(screen.queryByTestId('chat-view')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send comment' }));
 
     expect(screen.getByTestId('chat-view')).toBeTruthy();
   });

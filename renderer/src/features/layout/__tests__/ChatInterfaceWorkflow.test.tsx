@@ -119,7 +119,7 @@ describe('ChatInterface submit workflow', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), {
       target: { value: 'Please tighten this phrase.' }
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send comment' }));
 
     await waitFor(() => {
       expect(addFeedback).toHaveBeenCalledTimes(1);
@@ -197,7 +197,7 @@ describe('ChatInterface submit workflow', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), {
       target: { value: 'How should I sequence feedback?' }
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send chat message' }));
 
     await waitFor(() => {
       expect(sendMessage).toHaveBeenCalledWith({
