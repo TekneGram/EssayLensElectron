@@ -1,11 +1,14 @@
 import type { AppError, AppResult } from '../../../../../electron/shared/appResult';
 import type {
+  CreateRubricRequest,
+  CreateRubricResponse,
   GetRubricMatrixRequest,
   GetRubricMatrixResponse,
   ListRubricsResponse,
   RubricDetailDto,
-  RubricDto,
   RubricScoreDto,
+  SetLastUsedRubricRequest,
+  SetLastUsedRubricResponse,
   UpdateRubricMatrixRequest,
   UpdateRubricMatrixResponse
 } from '../../../../../electron/shared/rubricContracts';
@@ -13,189 +16,45 @@ import type { RubricSourceData } from './types';
 
 type RubricApi = {
   listRubrics: () => Promise<AppResult<ListRubricsResponse>>;
+  createRubric: (request: CreateRubricRequest) => Promise<AppResult<CreateRubricResponse>>;
   getMatrix: (request: GetRubricMatrixRequest) => Promise<AppResult<GetRubricMatrixResponse>>;
   updateMatrix: (request: UpdateRubricMatrixRequest) => Promise<AppResult<UpdateRubricMatrixResponse>>;
+  setLastUsed: (request: SetLastUsedRubricRequest) => Promise<AppResult<SetLastUsedRubricResponse>>;
 };
-
-interface LocalDb {
-  rubric: RubricDto;
-  details: RubricDetailDto[];
-  scores: RubricScoreDto[];
-}
-
-const localDb: LocalDb = (() => {
-  const rubricId = 'rubric-1';
-  const categories = ['Content', 'Organization', 'Grammar'];
-  const scoreValues = [5, 4, 3, 2, 1];
-
-  const rubric: RubricDto = {
-    entityUuid: rubricId,
-    name: 'ESL Writing Rubric',
-    type: 'detailed'
-  };
-
-  const details: RubricDetailDto[] = [];
-  const scores: RubricScoreDto[] = [];
-
-  let detailNumber = 1;
-  let scoreNumber = 1;
-
-  for (const category of categories) {
-    for (const scoreValue of scoreValues) {
-      const detailId = `detail-${detailNumber++}`;
-      details.push({
-        uuid: detailId,
-        entityUuid: rubricId,
-        category,
-        description: `${category} descriptor at score ${scoreValue}.`
-      });
-      scores.push({
-        uuid: `score-${scoreNumber++}`,
-        detailsUuid: detailId,
-        scoreValues: scoreValue
-      });
-    }
-  }
-
-  return { rubric, details, scores };
-})();
-
-function delay<T>(value: T, ms = 120): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
-function newId(prefix: string): string {
-  return `${prefix}-${Math.random().toString(16).slice(2)}`;
-}
 
 function toError(resultError: AppError): Error {
   return new Error(resultError.message || 'Rubric request failed.');
 }
 
-function getPreloadRubricApi(): RubricApi | undefined {
+function getPreloadRubricApi(): Partial<RubricApi> {
   const appWindow = window as Window & { api?: { rubric?: Partial<RubricApi> } };
   const rubricApi = appWindow.api?.rubric;
   if (!rubricApi) {
-    return undefined;
+    throw new Error('window.api.rubric is not available.');
   }
-  if (
-    typeof rubricApi.listRubrics !== 'function' ||
-    typeof rubricApi.getMatrix !== 'function' ||
-    typeof rubricApi.updateMatrix !== 'function'
-  ) {
-    return undefined;
-  }
-  return rubricApi as RubricApi;
-}
-
-function isNotImplemented(result: AppResult<unknown>): boolean {
-  return !result.ok && result.error.code === 'NOT_IMPLEMENTED';
-}
-
-async function listRubricsLocal(): Promise<ListRubricsResponse> {
-  return delay({ rubrics: [localDb.rubric] });
-}
-
-async function getMatrixLocal(request: GetRubricMatrixRequest): Promise<GetRubricMatrixResponse> {
-  if (request.rubricId !== localDb.rubric.entityUuid) {
-    throw new Error('Rubric not found.');
-  }
-  return delay({
-    rubric: localDb.rubric,
-    details: localDb.details,
-    scores: localDb.scores
-  });
-}
-
-async function updateMatrixLocal(request: UpdateRubricMatrixRequest): Promise<UpdateRubricMatrixResponse> {
-  if (request.rubricId !== localDb.rubric.entityUuid) {
-    throw new Error('Rubric not found.');
-  }
-
-  const operation = request.operation;
-  if (operation.type === 'setRubricName') {
-    localDb.rubric.name = operation.name;
-  }
-
-  if (operation.type === 'updateCellDescription') {
-    const detail = localDb.details.find((entry) => entry.uuid === operation.detailId);
-    if (!detail) {
-      throw new Error('Rubric detail not found.');
-    }
-    detail.description = operation.description;
-  }
-
-  if (operation.type === 'updateCategoryName') {
-    for (const detail of localDb.details) {
-      if (detail.category === operation.from) {
-        detail.category = operation.to;
-      }
-    }
-  }
-
-  if (operation.type === 'updateScoreValue') {
-    for (const score of localDb.scores) {
-      if (score.scoreValues === operation.from) {
-        score.scoreValues = operation.to;
-      }
-    }
-  }
-
-  if (operation.type === 'createCategory') {
-    const scoreValues = Array.from(new Set(localDb.scores.map((score) => score.scoreValues))).sort(
-      (left, right) => right - left
-    );
-
-    for (const scoreValue of scoreValues) {
-      const detailId = newId('detail');
-      localDb.details.push({
-        uuid: detailId,
-        entityUuid: request.rubricId,
-        category: operation.name,
-        description: ''
-      });
-      localDb.scores.push({
-        uuid: newId('score'),
-        detailsUuid: detailId,
-        scoreValues: scoreValue
-      });
-    }
-  }
-
-  if (operation.type === 'createScore') {
-    const categories = Array.from(new Set(localDb.details.map((detail) => detail.category)));
-
-    for (const category of categories) {
-      const detailId = newId('detail');
-      localDb.details.push({
-        uuid: detailId,
-        entityUuid: request.rubricId,
-        category,
-        description: ''
-      });
-      localDb.scores.push({
-        uuid: newId('score'),
-        detailsUuid: detailId,
-        scoreValues: operation.value
-      });
-    }
-  }
-
-  return delay({ success: true });
+  return rubricApi;
 }
 
 export async function listRubrics(): Promise<ListRubricsResponse> {
   const api = getPreloadRubricApi();
-  if (!api) {
-    return listRubricsLocal();
+  if (typeof api.listRubrics !== 'function') {
+    throw new Error('window.api.rubric.listRubrics is not available.');
   }
-
   const result = await api.listRubrics();
   if (result.ok) {
     return result.data;
   }
-  if (isNotImplemented(result)) {
-    return listRubricsLocal();
+  throw toError(result.error);
+}
+
+export async function createRubric(name = 'New Rubric'): Promise<CreateRubricResponse> {
+  const api = getPreloadRubricApi();
+  if (typeof api.createRubric !== 'function') {
+    throw new Error('window.api.rubric.createRubric is not available.');
+  }
+  const result = await api.createRubric({ name });
+  if (result.ok) {
+    return result.data;
   }
   throw toError(result.error);
 }
@@ -203,38 +62,40 @@ export async function listRubrics(): Promise<ListRubricsResponse> {
 export async function getRubricMatrix(rubricId: string): Promise<GetRubricMatrixResponse> {
   const request: GetRubricMatrixRequest = { rubricId };
   const api = getPreloadRubricApi();
-  if (!api) {
-    return getMatrixLocal(request);
+  if (typeof api.getMatrix !== 'function') {
+    throw new Error('window.api.rubric.getMatrix is not available.');
   }
-
   const result = await api.getMatrix(request);
   if (result.ok) {
     return result.data;
-  }
-  if (isNotImplemented(result)) {
-    return getMatrixLocal(request);
   }
   throw toError(result.error);
 }
 
 export async function updateRubricMatrix(request: UpdateRubricMatrixRequest): Promise<UpdateRubricMatrixResponse> {
   const api = getPreloadRubricApi();
-  if (!api) {
-    return updateMatrixLocal(request);
+  if (typeof api.updateMatrix !== 'function') {
+    throw new Error('window.api.rubric.updateMatrix is not available.');
   }
-
   const result = await api.updateMatrix(request);
   if (result.ok) {
     return result.data;
   }
-  if (isNotImplemented(result)) {
-    return updateMatrixLocal(request);
+  throw toError(result.error);
+}
+
+export async function setLastUsedRubric(rubricId: string): Promise<SetLastUsedRubricResponse> {
+  const api = getPreloadRubricApi();
+  if (typeof api.setLastUsed !== 'function') {
+    throw new Error('window.api.rubric.setLastUsed is not available.');
+  }
+  const result = await api.setLastUsed({ rubricId });
+  if (result.ok) {
+    return result.data;
   }
   throw toError(result.error);
 }
 
-const categoryAxisId = (name: string): string => `cat:${name}`;
-const scoreAxisId = (value: number): string => `score:${value}`;
 const makeKey = (categoryId: string, scoreId: string): string => `${categoryId}:${scoreId}`;
 
 export function matrixToRubricSourceData(matrix: GetRubricMatrixResponse): RubricSourceData {
@@ -243,28 +104,57 @@ export function matrixToRubricSourceData(matrix: GetRubricMatrixResponse): Rubri
     scoreByDetailId[score.detailsUuid] = score;
   }
 
-  const categoryNames = new Set<string>();
-  const scoreValues = new Set<number>();
+  const detailsByCategory = new Map<string, RubricDetailDto[]>();
+  const scoresByValue = new Map<number, RubricScoreDto[]>();
 
   for (const detail of matrix.details) {
     const score = scoreByDetailId[detail.uuid];
     if (!score) continue;
-    categoryNames.add(detail.category);
-    scoreValues.add(score.scoreValues);
+    const categoryDetails = detailsByCategory.get(detail.category) ?? [];
+    categoryDetails.push(detail);
+    detailsByCategory.set(detail.category, categoryDetails);
+
+    const scoreRows = scoresByValue.get(score.scoreValues) ?? [];
+    scoreRows.push(score);
+    scoresByValue.set(score.scoreValues, scoreRows);
   }
 
-  const categories = Array.from(categoryNames).map((name) => ({ id: categoryAxisId(name), name }));
-  const scores = Array.from(scoreValues)
+  const categoryNames = Array.from(detailsByCategory.keys()).sort((left, right) => left.localeCompare(right));
+  const categoryIdByName = new Map<string, string>();
+  for (const categoryName of categoryNames) {
+    const details = detailsByCategory.get(categoryName) ?? [];
+    const representativeDetail = [...details].sort((left, right) => left.uuid.localeCompare(right.uuid))[0];
+    const stableId = representativeDetail ? `cat:${representativeDetail.uuid}` : `cat:${categoryName}`;
+    categoryIdByName.set(categoryName, stableId);
+  }
+
+  const scoreValues = Array.from(scoresByValue.keys()).sort((left, right) => right - left);
+  const scoreIdByValue = new Map<number, string>();
+  for (const scoreValue of scoreValues) {
+    const scoreRows = scoresByValue.get(scoreValue) ?? [];
+    const representativeScore = [...scoreRows].sort((left, right) => left.uuid.localeCompare(right.uuid))[0];
+    const stableId = representativeScore ? `score:${representativeScore.uuid}` : `score:${scoreValue}`;
+    scoreIdByValue.set(scoreValue, stableId);
+  }
+
+  const categories = categoryNames.map((name) => ({
+    id: categoryIdByName.get(name) ?? `cat:${name}`,
+    name
+  }));
+  const scores = scoreValues
     .sort((left, right) => right - left)
-    .map((value) => ({ id: scoreAxisId(value), value }));
+    .map((value) => ({ id: scoreIdByValue.get(value) ?? `score:${value}`, value }));
 
   const cells: NonNullable<RubricSourceData['cells']> = [];
   for (const detail of matrix.details) {
     const score = scoreByDetailId[detail.uuid];
     if (!score) continue;
+    const categoryId = categoryIdByName.get(detail.category);
+    const scoreId = scoreIdByValue.get(score.scoreValues);
+    if (!categoryId || !scoreId) continue;
     cells.push({
-      categoryId: categoryAxisId(detail.category),
-      scoreId: scoreAxisId(score.scoreValues),
+      categoryId,
+      scoreId,
       detailId: detail.uuid,
       scoreRowId: score.uuid,
       description: detail.description ?? ''

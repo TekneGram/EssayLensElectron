@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { createCellKey } from '../services/normalize';
 import type { NormalizedRubric, RubricInteractionMode } from '../services/types';
 
@@ -38,6 +39,39 @@ export function RubricTable(props: RubricTableProps) {
   } = props;
   const isEditing = mode === 'editing';
   const isGrading = mode === 'grading';
+  const [scoreDrafts, setScoreDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setScoreDrafts((previous) => {
+      const next: Record<string, string> = {};
+      for (const scoreId of state.scoreOrder) {
+        next[scoreId] = previous[scoreId] ?? String(state.scoresById[scoreId]?.value ?? '');
+      }
+      return next;
+    });
+  }, [state.scoreOrder, state.scoresById]);
+
+  const commitScoreDraft = (scoreId: string) => {
+    const score = state.scoresById[scoreId];
+    if (!score) return;
+    const draftValue = (scoreDrafts[scoreId] ?? String(score.value)).trim();
+    if (!draftValue) {
+      setScoreDrafts((previous) => ({ ...previous, [scoreId]: String(score.value) }));
+      return;
+    }
+
+    const parsed = Number(draftValue);
+    const isValid = Number.isFinite(parsed) && parsed > 0 && parsed < 1000;
+    if (!isValid) {
+      setScoreDrafts((previous) => ({ ...previous, [scoreId]: String(score.value) }));
+      return;
+    }
+
+    setScoreDrafts((previous) => ({ ...previous, [scoreId]: String(parsed) }));
+    if (parsed !== score.value) {
+      onSetScoreValue(scoreId, parsed);
+    }
+  };
 
   return (
     <div className={['rubric-table-wrap', classNames?.tableWrap].filter(Boolean).join(' ')}>
@@ -123,8 +157,29 @@ export function RubricTable(props: RubricTableProps) {
                           ]
                             .filter(Boolean)
                             .join(' ')}
-                          value={score.value}
-                          onChange={(event) => onSetScoreValue(scoreId, Number(event.target.value))}
+                          value={scoreDrafts[scoreId] ?? String(score.value)}
+                          onChange={(event) =>
+                            setScoreDrafts((previous) => ({
+                              ...previous,
+                              [scoreId]: event.target.value
+                            }))
+                          }
+                          onBlur={() => commitScoreDraft(scoreId)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              commitScoreDraft(scoreId);
+                              (event.currentTarget as HTMLInputElement).blur();
+                            }
+                            if (event.key === 'Escape') {
+                              event.preventDefault();
+                              setScoreDrafts((previous) => ({
+                                ...previous,
+                                [scoreId]: String(score.value)
+                              }));
+                              (event.currentTarget as HTMLInputElement).blur();
+                            }
+                          }}
                           inputMode="numeric"
                           aria-label={`Score ${score.value}`}
                         />

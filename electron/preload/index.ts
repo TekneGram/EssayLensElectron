@@ -13,7 +13,9 @@ import type {
 } from '../shared/assessmentContracts';
 import type { SendChatMessageRequest } from '../shared/chatContracts';
 import type {
+  CreateRubricRequest,
   GetRubricMatrixRequest,
+  SetLastUsedRubricRequest,
   UpdateRubricMatrixRequest
 } from '../shared/rubricContracts';
 
@@ -50,8 +52,10 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     },
     rubric: {
       listRubrics: () => invokeApi('rubric/listRubrics'),
+      createRubric: (request: CreateRubricRequest) => invokeApi('rubric/createRubric', request),
       getMatrix: (request: GetRubricMatrixRequest) => invokeApi('rubric/getMatrix', request),
-      updateMatrix: (request: UpdateRubricMatrixRequest) => invokeApi('rubric/updateMatrix', request)
+      updateMatrix: (request: UpdateRubricMatrixRequest) => invokeApi('rubric/updateMatrix', request),
+      setLastUsed: (request: SetLastUsedRubricRequest) => invokeApi('rubric/setLastUsed', request)
     },
     chat: {
       listMessages: (fileId?: string) => invokeApi('chat/listMessages', { fileId }),

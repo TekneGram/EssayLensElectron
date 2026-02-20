@@ -1,7 +1,9 @@
 export {
+  createRubric,
   getRubricMatrix,
   listRubrics,
   matrixToRubricSourceData,
+  setLastUsedRubric,
   updateRubricMatrix
 } from './rubricApi';
 export { createCellKey, createEntityId, normalizeRubric } from './normalize';

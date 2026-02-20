@@ -38,6 +38,15 @@ export interface FileRubricScoreDto {
 
 export interface ListRubricsResponse {
   rubrics: RubricDto[];
+  lastUsedRubricId?: string;
+}
+
+export interface CreateRubricRequest {
+  name?: string;
+}
+
+export interface CreateRubricResponse {
+  rubricId: string;
 }
 
 export interface GetRubricMatrixRequest {
@@ -55,6 +64,8 @@ export type UpdateRubricOperation =
   | { type: 'updateCellDescription'; detailId: string; description: string }
   | { type: 'updateCategoryName'; from: string; to: string }
   | { type: 'updateScoreValue'; from: number; to: number }
+  | { type: 'deleteCategory'; category: string }
+  | { type: 'deleteScore'; value: number }
   | { type: 'createCategory'; name: string }
   | { type: 'createScore'; value: number };
 
@@ -65,6 +76,14 @@ export interface UpdateRubricMatrixRequest {
 
 export interface UpdateRubricMatrixResponse {
   success: true;
+}
+
+export interface SetLastUsedRubricRequest {
+  rubricId: string;
+}
+
+export interface SetLastUsedRubricResponse {
+  rubricId: string;
 }
 
 export interface GetFileRubricScoresRequest {

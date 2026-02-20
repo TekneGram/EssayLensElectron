@@ -36,7 +36,7 @@ describe('rubricReducer', () => {
     });
 
     expect(next.interactionMode).toBe('viewing');
-    expect(initialRubricState.interactionMode).toBe('editing');
+    expect(initialRubricState.interactionMode).toBe('viewing');
   });
 
   it('stores grading selection for a file', () => {

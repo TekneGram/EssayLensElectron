@@ -25,6 +25,8 @@ describe('preload api', () => {
     await api.assessment.sendFeedbackToLlm({ feedbackId: 'fb-1', command: 'evaluate-thesis' });
     await api.assessment.generateFeedbackDocument({ fileId: 'file-1' });
     await api.rubric.listRubrics();
+    await api.rubric.createRubric({ name: 'New Rubric' });
+    await api.rubric.setLastUsed({ rubricId: 'rubric-1' });
     await api.chat.sendMessage({ message: 'hello' });
 
     expect(invoke).toHaveBeenCalledWith('workspace/selectFolder', undefined);
@@ -38,6 +40,8 @@ describe('preload api', () => {
     });
     expect(invoke).toHaveBeenCalledWith('assessment/generateFeedbackDocument', { fileId: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('rubric/listRubrics', undefined);
+    expect(invoke).toHaveBeenCalledWith('rubric/createRubric', { name: 'New Rubric' });
+    expect(invoke).toHaveBeenCalledWith('rubric/setLastUsed', { rubricId: 'rubric-1' });
     expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { message: 'hello' });
   });
 });

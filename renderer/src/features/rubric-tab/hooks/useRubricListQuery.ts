@@ -11,10 +11,7 @@ export function useRubricListQuery() {
 
   const query = useQuery({
     queryKey: rubricQueryKeys.list(),
-    queryFn: async () => {
-      const response = await listRubrics();
-      return response.rubrics;
-    }
+    queryFn: listRubrics
   });
 
   useEffect(() => {
@@ -29,7 +26,10 @@ export function useRubricListQuery() {
       return;
     }
 
-    dispatch({ type: 'rubric/setList', payload: query.data.map((rubric) => ({ id: rubric.entityUuid, name: rubric.name })) });
+    dispatch({
+      type: 'rubric/setList',
+      payload: query.data.rubrics.map((rubric) => ({ id: rubric.entityUuid, name: rubric.name }))
+    });
     dispatch({ type: 'rubric/setStatus', payload: 'idle' });
     dispatch({ type: 'rubric/setError', payload: undefined });
   }, [dispatch, query.data, query.isSuccess]);

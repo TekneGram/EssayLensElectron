@@ -21,9 +21,13 @@ import type {
 } from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
 import type {
+  CreateRubricRequest,
+  CreateRubricResponse,
   GetRubricMatrixRequest,
   GetRubricMatrixResponse,
   ListRubricsResponse,
+  SetLastUsedRubricRequest,
+  SetLastUsedRubricResponse,
   UpdateRubricMatrixRequest,
   UpdateRubricMatrixResponse
 } from '../shared/rubricContracts';
@@ -53,8 +57,10 @@ export interface EssayLensApi {
   };
   rubric: {
     listRubrics(): Promise<ApiResult<ListRubricsResponse>>;
+    createRubric(request: CreateRubricRequest): Promise<ApiResult<CreateRubricResponse>>;
     getMatrix(request: GetRubricMatrixRequest): Promise<ApiResult<GetRubricMatrixResponse>>;
     updateMatrix(request: UpdateRubricMatrixRequest): Promise<ApiResult<UpdateRubricMatrixResponse>>;
+    setLastUsed(request: SetLastUsedRubricRequest): Promise<ApiResult<SetLastUsedRubricResponse>>;
   };
   chat: {
     listMessages(fileId?: string): Promise<ApiResult<ListMessagesResponse>>;
