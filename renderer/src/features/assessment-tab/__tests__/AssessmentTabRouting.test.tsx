@@ -180,9 +180,7 @@ describe('Assessment tab file selection routing', () => {
     });
     expect(screen.getByRole('button', { name: 'Switch to comment mode' }).getAttribute('disabled')).not.toBeNull();
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Select command' }), {
-      target: { value: '' }
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selected command' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('chat:false:no-command');

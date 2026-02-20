@@ -1,7 +1,7 @@
 .app-shell {
   display: grid;
   height: 100vh;
-  grid-template-rows: minmax(0, 1fr) 72px;
+  grid-template-rows: minmax(0, 1fr) clamp(96px, 12vh, 120px);
   grid-template-columns: 46px 170px minmax(0, 1fr) 320px;
   grid-template-areas:
     "loader files assessment chatview"

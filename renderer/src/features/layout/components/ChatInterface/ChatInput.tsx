@@ -15,7 +15,7 @@ export function ChatInput({ draftText = '', onDraftChange, onChatIntent, onSubmi
         id="chat-input"
         className="chat-input"
         rows={2}
-        placeholder="Type command, feedback, or question to the assistant..."
+        placeholder="Chat with me or write a comment."
         value={draftText}
         onChange={(event) => onDraftChange?.(event.target.value)}
         onFocus={onChatIntent}

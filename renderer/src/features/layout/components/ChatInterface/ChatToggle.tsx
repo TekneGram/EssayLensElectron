@@ -10,7 +10,7 @@ export function ChatToggle({ chatMode = 'comment', isModeLockedToChat = false, o
   return (
     <div className="chat-toggle-group" role="group" aria-label="Chat mode">
       <button
-        className="chat-send"
+        className="chat-mode-toggle"
         type="button"
         aria-label="Switch to comment mode"
         aria-pressed={chatMode === 'comment'}
@@ -20,7 +20,7 @@ export function ChatToggle({ chatMode = 'comment', isModeLockedToChat = false, o
         Comment
       </button>
       <button
-        className="chat-send"
+        className="chat-mode-toggle"
         type="button"
         aria-label="Switch to chat mode"
         aria-pressed={chatMode === 'chat'}
