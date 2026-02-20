@@ -1,5 +1,15 @@
 import type { AssessmentTopTab, CommentsTab, EntityId, Theme } from './primitives';
-import type { ChatDataArray, DocumentTextModel, FeedbackItem, RubricMatrix, RubricSummary, SelectedFileState, WorkspaceFile, WorkspaceFolder } from './models';
+import type {
+  ChatDataArray,
+  DocumentTextModel,
+  FeedbackItem,
+  RubricGradingSelection,
+  RubricMatrix,
+  RubricSummary,
+  SelectedFileState,
+  WorkspaceFile,
+  WorkspaceFolder
+} from './models';
 
 export interface WorkspaceState {
   currentFolder: WorkspaceFolder | null;
@@ -27,6 +37,8 @@ export interface RubricState {
   rubricList: RubricSummary[];
   selectedRubricId: EntityId | null;
   activeMatrix: RubricMatrix | null;
+  interactionMode: 'editing' | 'viewing';
+  gradingSelectionByFileId: Record<string, RubricGradingSelection | undefined>;
   status: 'idle' | 'loading' | 'error';
   error?: string;
 }

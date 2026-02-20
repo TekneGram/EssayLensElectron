@@ -11,10 +11,8 @@ export function registerRubricHandlers(ipcMain: IpcMainLike): void {
   ipcMain.handle(RUBRIC_CHANNELS.listRubrics, async () =>
     notImplementedResult('rubric.listRubrics')
   );
-  ipcMain.handle(RUBRIC_CHANNELS.getMatrix, async () =>
-    notImplementedResult('rubric.getMatrix')
-  );
-  ipcMain.handle(RUBRIC_CHANNELS.updateMatrix, async () =>
+  ipcMain.handle(RUBRIC_CHANNELS.getMatrix, async (_event, _request) => notImplementedResult('rubric.getMatrix'));
+  ipcMain.handle(RUBRIC_CHANNELS.updateMatrix, async (_event, _request) =>
     notImplementedResult('rubric.updateMatrix')
   );
 }

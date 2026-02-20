@@ -26,6 +26,8 @@ export const initialRubricState: RubricState = {
   rubricList: [],
   selectedRubricId: null,
   activeMatrix: null,
+  interactionMode: 'editing',
+  gradingSelectionByFileId: {},
   status: 'idle'
 };
 

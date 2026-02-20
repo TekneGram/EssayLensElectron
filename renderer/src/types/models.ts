@@ -80,3 +80,8 @@ export interface RubricMatrix {
   scores: RubricScoreLevel[];
   cells: RubricCell[];
 }
+
+export interface RubricGradingSelection {
+  rubricId: EntityId;
+  selectedCellKeys: string[];
+}

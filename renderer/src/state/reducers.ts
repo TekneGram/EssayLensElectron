@@ -136,6 +136,30 @@ export function rubricReducer(state: RubricState = initialRubricState, action: A
         ...state,
         activeMatrix: action.payload
       };
+    case 'rubric/setInteractionMode':
+      return {
+        ...state,
+        interactionMode: action.payload
+      };
+    case 'rubric/setGradingSelection':
+      return {
+        ...state,
+        gradingSelectionByFileId: {
+          ...state.gradingSelectionByFileId,
+          [action.payload.fileId]: {
+            rubricId: action.payload.rubricId,
+            selectedCellKeys: action.payload.selectedCellKeys
+          }
+        }
+      };
+    case 'rubric/clearGradingSelection': {
+      const nextSelection = { ...state.gradingSelectionByFileId };
+      delete nextSelection[action.payload.fileId];
+      return {
+        ...state,
+        gradingSelectionByFileId: nextSelection
+      };
+    }
     case 'rubric/setStatus':
       return {
         ...state,

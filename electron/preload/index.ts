@@ -12,6 +12,10 @@ import type {
   SendFeedbackToLlmRequest
 } from '../shared/assessmentContracts';
 import type { SendChatMessageRequest } from '../shared/chatContracts';
+import type {
+  GetRubricMatrixRequest,
+  UpdateRubricMatrixRequest
+} from '../shared/rubricContracts';
 
 type IpcRendererLike = {
   invoke<TResult = unknown>(channel: string, request?: unknown): Promise<TResult>;
@@ -46,8 +50,8 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     },
     rubric: {
       listRubrics: () => invokeApi('rubric/listRubrics'),
-      getMatrix: (rubricId: string) => invokeApi('rubric/getMatrix', { rubricId }),
-      updateMatrix: (request: unknown) => invokeApi('rubric/updateMatrix', request)
+      getMatrix: (request: GetRubricMatrixRequest) => invokeApi('rubric/getMatrix', request),
+      updateMatrix: (request: UpdateRubricMatrixRequest) => invokeApi('rubric/updateMatrix', request)
     },
     chat: {
       listMessages: (fileId?: string) => invokeApi('chat/listMessages', { fileId }),

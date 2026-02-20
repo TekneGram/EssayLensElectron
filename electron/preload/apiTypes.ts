@@ -20,6 +20,13 @@ import type {
   SendFeedbackToLlmResponse
 } from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
+import type {
+  GetRubricMatrixRequest,
+  GetRubricMatrixResponse,
+  ListRubricsResponse,
+  UpdateRubricMatrixRequest,
+  UpdateRubricMatrixResponse
+} from '../shared/rubricContracts';
 import type { GetCurrentFolderResponse, ListFilesResponse, SelectFolderResponse } from '../shared/workspaceContracts';
 
 export type ApiError = AppError;
@@ -45,9 +52,9 @@ export interface EssayLensApi {
     requestLlmAssessment(request: RequestLlmAssessmentRequest): Promise<ApiResult<RequestLlmAssessmentResponse>>;
   };
   rubric: {
-    listRubrics(): Promise<ApiResult<unknown>>;
-    getMatrix(rubricId: string): Promise<ApiResult<unknown>>;
-    updateMatrix(request: unknown): Promise<ApiResult<unknown>>;
+    listRubrics(): Promise<ApiResult<ListRubricsResponse>>;
+    getMatrix(request: GetRubricMatrixRequest): Promise<ApiResult<GetRubricMatrixResponse>>;
+    updateMatrix(request: UpdateRubricMatrixRequest): Promise<ApiResult<UpdateRubricMatrixResponse>>;
   };
   chat: {
     listMessages(fileId?: string): Promise<ApiResult<ListMessagesResponse>>;
