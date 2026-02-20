@@ -1,0 +1,36 @@
+ - RubricForReact.tsx is the orchestration layer.
+      - Holds local mode (editing/viewing) and grading selection (selectedCellKeys).
+      - Uses useRubricState(sourceData) for all rubric mutations.
+      - Renders RubricToolbar only in editing mode.
+      - Renders RubricTable in all modes and passes handlers/class overrides.
+      - In grading mode, enforces one selected score per category (selecting a cell clears prior selection in that category).
+      - Emits onChange(state) whenever rubric state changes.
+  - RubricTable.tsx is pure presentation + interaction dispatch.
+      - Header row = categories, first column = score axis.
+      - Editing mode: category/score inputs + delete controls + cell textareas.
+      - Viewing mode: read-only cell text.
+      - Grading mode: cell buttons with selected state.
+  - RubricToolbar.tsx handles rubric-level edits.
+      - Rename rubric.
+      - Add category (string).
+      - Add score (numeric).
+  - useRubricState.ts is the reducer/API layer.
+      - Actions: hydrate, set rubric name, add/remove/rename category, add/remove/set score, set cell description.
+      - Maintains normalized shape with maps + order arrays.
+      - Keeps score order sorted descending by numeric value.
+      - Uses generated IDs for new category/score rows.
+  - normalize.ts is the shape adapter/invariant enforcer.
+      - Accepts either source format or normalized format.
+      - Ensures valid categoryOrder/scoreOrder, fills missing cells for full matrix.
+      - Provides createCellKey and ID generation helper.
+  - hooks.ts is TanStack Query mutation/query wiring for server sync.
+      - Query: load detailed rubric, transform via buildDraft.
+      - Mutations: optimistic update for cell description; others invalidate and refetch.
+      - Current filename is generic (hooks.ts), as you noted.
+  - fakeserver.ts simulates backend table-style persistence.
+      - Mimics rubric, details, scores relational model.
+      - Exposes CRUD-like operations aligned to future IPC/server contracts.
+      - createCategory and createScore expand the matrix by generating missing rows across existing axis values.
+  - rubricDraft.ts is the DB-to-UI adapter.
+      - Converts relational rows into normalized grid state used by RubricForReact.
+      - Preserves linkage metadata (detailId, scoreRowId) in cells for update operations.

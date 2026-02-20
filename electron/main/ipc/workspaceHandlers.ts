@@ -59,13 +59,18 @@ function fileKindFromPath(filePath: string): string {
 }
 
 function toWorkspaceFileDtos(folderId: string, scannedFiles: ScannedFile[]): WorkspaceFileDto[] {
-  return scannedFiles.map((file) => ({
-    id: file.path,
-    folderId,
-    name: file.name,
-    path: file.path,
-    kind: fileKindFromPath(file.path)
-  }));
+  return scannedFiles
+    .map((file) => {
+      const kind = fileKindFromPath(file.path);
+      return {
+        id: file.path,
+        folderId,
+        name: file.name,
+        path: file.path,
+        kind
+      };
+    })
+    .filter((file) => file.kind !== 'unknown');
 }
 
 export function registerWorkspaceHandlers(ipcMain: IpcMainLike, deps: WorkspaceHandlerDeps = getDefaultDeps()): void {
