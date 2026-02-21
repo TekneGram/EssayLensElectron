@@ -15,7 +15,7 @@ export interface PendingSelection {
 export interface ActiveCommand {
   id: CommandId;
   label: string;
-  source: 'process-center' | 'chat-dropdown';
+  source: 'chat-dropdown';
 }
 
 export interface OriginalTextViewProps {
@@ -23,10 +23,7 @@ export interface OriginalTextViewProps {
   text: string;
   pendingSelection: PendingSelection | null;
   activeCommentId: string | null;
-  isProcessCenterOpen: boolean;
   onSelectionCaptured: (selection: PendingSelection | null) => void;
-  onCommandSelected: (command: ActiveCommand) => void;
-  onToggleProcessCenter: (open: boolean) => void;
 }
 
 export interface CommentsViewProps {

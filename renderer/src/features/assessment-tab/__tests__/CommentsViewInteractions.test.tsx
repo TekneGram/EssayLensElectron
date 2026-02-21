@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../../../App';
 import { AppProviders } from '../../../app/AppProviders';
@@ -209,8 +209,20 @@ describe('CommentsView interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: /Select Inline comment/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Pending quote:/).textContent).toContain('should get truncated');
+      const banner = screen.getByRole('status');
+      expect(within(banner).getByText('Pending Comment')).toBeTruthy();
+      expect(within(banner).getByText(/should get truncated/)).toBeTruthy();
+      expect(screen.getByTestId('highlighted-text-stub').textContent).toContain('should get truncated');
     });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel pending comment' }));
+    await waitFor(() => {
+      expect(screen.queryByText('Pending Comment')).toBeNull();
+      expect(screen.queryByTestId('highlighted-text-stub')).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Select Inline comment/i }));
+
     await waitFor(() => {
       const focusedParagraph = screen.getByTestId('text-view-window').querySelector('.text-paragraph-focused');
       expect(focusedParagraph).toBeTruthy();

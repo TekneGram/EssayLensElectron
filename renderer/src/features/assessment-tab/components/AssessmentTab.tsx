@@ -51,7 +51,6 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
   const [activeCommand, setActiveCommand] = useState<ActiveCommand | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>('comment');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
-  const [isProcessCenterOpen, setIsProcessCenterOpen] = useState(false);
   const [draftText, setDraftText] = useState('');
   const originalText =
     selectedFileType === 'docx' || selectedFileType === 'pdf'
@@ -349,10 +348,7 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
         text={originalText}
         pendingSelection={pendingSelection}
         activeCommentId={activeCommentId}
-        isProcessCenterOpen={isProcessCenterOpen}
         onSelectionCaptured={setPendingSelection}
-        onCommandSelected={setActiveCommandWithModeRule}
-        onToggleProcessCenter={setIsProcessCenterOpen}
       />
       {!isImageViewOpen ? (
         <div
