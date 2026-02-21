@@ -128,14 +128,72 @@ describe('RubricRepository', () => {
     expect(cloned?.details.some((detail) => detail.entityUuid === rubricId)).toBe(false);
   });
 
-  it('returns in_use when deleting rubric with saved scores', async () => {
+  it('returns active when deleting rubric with saved scores', async () => {
     const db = new SQLiteClient({ dbPath: ':memory:' });
     const rubricId = await seedRubric(db);
     const repository = new RubricRepository({ db, now: () => '2026-02-20T12:00:00.000Z' });
 
     await repository.saveFileRubricScores('file-1', rubricId, [{ rubricDetailId: 'd-1', assignedScore: '4' }]);
     const status = await repository.deleteRubric(rubricId);
-    expect(status).toBe('in_use');
+    expect(status).toBe('active');
+  });
+
+  it('returns grading context with locked rubric once scores exist', async () => {
+    const db = new SQLiteClient({ dbPath: ':memory:' });
+    const rubricId = await seedRubric(db);
+    const repository = new RubricRepository({ db, now: () => '2026-02-20T12:00:00.000Z' });
+
+    const before = await repository.getRubricGradingContext('file-1');
+    expect(before.lockedRubricId).toBeUndefined();
+    expect(before.selectedRubricIdForFile).toBeUndefined();
+
+    await repository.saveFileRubricScores('file-1', rubricId, [{ rubricDetailId: 'd-1', assignedScore: '4' }]);
+    const after = await repository.getRubricGradingContext('file-1');
+    expect(after.lockedRubricId).toBe(rubricId);
+    expect(after.selectedRubricIdForFile).toBe(rubricId);
+  });
+
+  it('clears applied rubric and all rubric scores for a filepath', async () => {
+    const db = new SQLiteClient({ dbPath: ':memory:' });
+    const rubricId = await seedRubric(db);
+    const repository = new RubricRepository({ db, now: () => '2026-02-20T12:00:00.000Z' });
+
+    await repository.saveFileRubricScores('/tmp/classroom/file-1.docx', rubricId, [
+      { rubricDetailId: 'd-1', assignedScore: '4' }
+    ]);
+    await repository.saveFileRubricScores('/tmp/classroom/file-2.docx', rubricId, [
+      { rubricDetailId: 'd-3', assignedScore: '4' }
+    ]);
+
+    const cleared = await repository.clearAppliedRubricForFilepath('/tmp/classroom/file-1.docx', rubricId);
+    expect(cleared?.clearedRubricId).toBe(rubricId);
+
+    const first = await repository.getFileRubricScores('/tmp/classroom/file-1.docx', rubricId);
+    const second = await repository.getFileRubricScores('/tmp/classroom/file-2.docx', rubricId);
+    expect(first.instance).toBeNull();
+    expect(first.scores).toHaveLength(0);
+    expect(second.instance).toBeNull();
+    expect(second.scores).toHaveLength(0);
+
+    const context = await repository.getRubricGradingContext('/tmp/classroom/file-1.docx');
+    expect(context.lockedRubricId).toBeUndefined();
+  });
+
+  it('does not clear filepath rubric data when rubric id does not match', async () => {
+    const db = new SQLiteClient({ dbPath: ':memory:' });
+    const rubricId = await seedRubric(db);
+    const repository = new RubricRepository({ db, now: () => '2026-02-20T12:00:00.000Z' });
+
+    await repository.saveFileRubricScores('/tmp/classroom/file-1.docx', rubricId, [
+      { rubricDetailId: 'd-1', assignedScore: '4' }
+    ]);
+
+    const cleared = await repository.clearAppliedRubricForFilepath('/tmp/classroom/file-1.docx', 'rubric-not-matching');
+    expect(cleared).toBeNull();
+
+    const first = await repository.getFileRubricScores('/tmp/classroom/file-1.docx', rubricId);
+    expect(first.instance).not.toBeNull();
+    expect(first.scores).toHaveLength(1);
   });
 
   it('creates a category and a score by expanding existing axis values', async () => {

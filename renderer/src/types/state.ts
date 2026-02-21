@@ -35,7 +35,9 @@ export interface FeedbackState {
 
 export interface RubricState {
   rubricList: RubricSummary[];
-  selectedRubricId: EntityId | null;
+  selectedEditingRubricId: EntityId | null;
+  selectedGradingRubricIdByFileId: Record<string, EntityId | undefined>;
+  lockedGradingRubricId: EntityId | null;
   activeMatrix: RubricMatrix | null;
   interactionMode: 'editing' | 'viewing';
   gradingSelectionByFileId: Record<string, RubricGradingSelection | undefined>;

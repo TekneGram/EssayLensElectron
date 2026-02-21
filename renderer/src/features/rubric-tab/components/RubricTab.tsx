@@ -7,7 +7,7 @@ import { RubricForReact } from './RubricForReact';
 export function RubricTab() {
   const state = useAppState();
   const dispatch = useAppDispatch();
-  const selectedRubricId = state.rubric.selectedRubricId;
+  const selectedRubricId = state.rubric.selectedEditingRubricId;
   const interactionMode = state.rubric.interactionMode;
 
   const listQuery = useRubricListQuery();
@@ -60,7 +60,7 @@ export function RubricTab() {
       return;
     }
     if (listQuery.data.rubrics.length === 0) {
-      dispatch({ type: 'rubric/select', payload: null });
+      dispatch({ type: 'rubric/selectEditing', payload: null });
       dispatch({ type: 'rubric/setInteractionMode', payload: 'viewing' });
       return;
     }
@@ -77,7 +77,7 @@ export function RubricTab() {
       listQuery.data.rubrics.some((rubric) => rubric.entityUuid === listQuery.data.lastUsedRubricId)
         ? listQuery.data.lastUsedRubricId
         : listQuery.data.rubrics[0].entityUuid;
-    dispatch({ type: 'rubric/select', payload: preferredRubricId });
+    dispatch({ type: 'rubric/selectEditing', payload: preferredRubricId });
     dispatch({ type: 'rubric/setInteractionMode', payload: 'viewing' });
   }, [dispatch, listQuery.data, listQuery.isSuccess, selectedRubricId]);
 
@@ -100,7 +100,7 @@ export function RubricTab() {
               aria-selected={selectedRubricId === rubric.entityUuid}
               onClick={() => {
                 void flushPendingUpdates();
-                dispatch({ type: 'rubric/select', payload: rubric.entityUuid });
+                dispatch({ type: 'rubric/selectEditing', payload: rubric.entityUuid });
                 dispatch({ type: 'rubric/setInteractionMode', payload: 'viewing' });
                 void setLastUsed(rubric.entityUuid);
               }}
@@ -115,7 +115,7 @@ export function RubricTab() {
             onClick={async () => {
               void flushPendingUpdates();
               const createdRubricId = await createRubric('New Rubric');
-              dispatch({ type: 'rubric/select', payload: createdRubricId });
+              dispatch({ type: 'rubric/selectEditing', payload: createdRubricId });
               dispatch({ type: 'rubric/setInteractionMode', payload: 'editing' });
             }}
           >
@@ -136,7 +136,7 @@ export function RubricTab() {
                 onClick={async () => {
                   void flushPendingUpdates();
                   const clonedRubricId = await cloneRubric(selectedRubricId);
-                  dispatch({ type: 'rubric/select', payload: clonedRubricId });
+                  dispatch({ type: 'rubric/selectEditing', payload: clonedRubricId });
                   dispatch({ type: 'rubric/setInteractionMode', payload: 'editing' });
                   await setLastUsed(clonedRubricId);
                 }}
@@ -153,7 +153,7 @@ export function RubricTab() {
                     }
                     void flushPendingUpdates();
                     await deleteRubric(selectedRubricId);
-                    dispatch({ type: 'rubric/select', payload: null });
+                    dispatch({ type: 'rubric/selectEditing', payload: null });
                     dispatch({ type: 'rubric/setInteractionMode', payload: 'viewing' });
                   }}
                 >

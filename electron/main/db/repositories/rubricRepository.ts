@@ -3,8 +3,10 @@ import { randomUUID } from 'node:crypto';
 import type { SQLiteClient } from '../sqlite';
 import { ensureEntity, ensureFileRecord } from './sqlHelpers';
 import type {
+  ClearAppliedRubricResponse,
   FileRubricInstanceDto,
   FileRubricScoreDto,
+  GetRubricGradingContextResponse,
   GetRubricMatrixResponse,
   RubricDetailDto,
   RubricDto,
@@ -59,6 +61,13 @@ interface RubricLastUsedRow {
   profile_key: string;
   rubric_entity_uuid: string;
   updated_at: string;
+}
+
+interface FilepathRubricAssociationRow {
+  filepath_uuid: string;
+  rubric_entity_uuid: string;
+  created_at: string;
+  edited_at: string | null;
 }
 
 type RubricUpdateStatus = 'updated' | 'not_found' | 'inactive' | 'archived';
@@ -547,26 +556,105 @@ export class RubricRepository {
     };
   }
 
+  async getRubricGradingContext(fileId: string): Promise<GetRubricGradingContextResponse> {
+    const normalizedFileId = fileId.trim();
+    if (!normalizedFileId) {
+      return { fileId };
+    }
+
+    const filepathRow = await this.db.get<{ filepath_uuid: string }>(
+      'SELECT filepath_uuid FROM filename WHERE entity_uuid = ? LIMIT 1;',
+      [normalizedFileId]
+    );
+
+    const lockedRow = filepathRow
+      ? await this.db.get<{ rubric_entity_uuid: string }>(
+          `SELECT rubric_entity_uuid
+           FROM filepath_rubric_associations
+           WHERE filepath_uuid = ?
+           LIMIT 1;`,
+          [filepathRow.filepath_uuid]
+        )
+      : undefined;
+
+    const fileRow = await this.db.get<{ rubric_entity_uuid: string }>(
+      `SELECT fri.rubric_entity_uuid
+       FROM file_rubric_instances fri
+       INNER JOIN file_rubric_scores frs ON frs.rubric_instance_uuid = fri.uuid
+       WHERE fri.file_entity_uuid = ?
+       ORDER BY COALESCE(fri.edited_at, fri.created_at) DESC, fri.created_at DESC
+       LIMIT 1;`,
+      [normalizedFileId]
+    );
+
+    return {
+      fileId: normalizedFileId,
+      lockedRubricId: lockedRow?.rubric_entity_uuid ?? undefined,
+      selectedRubricIdForFile: fileRow?.rubric_entity_uuid ?? undefined
+    };
+  }
+
   async saveFileRubricScores(
     fileId: string,
     rubricId: string,
     selections: Array<{ rubricDetailId: string; assignedScore: string }>
   ): Promise<{ instance: FileRubricInstanceDto; scores: FileRubricScoreDto[] }> {
+    const normalizedFileId = fileId.trim();
+    const normalizedRubricId = rubricId.trim();
     const nowIso = this.now();
     await this.db.exec('BEGIN;');
     try {
-      await ensureFileRecord(this.db, fileId, nowIso);
-      await ensureEntity(this.db, rubricId, 'rubric', nowIso);
+      await ensureFileRecord(this.db, normalizedFileId, nowIso);
+      await ensureEntity(this.db, normalizedRubricId, 'rubric', nowIso);
 
       const rubricExists = await this.db.get<{ entity_uuid: string; is_archived: number }>(
         'SELECT entity_uuid, is_archived FROM rubrics WHERE entity_uuid = ? LIMIT 1;',
-        [rubricId]
+        [normalizedRubricId]
       );
       if (!rubricExists) {
-        throw new Error(`Rubric does not exist: ${rubricId}`);
+        throw new Error(`Rubric does not exist: ${normalizedRubricId}`);
       }
       if (rubricExists.is_archived === 1) {
-        throw new Error(`Rubric is archived: ${rubricId}`);
+        throw new Error(`Rubric is archived: ${normalizedRubricId}`);
+      }
+
+      const fileRow = await this.db.get<{ filepath_uuid: string }>(
+        'SELECT filepath_uuid FROM filename WHERE entity_uuid = ? LIMIT 1;',
+        [normalizedFileId]
+      );
+      if (!fileRow) {
+        throw new Error(`File does not exist: ${normalizedFileId}`);
+      }
+
+      const association = await this.db.get<FilepathRubricAssociationRow>(
+        `SELECT filepath_uuid, rubric_entity_uuid, created_at, edited_at
+         FROM filepath_rubric_associations
+         WHERE filepath_uuid = ?
+         LIMIT 1;`,
+        [fileRow.filepath_uuid]
+      );
+      if (association && association.rubric_entity_uuid !== normalizedRubricId) {
+        throw new Error('A different rubric is already applied to this folder. Use Change Rubric to replace it.');
+      }
+
+      await this.db.run(
+        `INSERT INTO filepath_rubric_associations (filepath_uuid, rubric_entity_uuid, created_at, edited_at)
+         VALUES (?, ?, ?, NULL)
+         ON CONFLICT(filepath_uuid)
+         DO UPDATE SET rubric_entity_uuid = excluded.rubric_entity_uuid, edited_at = excluded.created_at;`,
+        [fileRow.filepath_uuid, normalizedRubricId, nowIso]
+      );
+      await this.db.run('UPDATE rubrics SET is_active = 1 WHERE entity_uuid = ?;', [normalizedRubricId]);
+
+      const normalizedSelections = selections
+        .map((selection) => ({
+          rubricDetailId: selection.rubricDetailId.trim(),
+          assignedScore: selection.assignedScore.trim()
+        }))
+        .filter((selection) => selection.rubricDetailId.length > 0 && selection.assignedScore.length > 0);
+
+      if (normalizedSelections.length === 0) {
+        throw new Error('At least one rubric score selection is required.');
       }
 
       let instanceRow = await this.db.get<RubricInstanceRow>(
@@ -575,7 +663,7 @@ export class RubricRepository {
          WHERE file_entity_uuid = ? AND rubric_entity_uuid = ?
          ORDER BY COALESCE(edited_at, created_at) DESC, created_at DESC
          LIMIT 1;`,
-        [fileId, rubricId]
+        [normalizedFileId, normalizedRubricId]
       );
 
       if (!instanceRow) {
@@ -583,12 +671,12 @@ export class RubricRepository {
         await this.db.run(
           `INSERT INTO file_rubric_instances (uuid, file_entity_uuid, rubric_entity_uuid, created_at, edited_at)
            VALUES (?, ?, ?, ?, NULL);`,
-          [instanceId, fileId, rubricId, nowIso]
+          [instanceId, normalizedFileId, normalizedRubricId, nowIso]
         );
         instanceRow = {
           uuid: instanceId,
-          file_entity_uuid: fileId,
-          rubric_entity_uuid: rubricId,
+          file_entity_uuid: normalizedFileId,
+          rubric_entity_uuid: normalizedRubricId,
           created_at: nowIso,
           edited_at: null
         };
@@ -604,8 +692,8 @@ export class RubricRepository {
       }
 
       const seenDetailIds = new Set<string>();
-      for (const selection of selections) {
-        const detailId = selection.rubricDetailId.trim();
+      for (const selection of normalizedSelections) {
+        const detailId = selection.rubricDetailId;
         if (!detailId || seenDetailIds.has(detailId)) {
           continue;
         }
@@ -613,7 +701,7 @@ export class RubricRepository {
 
         const detailBelongsToRubric = await this.db.get<{ uuid: string }>(
           'SELECT uuid FROM rubric_details WHERE uuid = ? AND entity_uuid = ? LIMIT 1;',
-          [detailId, rubricId]
+          [detailId, normalizedRubricId]
         );
         if (!detailBelongsToRubric) {
           throw new Error(`Rubric detail does not exist for this rubric: ${detailId}`);
@@ -643,15 +731,107 @@ export class RubricRepository {
         }
       }
 
+      const keepDetailIds = Array.from(seenDetailIds);
+      if (keepDetailIds.length > 0) {
+        const placeholders = keepDetailIds.map(() => '?').join(', ');
+        await this.db.run(
+          `DELETE FROM file_rubric_scores
+           WHERE rubric_instance_uuid = ?
+             AND rubric_detail_uuid NOT IN (${placeholders});`,
+          [instanceRow.uuid, ...keepDetailIds]
+        );
+      } else {
+        await this.db.run('DELETE FROM file_rubric_scores WHERE rubric_instance_uuid = ?;', [instanceRow.uuid]);
+      }
+
       await this.db.exec('COMMIT;');
 
-      const saved = await this.getFileRubricScores(fileId, rubricId);
+      const saved = await this.getFileRubricScores(normalizedFileId, normalizedRubricId);
       if (!saved.instance) {
         throw new Error('Saved rubric instance could not be loaded.');
       }
       return {
         instance: saved.instance,
         scores: saved.scores
+      };
+    } catch (error) {
+      await this.db.exec('ROLLBACK;');
+      throw error;
+    }
+  }
+
+  async clearAppliedRubricForFilepath(fileId: string, rubricId: string): Promise<ClearAppliedRubricResponse | null> {
+    const normalizedFileId = fileId.trim();
+    const normalizedRubricId = rubricId.trim();
+    if (!normalizedFileId) {
+      return null;
+    }
+    if (!normalizedRubricId) {
+      return null;
+    }
+
+    const fileRow = await this.db.get<{ filepath_uuid: string }>(
+      'SELECT filepath_uuid FROM filename WHERE entity_uuid = ? LIMIT 1;',
+      [normalizedFileId]
+    );
+    if (!fileRow) {
+      return null;
+    }
+
+    const association = await this.db.get<FilepathRubricAssociationRow>(
+      `SELECT filepath_uuid, rubric_entity_uuid, created_at, edited_at
+       FROM filepath_rubric_associations
+       WHERE filepath_uuid = ?
+         AND rubric_entity_uuid = ?
+       LIMIT 1;`,
+      [fileRow.filepath_uuid, normalizedRubricId]
+    );
+    if (!association) {
+      return null;
+    }
+
+    await this.db.exec('BEGIN;');
+    try {
+      await this.db.run(
+        'DELETE FROM filepath_rubric_associations WHERE filepath_uuid = ? AND rubric_entity_uuid = ?;',
+        [association.filepath_uuid, association.rubric_entity_uuid]
+      );
+      await this.db.run(
+        `DELETE FROM file_rubric_scores
+         WHERE rubric_instance_uuid IN (
+           SELECT fri.uuid
+           FROM file_rubric_instances fri
+           INNER JOIN filename fn ON fn.entity_uuid = fri.file_entity_uuid
+           WHERE fn.filepath_uuid = ?
+             AND fri.rubric_entity_uuid = ?
+         );`,
+        [association.filepath_uuid, association.rubric_entity_uuid]
+      );
+      await this.db.run(
+        `DELETE FROM file_rubric_instances
+         WHERE file_entity_uuid IN (
+           SELECT entity_uuid FROM filename WHERE filepath_uuid = ?
+         )
+           AND rubric_entity_uuid = ?;`,
+        [association.filepath_uuid, association.rubric_entity_uuid]
+      );
+
+      const remainingUsage = await this.db.get<{ count: number }>(
+        `SELECT COUNT(*) AS count
+         FROM file_rubric_scores frs
+         INNER JOIN file_rubric_instances fri ON fri.uuid = frs.rubric_instance_uuid
+         WHERE fri.rubric_entity_uuid = ?;`,
+        [association.rubric_entity_uuid]
+      );
+      if ((remainingUsage?.count ?? 0) === 0) {
+        await this.db.run('UPDATE rubrics SET is_active = 0 WHERE entity_uuid = ?;', [association.rubric_entity_uuid]);
+      }
+
+      await this.db.exec('COMMIT;');
+      return {
+        fileId: normalizedFileId,
+        filepathId: association.filepath_uuid,
+        clearedRubricId: association.rubric_entity_uuid
       };
     } catch (error) {
       await this.db.exec('ROLLBACK;');

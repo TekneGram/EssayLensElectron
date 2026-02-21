@@ -229,4 +229,132 @@ describe('registerRubricHandlers', () => {
       }
     });
   });
+
+  it('returns grading context for a file', async () => {
+    const harness = createHarness();
+    const getRubricGradingContext = vi.fn().mockResolvedValue({
+      fileId: 'file-1',
+      lockedRubricId: 'rubric-1',
+      selectedRubricIdForFile: 'rubric-1'
+    });
+    registerRubricHandlers(
+      { handle: harness.handle },
+      {
+        repository: {
+          getRubricGradingContext
+        } as unknown as RubricRepository
+      }
+    );
+
+    const handler = harness.getHandler(RUBRIC_CHANNELS.getGradingContext);
+    const result = await handler({}, { fileId: 'file-1' });
+    expect(getRubricGradingContext).toHaveBeenCalledWith('file-1');
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        fileId: 'file-1',
+        lockedRubricId: 'rubric-1',
+        selectedRubricIdForFile: 'rubric-1'
+      }
+    });
+  });
+
+  it('gets file rubric scores', async () => {
+    const harness = createHarness();
+    const getFileRubricScores = vi.fn().mockResolvedValue({
+      instance: null,
+      scores: []
+    });
+    registerRubricHandlers(
+      { handle: harness.handle },
+      {
+        repository: {
+          getFileRubricScores
+        } as unknown as RubricRepository
+      }
+    );
+
+    const handler = harness.getHandler(RUBRIC_CHANNELS.getFileScores);
+    const result = await handler({}, { fileId: 'file-1', rubricId: 'rubric-1' });
+    expect(getFileRubricScores).toHaveBeenCalledWith('file-1', 'rubric-1');
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        instance: null,
+        scores: []
+      }
+    });
+  });
+
+  it('saves file rubric scores', async () => {
+    const harness = createHarness();
+    const saveFileRubricScores = vi.fn().mockResolvedValue({
+      instance: {
+        uuid: 'inst-1',
+        fileEntityUuid: 'file-1',
+        rubricEntityUuid: 'rubric-1',
+        createdAt: '2026-02-21T00:00:00.000Z'
+      },
+      scores: []
+    });
+    registerRubricHandlers(
+      { handle: harness.handle },
+      {
+        repository: {
+          saveFileRubricScores
+        } as unknown as RubricRepository
+      }
+    );
+
+    const handler = harness.getHandler(RUBRIC_CHANNELS.saveFileScores);
+    const result = await handler({}, {
+      fileId: 'file-1',
+      rubricId: 'rubric-1',
+      selections: [{ rubricDetailId: 'detail-1', assignedScore: '4' }]
+    });
+    expect(saveFileRubricScores).toHaveBeenCalledWith('file-1', 'rubric-1', [
+      { rubricDetailId: 'detail-1', assignedScore: '4' }
+    ]);
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        instance: {
+          uuid: 'inst-1',
+          fileEntityUuid: 'file-1',
+          rubricEntityUuid: 'rubric-1',
+          createdAt: '2026-02-21T00:00:00.000Z'
+        },
+        scores: []
+      }
+    });
+  });
+
+  it('clears applied rubric by filepath', async () => {
+    const harness = createHarness();
+    const clearAppliedRubricForFilepath = vi.fn().mockResolvedValue({
+      fileId: 'file-1',
+      filepathId: 'folder-1',
+      clearedRubricId: 'rubric-1'
+    });
+    registerRubricHandlers(
+      { handle: harness.handle },
+      {
+        repository: {
+          clearAppliedRubricForFilepath
+        } as unknown as RubricRepository
+      }
+    );
+
+    const handler = harness.getHandler(RUBRIC_CHANNELS.clearAppliedRubric);
+    const result = await handler({}, { fileId: 'file-1', rubricId: 'rubric-1' });
+    expect(clearAppliedRubricForFilepath).toHaveBeenCalledWith('file-1', 'rubric-1');
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        fileId: 'file-1',
+        filepathId: 'folder-1',
+        clearedRubricId: 'rubric-1'
+      }
+    });
+  });
 });

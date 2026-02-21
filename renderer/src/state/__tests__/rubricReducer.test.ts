@@ -5,12 +5,12 @@ import { rubricReducer } from '../reducers';
 describe('rubricReducer', () => {
   it('selects a rubric id', () => {
     const next = rubricReducer(initialRubricState, {
-      type: 'rubric/select',
+      type: 'rubric/selectEditing',
       payload: 'rubric-1'
     });
 
-    expect(next.selectedRubricId).toBe('rubric-1');
-    expect(initialRubricState.selectedRubricId).toBeNull();
+    expect(next.selectedEditingRubricId).toBe('rubric-1');
+    expect(initialRubricState.selectedEditingRubricId).toBeNull();
   });
 
   it('sets active matrix', () => {

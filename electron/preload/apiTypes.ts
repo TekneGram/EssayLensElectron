@@ -21,15 +21,23 @@ import type {
 } from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
 import type {
+  ClearAppliedRubricRequest,
+  ClearAppliedRubricResponse,
   CloneRubricRequest,
   CloneRubricResponse,
   CreateRubricRequest,
   CreateRubricResponse,
   DeleteRubricRequest,
   DeleteRubricResponse,
+  GetFileRubricScoresRequest,
+  GetFileRubricScoresResponse,
+  GetRubricGradingContextRequest,
+  GetRubricGradingContextResponse,
   GetRubricMatrixRequest,
   GetRubricMatrixResponse,
   ListRubricsResponse,
+  SaveFileRubricScoresRequest,
+  SaveFileRubricScoresResponse,
   SetLastUsedRubricRequest,
   SetLastUsedRubricResponse,
   UpdateRubricMatrixRequest,
@@ -64,6 +72,10 @@ export interface EssayLensApi {
     createRubric(request: CreateRubricRequest): Promise<ApiResult<CreateRubricResponse>>;
     cloneRubric(request: CloneRubricRequest): Promise<ApiResult<CloneRubricResponse>>;
     deleteRubric(request: DeleteRubricRequest): Promise<ApiResult<DeleteRubricResponse>>;
+    getFileScores(request: GetFileRubricScoresRequest): Promise<ApiResult<GetFileRubricScoresResponse>>;
+    saveFileScores(request: SaveFileRubricScoresRequest): Promise<ApiResult<SaveFileRubricScoresResponse>>;
+    clearAppliedRubric(request: ClearAppliedRubricRequest): Promise<ApiResult<ClearAppliedRubricResponse>>;
+    getGradingContext(request: GetRubricGradingContextRequest): Promise<ApiResult<GetRubricGradingContextResponse>>;
     getMatrix(request: GetRubricMatrixRequest): Promise<ApiResult<GetRubricMatrixResponse>>;
     updateMatrix(request: UpdateRubricMatrixRequest): Promise<ApiResult<UpdateRubricMatrixResponse>>;
     setLastUsed(request: SetLastUsedRubricRequest): Promise<ApiResult<SetLastUsedRubricResponse>>;

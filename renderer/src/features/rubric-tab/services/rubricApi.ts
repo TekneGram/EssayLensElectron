@@ -1,12 +1,16 @@
 import type { AppError, AppResult } from '../../../../../electron/shared/appResult';
 import type {
+  ClearAppliedRubricResponse,
   CloneRubricResponse,
   CreateRubricRequest,
   CreateRubricResponse,
   DeleteRubricResponse,
+  GetFileRubricScoresResponse,
+  GetRubricGradingContextResponse,
   GetRubricMatrixRequest,
   GetRubricMatrixResponse,
   ListRubricsResponse,
+  SaveFileRubricScoresResponse,
   RubricDetailDto,
   RubricScoreDto,
   SetLastUsedRubricRequest,
@@ -21,6 +25,14 @@ type RubricApi = {
   createRubric: (request: CreateRubricRequest) => Promise<AppResult<CreateRubricResponse>>;
   cloneRubric: (request: { rubricId: string }) => Promise<AppResult<CloneRubricResponse>>;
   deleteRubric: (request: { rubricId: string }) => Promise<AppResult<DeleteRubricResponse>>;
+  getFileScores: (request: { fileId: string; rubricId: string }) => Promise<AppResult<GetFileRubricScoresResponse>>;
+  saveFileScores: (request: {
+    fileId: string;
+    rubricId: string;
+    selections: Array<{ rubricDetailId: string; assignedScore: string }>;
+  }) => Promise<AppResult<SaveFileRubricScoresResponse>>;
+  clearAppliedRubric: (request: { fileId: string; rubricId: string }) => Promise<AppResult<ClearAppliedRubricResponse>>;
+  getGradingContext: (request: { fileId: string }) => Promise<AppResult<GetRubricGradingContextResponse>>;
   getMatrix: (request: GetRubricMatrixRequest) => Promise<AppResult<GetRubricMatrixResponse>>;
   updateMatrix: (request: UpdateRubricMatrixRequest) => Promise<AppResult<UpdateRubricMatrixResponse>>;
   setLastUsed: (request: SetLastUsedRubricRequest) => Promise<AppResult<SetLastUsedRubricResponse>>;
@@ -81,6 +93,58 @@ export async function deleteRubric(rubricId: string): Promise<DeleteRubricRespon
     throw new Error('window.api.rubric.deleteRubric is not available.');
   }
   const result = await api.deleteRubric({ rubricId });
+  if (result.ok) {
+    return result.data;
+  }
+  throw toError(result.error);
+}
+
+export async function getRubricGradingContext(fileId: string): Promise<GetRubricGradingContextResponse> {
+  const api = getPreloadRubricApi();
+  if (typeof api.getGradingContext !== 'function') {
+    throw new Error('window.api.rubric.getGradingContext is not available.');
+  }
+  const result = await api.getGradingContext({ fileId });
+  if (result.ok) {
+    return result.data;
+  }
+  throw toError(result.error);
+}
+
+export async function getFileRubricScores(fileId: string, rubricId: string): Promise<GetFileRubricScoresResponse> {
+  const api = getPreloadRubricApi();
+  if (typeof api.getFileScores !== 'function') {
+    throw new Error('window.api.rubric.getFileScores is not available.');
+  }
+  const result = await api.getFileScores({ fileId, rubricId });
+  if (result.ok) {
+    return result.data;
+  }
+  throw toError(result.error);
+}
+
+export async function saveFileRubricScores(
+  fileId: string,
+  rubricId: string,
+  selections: Array<{ rubricDetailId: string; assignedScore: string }>
+): Promise<SaveFileRubricScoresResponse> {
+  const api = getPreloadRubricApi();
+  if (typeof api.saveFileScores !== 'function') {
+    throw new Error('window.api.rubric.saveFileScores is not available.');
+  }
+  const result = await api.saveFileScores({ fileId, rubricId, selections });
+  if (result.ok) {
+    return result.data;
+  }
+  throw toError(result.error);
+}
+
+export async function clearAppliedRubric(fileId: string, rubricId: string): Promise<ClearAppliedRubricResponse> {
+  const api = getPreloadRubricApi();
+  if (typeof api.clearAppliedRubric !== 'function') {
+    throw new Error('window.api.rubric.clearAppliedRubric is not available.');
+  }
+  const result = await api.clearAppliedRubric({ fileId, rubricId });
   if (result.ok) {
     return result.data;
   }

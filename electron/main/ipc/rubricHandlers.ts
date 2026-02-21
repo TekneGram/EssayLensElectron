@@ -1,14 +1,22 @@
 import { appErr, appOk } from '../../shared/appResult';
 import type {
+  ClearAppliedRubricRequest,
+  ClearAppliedRubricResponse,
   CloneRubricRequest,
   CloneRubricResponse,
   CreateRubricRequest,
   CreateRubricResponse,
   DeleteRubricRequest,
   DeleteRubricResponse,
+  GetFileRubricScoresRequest,
+  GetFileRubricScoresResponse,
+  GetRubricGradingContextRequest,
+  GetRubricGradingContextResponse,
   GetRubricMatrixRequest,
   GetRubricMatrixResponse,
   ListRubricsResponse,
+  SaveFileRubricScoresRequest,
+  SaveFileRubricScoresResponse,
   SetLastUsedRubricRequest,
   SetLastUsedRubricResponse,
   UpdateRubricMatrixRequest,
@@ -23,6 +31,10 @@ export const RUBRIC_CHANNELS = {
   createRubric: 'rubric/createRubric',
   cloneRubric: 'rubric/cloneRubric',
   deleteRubric: 'rubric/deleteRubric',
+  getFileScores: 'rubric/getFileScores',
+  saveFileScores: 'rubric/saveFileScores',
+  clearAppliedRubric: 'rubric/clearAppliedRubric',
+  getGradingContext: 'rubric/getGradingContext',
   getMatrix: 'rubric/getMatrix',
   updateMatrix: 'rubric/updateMatrix',
   setLastUsed: 'rubric/setLastUsed'
@@ -215,6 +227,72 @@ function normalizeDeleteRubricRequest(request: unknown): DeleteRubricRequest | n
   return { rubricId };
 }
 
+function normalizeGetRubricGradingContextRequest(request: unknown): GetRubricGradingContextRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+  const candidate = request as Record<string, unknown>;
+  const fileId = normalizeNonEmptyString(candidate.fileId);
+  if (!fileId) {
+    return null;
+  }
+  return { fileId };
+}
+
+function normalizeGetFileRubricScoresRequest(request: unknown): GetFileRubricScoresRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+  const candidate = request as Record<string, unknown>;
+  const fileId = normalizeNonEmptyString(candidate.fileId);
+  const rubricId = normalizeNonEmptyString(candidate.rubricId);
+  if (!fileId || !rubricId) {
+    return null;
+  }
+  return { fileId, rubricId };
+}
+
+function normalizeSaveFileRubricScoresRequest(request: unknown): SaveFileRubricScoresRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+  const candidate = request as Record<string, unknown>;
+  const fileId = normalizeNonEmptyString(candidate.fileId);
+  const rubricId = normalizeNonEmptyString(candidate.rubricId);
+  if (!fileId || !rubricId || !Array.isArray(candidate.selections)) {
+    return null;
+  }
+
+  const selections: SaveFileRubricScoresRequest['selections'] = [];
+  for (const selection of candidate.selections) {
+    if (typeof selection !== 'object' || selection === null) {
+      return null;
+    }
+    const selectionCandidate = selection as Record<string, unknown>;
+    const rubricDetailId = normalizeNonEmptyString(selectionCandidate.rubricDetailId);
+    const assignedScore = normalizeNonEmptyString(selectionCandidate.assignedScore);
+    if (!rubricDetailId || !assignedScore) {
+      return null;
+    }
+    selections.push({ rubricDetailId, assignedScore });
+  }
+
+  return { fileId, rubricId, selections };
+}
+
+function normalizeClearAppliedRubricRequest(request: unknown): ClearAppliedRubricRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+  const candidate = request as Record<string, unknown>;
+  const fileId = normalizeNonEmptyString(candidate.fileId);
+  const rubricId = normalizeNonEmptyString(candidate.rubricId);
+  if (!fileId || !rubricId) {
+    return null;
+  }
+  return { fileId, rubricId };
+}
+
 export function registerRubricHandlers(ipcMain: IpcMainLike, deps: RubricHandlerDeps = getDefaultDeps()): void {
   ipcMain.handle(RUBRIC_CHANNELS.listRubrics, async () => {
     try {
@@ -312,6 +390,96 @@ export function registerRubricHandlers(ipcMain: IpcMainLike, deps: RubricHandler
       return appErr({
         code: 'RUBRIC_DELETE_FAILED',
         message: 'Could not delete rubric.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(RUBRIC_CHANNELS.getGradingContext, async (_event, requestPayload) => {
+    const request = normalizeGetRubricGradingContextRequest(requestPayload);
+    if (!request) {
+      return appErr({
+        code: 'RUBRIC_GET_GRADING_CONTEXT_INVALID_PAYLOAD',
+        message: 'Get rubric grading context request must include a non-empty fileId.'
+      });
+    }
+
+    try {
+      const context = await deps.repository.getRubricGradingContext(request.fileId);
+      return appOk<GetRubricGradingContextResponse>(context);
+    } catch (error) {
+      return appErr({
+        code: 'RUBRIC_GET_GRADING_CONTEXT_FAILED',
+        message: 'Could not load rubric grading context.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(RUBRIC_CHANNELS.getFileScores, async (_event, requestPayload) => {
+    const request = normalizeGetFileRubricScoresRequest(requestPayload);
+    if (!request) {
+      return appErr({
+        code: 'RUBRIC_GET_FILE_SCORES_INVALID_PAYLOAD',
+        message: 'Get file rubric scores request must include non-empty fileId and rubricId.'
+      });
+    }
+
+    try {
+      const response = await deps.repository.getFileRubricScores(request.fileId, request.rubricId);
+      return appOk<GetFileRubricScoresResponse>(response);
+    } catch (error) {
+      return appErr({
+        code: 'RUBRIC_GET_FILE_SCORES_FAILED',
+        message: 'Could not load saved file rubric scores.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(RUBRIC_CHANNELS.saveFileScores, async (_event, requestPayload) => {
+    const request = normalizeSaveFileRubricScoresRequest(requestPayload);
+    if (!request) {
+      return appErr({
+        code: 'RUBRIC_SAVE_FILE_SCORES_INVALID_PAYLOAD',
+        message: 'Save file rubric scores request is invalid.'
+      });
+    }
+
+    try {
+      const response = await deps.repository.saveFileRubricScores(request.fileId, request.rubricId, request.selections);
+      return appOk<SaveFileRubricScoresResponse>(response);
+    } catch (error) {
+      return appErr({
+        code: 'RUBRIC_SAVE_FILE_SCORES_FAILED',
+        message: error instanceof Error ? error.message : 'Could not save file rubric scores.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(RUBRIC_CHANNELS.clearAppliedRubric, async (_event, requestPayload) => {
+    const request = normalizeClearAppliedRubricRequest(requestPayload);
+    if (!request) {
+      return appErr({
+        code: 'RUBRIC_CLEAR_APPLIED_INVALID_PAYLOAD',
+        message: 'Clear applied rubric request must include non-empty fileId and rubricId.'
+      });
+    }
+
+    try {
+      const cleared = await deps.repository.clearAppliedRubricForFilepath(request.fileId, request.rubricId);
+      if (!cleared) {
+        return appErr({
+          code: 'RUBRIC_CLEAR_APPLIED_NOT_FOUND',
+          message: 'No applied rubric was found for this file path and rubric.'
+        });
+      }
+      return appOk<ClearAppliedRubricResponse>(cleared);
+    } catch (error) {
+      return appErr({
+        code: 'RUBRIC_CLEAR_APPLIED_FAILED',
+        message: 'Could not clear applied rubric and scores.',
         details: error
       });
     }

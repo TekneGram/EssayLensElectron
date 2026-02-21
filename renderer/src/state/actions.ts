@@ -40,7 +40,9 @@ export type FeedbackAction =
 
 export type RubricAction =
   | { type: 'rubric/setList'; payload: RubricSummary[] }
-  | { type: 'rubric/select'; payload: EntityId | null }
+  | { type: 'rubric/selectEditing'; payload: EntityId | null }
+  | { type: 'rubric/selectGradingForFile'; payload: { fileId: EntityId; rubricId: EntityId | null } }
+  | { type: 'rubric/setLockedGradingRubricId'; payload: EntityId | null }
   | { type: 'rubric/setMatrix'; payload: RubricMatrix | null }
   | { type: 'rubric/setInteractionMode'; payload: RubricState['interactionMode'] }
   | {

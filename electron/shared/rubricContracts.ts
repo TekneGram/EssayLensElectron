@@ -127,3 +127,24 @@ export interface SaveFileRubricScoresResponse {
   instance: FileRubricInstanceDto;
   scores: FileRubricScoreDto[];
 }
+
+export interface GetRubricGradingContextRequest {
+  fileId: string;
+}
+
+export interface GetRubricGradingContextResponse {
+  fileId: string;
+  lockedRubricId?: string;
+  selectedRubricIdForFile?: string;
+}
+
+export interface ClearAppliedRubricRequest {
+  fileId: string;
+  rubricId: string;
+}
+
+export interface ClearAppliedRubricResponse {
+  fileId: string;
+  filepathId: string;
+  clearedRubricId: string;
+}
