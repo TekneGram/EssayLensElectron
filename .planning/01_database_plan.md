@@ -134,6 +134,7 @@ CREATE TABLE rubric_last_used (
 );
 ```
 ---
+
 ### Startup rubric selection behavior
 ```text
 1) On app start, read rubric_last_used.profile_key='default'.

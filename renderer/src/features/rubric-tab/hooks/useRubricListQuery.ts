@@ -28,7 +28,12 @@ export function useRubricListQuery() {
 
     dispatch({
       type: 'rubric/setList',
-      payload: query.data.rubrics.map((rubric) => ({ id: rubric.entityUuid, name: rubric.name }))
+      payload: query.data.rubrics.map((rubric) => ({
+        id: rubric.entityUuid,
+        name: rubric.name,
+        isActive: rubric.isActive,
+        isArchived: rubric.isArchived
+      }))
     });
     dispatch({ type: 'rubric/setStatus', payload: 'idle' });
     dispatch({ type: 'rubric/setError', payload: undefined });

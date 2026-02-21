@@ -21,8 +21,12 @@ import type {
 } from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
 import type {
+  CloneRubricRequest,
+  CloneRubricResponse,
   CreateRubricRequest,
   CreateRubricResponse,
+  DeleteRubricRequest,
+  DeleteRubricResponse,
   GetRubricMatrixRequest,
   GetRubricMatrixResponse,
   ListRubricsResponse,
@@ -58,6 +62,8 @@ export interface EssayLensApi {
   rubric: {
     listRubrics(): Promise<ApiResult<ListRubricsResponse>>;
     createRubric(request: CreateRubricRequest): Promise<ApiResult<CreateRubricResponse>>;
+    cloneRubric(request: CloneRubricRequest): Promise<ApiResult<CloneRubricResponse>>;
+    deleteRubric(request: DeleteRubricRequest): Promise<ApiResult<DeleteRubricResponse>>;
     getMatrix(request: GetRubricMatrixRequest): Promise<ApiResult<GetRubricMatrixResponse>>;
     updateMatrix(request: UpdateRubricMatrixRequest): Promise<ApiResult<UpdateRubricMatrixResponse>>;
     setLastUsed(request: SetLastUsedRubricRequest): Promise<ApiResult<SetLastUsedRubricResponse>>;

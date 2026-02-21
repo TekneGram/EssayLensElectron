@@ -12,6 +12,7 @@ export function ScoreTool() {
 
   const gradingSelection = fileId ? state.rubric.gradingSelectionByFileId[fileId] : undefined;
   const selectedCellKeys = gradingSelection?.rubricId === rubricId ? gradingSelection.selectedCellKeys : [];
+  const normalizedSelectedCellKeys = [...selectedCellKeys].sort().join('||');
 
   if (!fileId) {
     return <div>Select a file before scoring.</div>;
@@ -33,8 +34,13 @@ export function ScoreTool() {
     <RubricForReact
       sourceData={draftQuery.data}
       isGrading
+      displayMode="compact-score"
       initialSelectedCellKeys={selectedCellKeys}
       onSelectedCellKeysChange={(nextSelectedCellKeys) => {
+        const normalizedNext = [...nextSelectedCellKeys].sort().join('||');
+        if (normalizedNext === normalizedSelectedCellKeys) {
+          return;
+        }
         dispatch({
           type: 'rubric/setGradingSelection',
           payload: {

@@ -26,6 +26,8 @@ describe('preload api', () => {
     await api.assessment.generateFeedbackDocument({ fileId: 'file-1' });
     await api.rubric.listRubrics();
     await api.rubric.createRubric({ name: 'New Rubric' });
+    await api.rubric.cloneRubric({ rubricId: 'rubric-1' });
+    await api.rubric.deleteRubric({ rubricId: 'rubric-2' });
     await api.rubric.setLastUsed({ rubricId: 'rubric-1' });
     await api.chat.sendMessage({ message: 'hello' });
 
@@ -41,6 +43,8 @@ describe('preload api', () => {
     expect(invoke).toHaveBeenCalledWith('assessment/generateFeedbackDocument', { fileId: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('rubric/listRubrics', undefined);
     expect(invoke).toHaveBeenCalledWith('rubric/createRubric', { name: 'New Rubric' });
+    expect(invoke).toHaveBeenCalledWith('rubric/cloneRubric', { rubricId: 'rubric-1' });
+    expect(invoke).toHaveBeenCalledWith('rubric/deleteRubric', { rubricId: 'rubric-2' });
     expect(invoke).toHaveBeenCalledWith('rubric/setLastUsed', { rubricId: 'rubric-1' });
     expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { message: 'hello' });
   });

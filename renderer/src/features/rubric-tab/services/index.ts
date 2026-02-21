@@ -1,5 +1,7 @@
 export {
+  cloneRubric,
   createRubric,
+  deleteRubric,
   getRubricMatrix,
   listRubrics,
   matrixToRubricSourceData,
@@ -14,6 +16,7 @@ export type {
   RubricCategory,
   RubricCell,
   RubricClassNames,
+  RubricDisplayMode,
   RubricForReactProps,
   RubricId,
   RubricInteractionMode,

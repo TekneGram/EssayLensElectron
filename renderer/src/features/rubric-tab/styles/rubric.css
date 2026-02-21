@@ -109,6 +109,10 @@
   width: var(--rubric-score-col-width);
 }
 
+.rubric-table__score-col--compact {
+  width: 0.35rem;
+}
+
 .rubric-table th,
 .rubric-table td {
   border: 1px solid var(--rubric-border);
@@ -253,8 +257,72 @@
   cursor: pointer;
 }
 
+.rubric-table__grade-cell--compact {
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.rubric-table__cell-text--compact {
+  min-height: 82px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: help;
+}
+
 .rubric-table button.rubric-table__grade-cell--selected {
   border-color: #163777;
   background: #264b9b;
   color: #ffffff;
+}
+
+.rubric-table--compact thead th:first-child {
+  color: transparent;
+  width: 0.35rem;
+  min-width: 0.35rem;
+  padding: 0;
+}
+
+.rubric-table--compact tbody th {
+  width: 0.35rem;
+  min-width: 0.35rem;
+  max-width: 0.35rem;
+  padding: 0;
+}
+
+.rubric-table--compact .rubric-axis-field--score {
+  display: none;
+}
+
+.rubric-table--compact .rubric-axis-field__value--category {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  min-height: 5.25rem;
+  margin: 0 auto;
+  padding: 0.25rem 0.1rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.rubric-tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #b7bfca;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111111;
+  box-shadow: 0 6px 18px rgba(12, 20, 35, 0.16);
+  line-height: 1.35;
+  font-size: 0.86rem;
+  pointer-events: none;
 }

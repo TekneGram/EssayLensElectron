@@ -13,7 +13,9 @@ import type {
 } from '../shared/assessmentContracts';
 import type { SendChatMessageRequest } from '../shared/chatContracts';
 import type {
+  CloneRubricRequest,
   CreateRubricRequest,
+  DeleteRubricRequest,
   GetRubricMatrixRequest,
   SetLastUsedRubricRequest,
   UpdateRubricMatrixRequest
@@ -53,6 +55,8 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     rubric: {
       listRubrics: () => invokeApi('rubric/listRubrics'),
       createRubric: (request: CreateRubricRequest) => invokeApi('rubric/createRubric', request),
+      cloneRubric: (request: CloneRubricRequest) => invokeApi('rubric/cloneRubric', request),
+      deleteRubric: (request: DeleteRubricRequest) => invokeApi('rubric/deleteRubric', request),
       getMatrix: (request: GetRubricMatrixRequest) => invokeApi('rubric/getMatrix', request),
       updateMatrix: (request: UpdateRubricMatrixRequest) => invokeApi('rubric/updateMatrix', request),
       setLastUsed: (request: SetLastUsedRubricRequest) => invokeApi('rubric/setLastUsed', request)

@@ -1,7 +1,11 @@
 import { appErr, appOk } from '../../shared/appResult';
 import type {
+  CloneRubricRequest,
+  CloneRubricResponse,
   CreateRubricRequest,
   CreateRubricResponse,
+  DeleteRubricRequest,
+  DeleteRubricResponse,
   GetRubricMatrixRequest,
   GetRubricMatrixResponse,
   ListRubricsResponse,
@@ -17,6 +21,8 @@ import type { IpcMainLike } from './types';
 export const RUBRIC_CHANNELS = {
   listRubrics: 'rubric/listRubrics',
   createRubric: 'rubric/createRubric',
+  cloneRubric: 'rubric/cloneRubric',
+  deleteRubric: 'rubric/deleteRubric',
   getMatrix: 'rubric/getMatrix',
   updateMatrix: 'rubric/updateMatrix',
   setLastUsed: 'rubric/setLastUsed'
@@ -185,6 +191,30 @@ function normalizeSetLastUsedRubricRequest(request: unknown): SetLastUsedRubricR
   return { rubricId };
 }
 
+function normalizeCloneRubricRequest(request: unknown): CloneRubricRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+  const candidate = request as Record<string, unknown>;
+  const rubricId = normalizeNonEmptyString(candidate.rubricId);
+  if (!rubricId) {
+    return null;
+  }
+  return { rubricId };
+}
+
+function normalizeDeleteRubricRequest(request: unknown): DeleteRubricRequest | null {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+  const candidate = request as Record<string, unknown>;
+  const rubricId = normalizeNonEmptyString(candidate.rubricId);
+  if (!rubricId) {
+    return null;
+  }
+  return { rubricId };
+}
+
 export function registerRubricHandlers(ipcMain: IpcMainLike, deps: RubricHandlerDeps = getDefaultDeps()): void {
   ipcMain.handle(RUBRIC_CHANNELS.listRubrics, async () => {
     try {
@@ -216,6 +246,72 @@ export function registerRubricHandlers(ipcMain: IpcMainLike, deps: RubricHandler
       return appErr({
         code: 'RUBRIC_CREATE_FAILED',
         message: 'Could not create rubric.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(RUBRIC_CHANNELS.cloneRubric, async (_event, requestPayload) => {
+    const request = normalizeCloneRubricRequest(requestPayload);
+    if (!request) {
+      return appErr({
+        code: 'RUBRIC_CLONE_INVALID_PAYLOAD',
+        message: 'Clone rubric payload is invalid.'
+      });
+    }
+
+    try {
+      const rubricId = await deps.repository.cloneRubric(request.rubricId, 'default');
+      if (!rubricId) {
+        return appErr({
+          code: 'RUBRIC_NOT_FOUND',
+          message: `Rubric not found for id ${request.rubricId}.`
+        });
+      }
+      return appOk<CloneRubricResponse>({ rubricId });
+    } catch (error) {
+      return appErr({
+        code: 'RUBRIC_CLONE_FAILED',
+        message: 'Could not clone rubric.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(RUBRIC_CHANNELS.deleteRubric, async (_event, requestPayload) => {
+    const request = normalizeDeleteRubricRequest(requestPayload);
+    if (!request) {
+      return appErr({
+        code: 'RUBRIC_DELETE_INVALID_PAYLOAD',
+        message: 'Delete rubric payload is invalid.'
+      });
+    }
+
+    try {
+      const result = await deps.repository.deleteRubric(request.rubricId);
+      if (result === 'not_found') {
+        return appErr({
+          code: 'RUBRIC_NOT_FOUND',
+          message: `Rubric not found for id ${request.rubricId}.`
+        });
+      }
+      if (result === 'active') {
+        return appErr({
+          code: 'RUBRIC_ACTIVE',
+          message: 'Active rubrics cannot be deleted.'
+        });
+      }
+      if (result === 'in_use') {
+        return appErr({
+          code: 'RUBRIC_IN_USE',
+          message: 'This rubric has been used for scoring and cannot be deleted.'
+        });
+      }
+      return appOk<DeleteRubricResponse>({ rubricId: request.rubricId });
+    } catch (error) {
+      return appErr({
+        code: 'RUBRIC_DELETE_FAILED',
+        message: 'Could not delete rubric.',
         details: error
       });
     }
@@ -259,10 +355,22 @@ export function registerRubricHandlers(ipcMain: IpcMainLike, deps: RubricHandler
 
     try {
       const updated = await deps.repository.updateRubricMatrix(request.rubricId, request.operation);
-      if (!updated) {
+      if (updated === 'not_found') {
         return appErr({
           code: 'RUBRIC_NOT_FOUND',
           message: `Rubric not found for id ${request.rubricId}.`
+        });
+      }
+      if (updated === 'archived') {
+        return appErr({
+          code: 'RUBRIC_ARCHIVED',
+          message: 'Archived rubrics cannot be edited.'
+        });
+      }
+      if (updated === 'inactive') {
+        return appErr({
+          code: 'RUBRIC_INACTIVE',
+          message: 'This rubric is locked because it has been used and cannot be edited.'
         });
       }
       return appOk<UpdateRubricMatrixResponse>({ success: true });

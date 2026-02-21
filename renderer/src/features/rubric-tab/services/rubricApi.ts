@@ -1,7 +1,9 @@
 import type { AppError, AppResult } from '../../../../../electron/shared/appResult';
 import type {
+  CloneRubricResponse,
   CreateRubricRequest,
   CreateRubricResponse,
+  DeleteRubricResponse,
   GetRubricMatrixRequest,
   GetRubricMatrixResponse,
   ListRubricsResponse,
@@ -17,6 +19,8 @@ import type { RubricSourceData } from './types';
 type RubricApi = {
   listRubrics: () => Promise<AppResult<ListRubricsResponse>>;
   createRubric: (request: CreateRubricRequest) => Promise<AppResult<CreateRubricResponse>>;
+  cloneRubric: (request: { rubricId: string }) => Promise<AppResult<CloneRubricResponse>>;
+  deleteRubric: (request: { rubricId: string }) => Promise<AppResult<DeleteRubricResponse>>;
   getMatrix: (request: GetRubricMatrixRequest) => Promise<AppResult<GetRubricMatrixResponse>>;
   updateMatrix: (request: UpdateRubricMatrixRequest) => Promise<AppResult<UpdateRubricMatrixResponse>>;
   setLastUsed: (request: SetLastUsedRubricRequest) => Promise<AppResult<SetLastUsedRubricResponse>>;
@@ -53,6 +57,30 @@ export async function createRubric(name = 'New Rubric'): Promise<CreateRubricRes
     throw new Error('window.api.rubric.createRubric is not available.');
   }
   const result = await api.createRubric({ name });
+  if (result.ok) {
+    return result.data;
+  }
+  throw toError(result.error);
+}
+
+export async function cloneRubric(rubricId: string): Promise<CloneRubricResponse> {
+  const api = getPreloadRubricApi();
+  if (typeof api.cloneRubric !== 'function') {
+    throw new Error('window.api.rubric.cloneRubric is not available.');
+  }
+  const result = await api.cloneRubric({ rubricId });
+  if (result.ok) {
+    return result.data;
+  }
+  throw toError(result.error);
+}
+
+export async function deleteRubric(rubricId: string): Promise<DeleteRubricResponse> {
+  const api = getPreloadRubricApi();
+  if (typeof api.deleteRubric !== 'function') {
+    throw new Error('window.api.rubric.deleteRubric is not available.');
+  }
+  const result = await api.deleteRubric({ rubricId });
   if (result.ok) {
     return result.data;
   }

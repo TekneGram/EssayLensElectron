@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createCellKey } from '../services/normalize';
 import { RubricTable } from './RubricTable';
 import { RubricToolbar } from './RubricToolbar';
@@ -9,6 +9,8 @@ import '../styles/rubric.css';
 export function RubricForReact({
   sourceData,
   isGrading = false,
+  canEdit = true,
+  displayMode = 'full',
   className,
   classes,
   mode,
@@ -27,6 +29,7 @@ export function RubricForReact({
 }: RubricForReactProps) {
   const [localMode, setLocalMode] = useState<'editing' | 'viewing'>('editing');
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set(initialSelectedCellKeys ?? []));
+  const lastEmittedSelectionRef = useRef<string>('');
   const {
     state,
     addCategory,
@@ -43,14 +46,43 @@ export function RubricForReact({
     onChange?.(state);
   }, [onChange, state]);
 
+  const normalizeSelection = useCallback((keys: Iterable<string>): string => {
+    return Array.from(keys).sort().join('||');
+  }, []);
+
   useEffect(() => {
-    if (!initialSelectedCellKeys) return;
-    setSelectedCellKeys(new Set(initialSelectedCellKeys));
+    if (!initialSelectedCellKeys) {
+      return;
+    }
+    const incoming = new Set(initialSelectedCellKeys);
+    setSelectedCellKeys((previous) => {
+      if (previous.size === incoming.size) {
+        let same = true;
+        for (const key of previous) {
+          if (!incoming.has(key)) {
+            same = false;
+            break;
+          }
+        }
+        if (same) {
+          return previous;
+        }
+      }
+      return incoming;
+    });
   }, [initialSelectedCellKeys]);
 
   useEffect(() => {
-    onSelectedCellKeysChange?.(Array.from(selectedCellKeys));
-  }, [onSelectedCellKeysChange, selectedCellKeys]);
+    if (!onSelectedCellKeysChange) {
+      return;
+    }
+    const normalized = normalizeSelection(selectedCellKeys);
+    if (normalized === lastEmittedSelectionRef.current) {
+      return;
+    }
+    lastEmittedSelectionRef.current = normalized;
+    onSelectedCellKeysChange(Array.from(selectedCellKeys));
+  }, [normalizeSelection, onSelectedCellKeysChange, selectedCellKeys]);
 
   useEffect(() => {
     setSelectedCellKeys((previous) => {
@@ -65,7 +97,15 @@ export function RubricForReact({
   }, [state.cellsByKey]);
 
   const effectiveEditingMode = mode ?? localMode;
-  const effectiveMode = useMemo(() => (isGrading ? 'grading' : effectiveEditingMode), [isGrading, effectiveEditingMode]);
+  const effectiveMode = useMemo(() => {
+    if (isGrading) {
+      return 'grading';
+    }
+    if (!canEdit) {
+      return 'viewing';
+    }
+    return effectiveEditingMode;
+  }, [canEdit, isGrading, effectiveEditingMode]);
 
   const toggleMode = useCallback(() => {
     const nextMode = effectiveEditingMode === 'editing' ? 'viewing' : 'editing';
@@ -204,7 +244,7 @@ export function RubricForReact({
           {state.rubricName}
           {isGrading && <span className="rubric-modebar__tag">can grade</span>}
         </h2>
-        {!isGrading && (
+        {!isGrading && canEdit && (
           <button type="button" className="rubric-modebar__toggle" onClick={toggleMode}>
             {effectiveEditingMode === 'editing' ? 'Switch to Viewing' : 'Switch to Editing'}
           </button>
@@ -223,6 +263,7 @@ export function RubricForReact({
         state={state}
         mode={effectiveMode}
         selectedCellKeys={selectedCellKeys}
+        displayMode={displayMode}
         classNames={{
           tableWrap: classes?.tableWrap,
           table: classes?.table,

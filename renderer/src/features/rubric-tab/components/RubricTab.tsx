@@ -12,7 +12,7 @@ export function RubricTab() {
 
   const listQuery = useRubricListQuery();
   const draftQuery = useRubricDraftQuery(selectedRubricId);
-  const { updateRubric, setLastUsed, createRubric } = useRubricMutations(selectedRubricId);
+  const { updateRubric, setLastUsed, createRubric, cloneRubric, deleteRubric } = useRubricMutations(selectedRubricId);
   const pendingOperationsRef = useRef(new Map<string, UpdateRubricOperation>());
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
@@ -56,13 +56,33 @@ export function RubricTab() {
   }, [flushPendingUpdates]);
 
   useEffect(() => {
-    if (!listQuery.isSuccess || selectedRubricId || listQuery.data.rubrics.length === 0) {
+    if (!listQuery.isSuccess) {
       return;
     }
-    const preferredRubricId = listQuery.data.lastUsedRubricId ?? listQuery.data.rubrics[0].entityUuid;
+    if (listQuery.data.rubrics.length === 0) {
+      dispatch({ type: 'rubric/select', payload: null });
+      dispatch({ type: 'rubric/setInteractionMode', payload: 'viewing' });
+      return;
+    }
+
+    const selectedStillExists = selectedRubricId
+      ? listQuery.data.rubrics.some((rubric) => rubric.entityUuid === selectedRubricId)
+      : false;
+    if (selectedStillExists) {
+      return;
+    }
+
+    const preferredRubricId =
+      listQuery.data.lastUsedRubricId &&
+      listQuery.data.rubrics.some((rubric) => rubric.entityUuid === listQuery.data.lastUsedRubricId)
+        ? listQuery.data.lastUsedRubricId
+        : listQuery.data.rubrics[0].entityUuid;
     dispatch({ type: 'rubric/select', payload: preferredRubricId });
     dispatch({ type: 'rubric/setInteractionMode', payload: 'viewing' });
   }, [dispatch, listQuery.data, listQuery.isSuccess, selectedRubricId]);
+
+  const selectedRubric = listQuery.data?.rubrics.find((rubric) => rubric.entityUuid === selectedRubricId);
+  const canEditSelectedRubric = selectedRubric ? !selectedRubric.isActive : true;
 
   return (
     <div className="rubric-tab workspace rubric" data-testid="rubric-tab">
@@ -109,10 +129,44 @@ export function RubricTab() {
           {!selectedRubricId ? <div>Select a rubric to begin.</div> : null}
           {selectedRubricId && draftQuery.isPending ? <div>Loading rubric...</div> : null}
           {selectedRubricId && draftQuery.isError ? <div>Unable to load rubric.</div> : null}
+          {selectedRubricId && selectedRubric ? (
+            <div className="rubric-toolbar__controls">
+              <button
+                type="button"
+                onClick={async () => {
+                  void flushPendingUpdates();
+                  const clonedRubricId = await cloneRubric(selectedRubricId);
+                  dispatch({ type: 'rubric/select', payload: clonedRubricId });
+                  dispatch({ type: 'rubric/setInteractionMode', payload: 'editing' });
+                  await setLastUsed(clonedRubricId);
+                }}
+              >
+                Clone
+              </button>
+              {!selectedRubric.isActive ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const shouldDelete = window.confirm('Delete this rubric permanently?');
+                    if (!shouldDelete) {
+                      return;
+                    }
+                    void flushPendingUpdates();
+                    await deleteRubric(selectedRubricId);
+                    dispatch({ type: 'rubric/select', payload: null });
+                    dispatch({ type: 'rubric/setInteractionMode', payload: 'viewing' });
+                  }}
+                >
+                  Delete
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {selectedRubricId && draftQuery.data ? (
             <RubricForReact
               sourceData={draftQuery.data}
               mode={interactionMode}
+              canEdit={canEditSelectedRubric}
               onModeChange={(mode) => {
                 void flushPendingUpdates();
                 dispatch({ type: 'rubric/setInteractionMode', payload: mode });

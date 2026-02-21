@@ -54,6 +54,8 @@ export type FeedbackItem = FeedbackDto;
 export interface RubricSummary {
   id: EntityId;
   name: string;
+  isActive: boolean;
+  isArchived: boolean;
   description?: string;
 }
 

@@ -70,13 +70,16 @@ export interface RubricClassNames {
 }
 
 export type RubricInteractionMode = 'editing' | 'viewing' | 'grading';
+export type RubricDisplayMode = 'full' | 'compact-score';
 
 export interface RubricForReactProps {
   sourceData?: RubricSourceData | NormalizedRubric;
   isGrading?: boolean;
+  canEdit?: boolean;
   className?: string;
   classes?: Partial<RubricClassNames>;
   mode?: 'editing' | 'viewing';
+  displayMode?: RubricDisplayMode;
   onModeChange?: (mode: 'editing' | 'viewing') => void;
   onSelectedCellKeysChange?: (selectedCellKeys: string[]) => void;
   initialSelectedCellKeys?: string[];

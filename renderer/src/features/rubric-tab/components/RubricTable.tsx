@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { createCellKey } from '../services/normalize';
-import type { NormalizedRubric, RubricInteractionMode } from '../services/types';
+import type { NormalizedRubric, RubricDisplayMode, RubricInteractionMode } from '../services/types';
 
 interface RubricTableProps {
   state: NormalizedRubric;
   mode: RubricInteractionMode;
   selectedCellKeys?: Set<string>;
+  displayMode?: RubricDisplayMode;
   onRenameCategory: (categoryId: string, name: string) => void;
   onRemoveCategory: (categoryId: string) => void;
   onSetScoreValue: (scoreId: string, value: number) => void;
@@ -28,6 +29,7 @@ export function RubricTable(props: RubricTableProps) {
     state,
     mode,
     selectedCellKeys,
+    displayMode = 'full',
     onRenameCategory,
     onRemoveCategory,
     onSetScoreValue,
@@ -39,7 +41,33 @@ export function RubricTable(props: RubricTableProps) {
   } = props;
   const isEditing = mode === 'editing';
   const isGrading = mode === 'grading';
+  const isCompactScoreMode = displayMode === 'compact-score' && !isEditing;
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, string>>({});
+  const [tooltipState, setTooltipState] = useState<{ visible: boolean; text: string; x: number; y: number }>({
+    visible: false,
+    text: '',
+    x: 0,
+    y: 0
+  });
+
+  const hideTooltip = () => {
+    setTooltipState((previous) => (previous.visible ? { ...previous, visible: false } : previous));
+  };
+
+  const showTooltipNearPointer = (text: string, clientX: number, clientY: number) => {
+    if (!text) {
+      hideTooltip();
+      return;
+    }
+    const maxX = Math.max(24, window.innerWidth - 340);
+    const maxY = Math.max(24, window.innerHeight - 160);
+    setTooltipState({
+      visible: true,
+      text,
+      x: Math.min(clientX + 14, maxX),
+      y: Math.min(clientY + 14, maxY)
+    });
+  };
 
   useEffect(() => {
     setScoreDrafts((previous) => {
@@ -73,16 +101,22 @@ export function RubricTable(props: RubricTableProps) {
     }
   };
 
+  const compactCategoryLabel = (name: string): string => name.slice(0, 7);
+
   return (
     <div className={['rubric-table-wrap', classNames?.tableWrap].filter(Boolean).join(' ')}>
-      <table className={['rubric-table', classNames?.table].filter(Boolean).join(' ')}>
+      <table
+        className={['rubric-table', isCompactScoreMode ? 'rubric-table--compact' : '', classNames?.table]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <colgroup>
-          <col className="rubric-table__score-col" />
+          <col className={['rubric-table__score-col', isCompactScoreMode ? 'rubric-table__score-col--compact' : ''].join(' ')} />
           <col span={state.categoryOrder.length} />
         </colgroup>
         <thead>
           <tr>
-            <th>Score</th>
+            <th>{isCompactScoreMode ? '' : 'Score'}</th>
             {state.categoryOrder.map((categoryId) => {
               const category = state.categoriesById[categoryId];
               return (
@@ -118,7 +152,12 @@ export function RubricTable(props: RubricTableProps) {
                         />
                       </>
                     ) : (
-                      <div className="rubric-axis-field__value rubric-axis-field__value--category">{category.name}</div>
+                      <div
+                        className="rubric-axis-field__value rubric-axis-field__value--category"
+                        aria-label={category.name}
+                      >
+                        {isCompactScoreMode ? compactCategoryLabel(category.name) : category.name}
+                      </div>
                     )}
                   </div>
                 </th>
@@ -185,7 +224,9 @@ export function RubricTable(props: RubricTableProps) {
                         />
                       </>
                     ) : (
-                      <div className="rubric-axis-field__value rubric-axis-field__value--score">{score.value}</div>
+                      <div className="rubric-axis-field__value rubric-axis-field__value--score">
+                        {isCompactScoreMode ? '' : score.value}
+                      </div>
                     )}
                   </div>
                 </th>
@@ -193,6 +234,13 @@ export function RubricTable(props: RubricTableProps) {
                   const key = createCellKey(categoryId, scoreId);
                   const cell = state.cellsByKey[key];
                   const isSelected = Boolean(selectedCellKeys?.has(key));
+                  const description = cell?.description ?? '';
+                  const scoreValue = state.scoresById[scoreId]?.value ?? '';
+                  const categoryName = state.categoriesById[categoryId]?.name ?? 'Category';
+                  const tooltipText = `${categoryName}: ${description || 'No description provided.'}`;
+                  const compactAria = `Category ${categoryName}, score ${scoreValue}. ${
+                    description || 'No description provided.'
+                  }`;
                   return (
                     <td key={key}>
                       {isEditing ? (
@@ -207,18 +255,69 @@ export function RubricTable(props: RubricTableProps) {
                           type="button"
                           className={[
                             'rubric-table__grade-cell',
+                            isCompactScoreMode ? 'rubric-table__grade-cell--compact' : '',
                             isSelected ? 'rubric-table__grade-cell--selected' : ''
                           ]
                             .filter(Boolean)
                             .join(' ')}
                           onClick={() => (isSelected ? onDeselectCell : onSelectCell)?.(categoryId, scoreId)}
                           onDoubleClick={() => onDeselectCell?.(categoryId, scoreId)}
+                          onMouseEnter={(event) =>
+                            isCompactScoreMode
+                              ? showTooltipNearPointer(tooltipText, event.clientX, event.clientY)
+                              : undefined
+                          }
+                          onMouseMove={(event) =>
+                            isCompactScoreMode
+                              ? showTooltipNearPointer(tooltipText, event.clientX, event.clientY)
+                              : undefined
+                          }
+                          onMouseLeave={isCompactScoreMode ? hideTooltip : undefined}
+                          onFocus={(event) => {
+                            if (!isCompactScoreMode) {
+                              return;
+                            }
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            showTooltipNearPointer(tooltipText, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                          }}
+                          onBlur={isCompactScoreMode ? hideTooltip : undefined}
                           aria-pressed={isSelected}
+                          aria-label={isCompactScoreMode ? compactAria : undefined}
                         >
-                          {cell?.description ?? ''}
+                          {isCompactScoreMode ? String(scoreValue) : description}
                         </button>
                       ) : (
-                        <div className="rubric-table__cell-text">{cell?.description ?? ''}</div>
+                        <div
+                          className={[
+                            'rubric-table__cell-text',
+                            isCompactScoreMode ? 'rubric-table__cell-text--compact' : ''
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          onMouseEnter={(event) =>
+                            isCompactScoreMode
+                              ? showTooltipNearPointer(tooltipText, event.clientX, event.clientY)
+                              : undefined
+                          }
+                          onMouseMove={(event) =>
+                            isCompactScoreMode
+                              ? showTooltipNearPointer(tooltipText, event.clientX, event.clientY)
+                              : undefined
+                          }
+                          onMouseLeave={isCompactScoreMode ? hideTooltip : undefined}
+                          tabIndex={isCompactScoreMode ? 0 : undefined}
+                          onFocus={(event) => {
+                            if (!isCompactScoreMode) {
+                              return;
+                            }
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            showTooltipNearPointer(tooltipText, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                          }}
+                          onBlur={isCompactScoreMode ? hideTooltip : undefined}
+                          aria-label={isCompactScoreMode ? compactAria : undefined}
+                        >
+                          {isCompactScoreMode ? String(scoreValue) : description}
+                        </div>
                       )}
                     </td>
                   );
@@ -228,6 +327,11 @@ export function RubricTable(props: RubricTableProps) {
           })}
         </tbody>
       </table>
+      {tooltipState.visible ? (
+        <div className="rubric-tooltip" style={{ left: `${tooltipState.x}px`, top: `${tooltipState.y}px` }} role="tooltip">
+          {tooltipState.text}
+        </div>
+      ) : null}
     </div>
   );
 }

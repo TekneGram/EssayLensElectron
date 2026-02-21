@@ -26,7 +26,9 @@ describe('registerRubricHandlers', () => {
             {
               entityUuid: 'rubric-1',
               name: 'Writing',
-              type: 'detailed'
+              type: 'detailed',
+              isActive: true,
+              isArchived: false
             }
           ]),
           getLastUsedRubricId: vi.fn().mockResolvedValue('rubric-1')
@@ -43,7 +45,9 @@ describe('registerRubricHandlers', () => {
           {
             entityUuid: 'rubric-1',
             name: 'Writing',
-            type: 'detailed'
+            type: 'detailed',
+            isActive: true,
+            isArchived: false
           }
         ],
         lastUsedRubricId: 'rubric-1'
@@ -176,6 +180,52 @@ describe('registerRubricHandlers', () => {
       ok: true,
       data: {
         rubricId: 'rubric-created'
+      }
+    });
+  });
+
+  it('clones a rubric and returns rubric id', async () => {
+    const harness = createHarness();
+    const cloneRubric = vi.fn().mockResolvedValue('rubric-cloned');
+    registerRubricHandlers(
+      { handle: harness.handle },
+      {
+        repository: {
+          cloneRubric
+        } as unknown as RubricRepository
+      }
+    );
+
+    const handler = harness.getHandler(RUBRIC_CHANNELS.cloneRubric);
+    const result = await handler({}, { rubricId: 'rubric-1' });
+    expect(cloneRubric).toHaveBeenCalledWith('rubric-1', 'default');
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        rubricId: 'rubric-cloned'
+      }
+    });
+  });
+
+  it('maps delete in-use status to RUBRIC_IN_USE', async () => {
+    const harness = createHarness();
+    const deleteRubric = vi.fn().mockResolvedValue('in_use');
+    registerRubricHandlers(
+      { handle: harness.handle },
+      {
+        repository: {
+          deleteRubric
+        } as unknown as RubricRepository
+      }
+    );
+
+    const handler = harness.getHandler(RUBRIC_CHANNELS.deleteRubric);
+    const result = await handler({}, { rubricId: 'rubric-1' });
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: 'RUBRIC_IN_USE',
+        message: 'This rubric has been used for scoring and cannot be deleted.'
       }
     });
   });

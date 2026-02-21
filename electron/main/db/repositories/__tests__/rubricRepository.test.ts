@@ -9,7 +9,7 @@ async function seedRubric(db: SQLiteClient): Promise<string> {
     '2026-02-20T00:00:00.000Z'
   ]);
   await db.run(
-    "INSERT INTO rubrics (entity_uuid, name, type) VALUES (?, ?, 'detailed');",
+    "INSERT INTO rubrics (entity_uuid, name, type, is_active, is_archived) VALUES (?, ?, 'detailed', 0, 0);",
     [rubricId, 'Writing Rubric']
   );
 
@@ -56,28 +56,86 @@ describe('RubricRepository', () => {
     const rubricId = await seedRubric(db);
     const repository = new RubricRepository({ db });
 
-    await repository.updateRubricMatrix(rubricId, { type: 'setRubricName', name: 'Updated Rubric' });
-    await repository.updateRubricMatrix(rubricId, {
-      type: 'updateCellDescription',
-      detailId: 'd-1',
-      description: 'Updated cell'
-    });
-    await repository.updateRubricMatrix(rubricId, {
-      type: 'updateCategoryName',
-      from: 'Grammar',
-      to: 'Language Use'
-    });
-    await repository.updateRubricMatrix(rubricId, {
-      type: 'updateScoreValue',
-      from: 3,
-      to: 2
-    });
+    expect(await repository.updateRubricMatrix(rubricId, { type: 'setRubricName', name: 'Updated Rubric' })).toBe('updated');
+    expect(
+      await repository.updateRubricMatrix(rubricId, {
+        type: 'updateCellDescription',
+        detailId: 'd-1',
+        description: 'Updated cell'
+      })
+    ).toBe('updated');
+    expect(
+      await repository.updateRubricMatrix(rubricId, {
+        type: 'updateCategoryName',
+        from: 'Grammar',
+        to: 'Language Use'
+      })
+    ).toBe('updated');
+    expect(
+      await repository.updateRubricMatrix(rubricId, {
+        type: 'updateScoreValue',
+        from: 3,
+        to: 2
+      })
+    ).toBe('updated');
 
     const matrix = await repository.getRubricMatrix(rubricId);
     expect(matrix?.rubric.name).toBe('Updated Rubric');
     expect(matrix?.details.find((detail) => detail.uuid === 'd-1')?.description).toBe('Updated cell');
     expect(matrix?.details.some((detail) => detail.category === 'Language Use')).toBe(true);
     expect(matrix?.scores.some((score) => score.scoreValues === 2)).toBe(true);
+  });
+
+  it('does not include archived rubrics in list', async () => {
+    const db = new SQLiteClient({ dbPath: ':memory:' });
+    const rubricId = await seedRubric(db);
+    await db.run('UPDATE rubrics SET is_archived = 1 WHERE entity_uuid = ?;', [rubricId]);
+    const repository = new RubricRepository({ db });
+
+    const rubrics = await repository.listRubrics();
+    expect(rubrics.some((rubric) => rubric.entityUuid === rubricId)).toBe(false);
+  });
+
+  it('blocks rubric edits when rubric is active', async () => {
+    const db = new SQLiteClient({ dbPath: ':memory:' });
+    const rubricId = await seedRubric(db);
+    await db.run('UPDATE rubrics SET is_active = 1 WHERE entity_uuid = ?;', [rubricId]);
+    const repository = new RubricRepository({ db });
+
+    const status = await repository.updateRubricMatrix(rubricId, {
+      type: 'updateCellDescription',
+      detailId: 'd-1',
+      description: 'Should not apply'
+    });
+    expect(status).toBe('inactive');
+  });
+
+  it('clones a rubric with new identifiers', async () => {
+    const db = new SQLiteClient({ dbPath: ':memory:' });
+    const rubricId = await seedRubric(db);
+    const repository = new RubricRepository({ db });
+
+    const clonedRubricId = await repository.cloneRubric(rubricId, 'default');
+    expect(clonedRubricId).toBeTruthy();
+    expect(clonedRubricId).not.toBe(rubricId);
+
+    const source = await repository.getRubricMatrix(rubricId);
+    const cloned = await repository.getRubricMatrix(clonedRubricId as string);
+    expect(cloned?.rubric.name).toBe('Writing Rubric cloned');
+    expect(cloned?.rubric.isActive).toBe(false);
+    expect(cloned?.details).toHaveLength(source?.details.length ?? 0);
+    expect(cloned?.scores).toHaveLength(source?.scores.length ?? 0);
+    expect(cloned?.details.some((detail) => detail.entityUuid === rubricId)).toBe(false);
+  });
+
+  it('returns in_use when deleting rubric with saved scores', async () => {
+    const db = new SQLiteClient({ dbPath: ':memory:' });
+    const rubricId = await seedRubric(db);
+    const repository = new RubricRepository({ db, now: () => '2026-02-20T12:00:00.000Z' });
+
+    await repository.saveFileRubricScores('file-1', rubricId, [{ rubricDetailId: 'd-1', assignedScore: '4' }]);
+    const status = await repository.deleteRubric(rubricId);
+    expect(status).toBe('in_use');
   });
 
   it('creates a category and a score by expanding existing axis values', async () => {
@@ -139,6 +197,7 @@ describe('RubricRepository', () => {
     const createdRubricId = await repository.createRubric('New Rubric', 'default');
     const matrix = await repository.getRubricMatrix(createdRubricId);
     expect(matrix?.rubric.name).toBe('New Rubric');
+    expect(matrix?.rubric.isActive).toBe(false);
 
     const categories = new Set(matrix?.details.map((detail) => detail.category) ?? []);
     expect(categories).toEqual(new Set(['Category 1', 'Category 2', 'Category 3']));

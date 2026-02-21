@@ -1,6 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UpdateRubricOperation } from '../../../../../electron/shared/rubricContracts';
-import { createRubric as createRubricRequest, setLastUsedRubric, updateRubricMatrix } from '../services/rubricApi';
+import {
+  cloneRubric as cloneRubricRequest,
+  createRubric as createRubricRequest,
+  deleteRubric as deleteRubricRequest,
+  setLastUsedRubric,
+  updateRubricMatrix
+} from '../services/rubricApi';
 import { rubricQueryKeys } from './queryKeys';
 
 export function useRubricMutations(rubricId: string | null) {
@@ -42,10 +48,35 @@ export function useRubricMutations(rubricId: string | null) {
     }
   });
 
+  const cloneRubricMutation = useMutation<string, Error, string>({
+    mutationFn: async (sourceRubricId) => {
+      const result = await cloneRubricRequest(sourceRubricId);
+      return result.rubricId;
+    },
+    onSuccess: async (clonedRubricId) => {
+      await queryClient.invalidateQueries({ queryKey: rubricQueryKeys.list() });
+      await queryClient.invalidateQueries({ queryKey: rubricQueryKeys.matrix(clonedRubricId) });
+    }
+  });
+
+  const deleteRubricMutation = useMutation<void, Error, string>({
+    mutationFn: async (rubricIdToDelete) => {
+      await deleteRubricRequest(rubricIdToDelete);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: rubricQueryKeys.list() });
+      if (rubricId) {
+        await queryClient.invalidateQueries({ queryKey: rubricQueryKeys.matrix(rubricId) });
+      }
+    }
+  });
+
   return {
     updateRubric: mutation.mutateAsync,
     setLastUsed: setLastUsedMutation.mutateAsync,
     createRubric: createRubricMutation.mutateAsync,
+    cloneRubric: cloneRubricMutation.mutateAsync,
+    deleteRubric: deleteRubricMutation.mutateAsync,
     isPending: mutation.isPending,
     errorMessage: mutation.error instanceof Error ? mutation.error.message : undefined
   };

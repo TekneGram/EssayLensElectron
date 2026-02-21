@@ -4,6 +4,8 @@ export interface RubricDto {
   entityUuid: string;
   name: string;
   type: RubricType;
+  isActive: boolean;
+  isArchived: boolean;
 }
 
 export interface RubricDetailDto {
@@ -83,6 +85,22 @@ export interface SetLastUsedRubricRequest {
 }
 
 export interface SetLastUsedRubricResponse {
+  rubricId: string;
+}
+
+export interface CloneRubricRequest {
+  rubricId: string;
+}
+
+export interface CloneRubricResponse {
+  rubricId: string;
+}
+
+export interface DeleteRubricRequest {
+  rubricId: string;
+}
+
+export interface DeleteRubricResponse {
   rubricId: string;
 }
 

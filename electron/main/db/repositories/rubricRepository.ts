@@ -21,6 +21,8 @@ interface RubricRow {
   entity_uuid: string;
   name: string | null;
   type: 'flat' | 'detailed' | null;
+  is_active: number | null;
+  is_archived: number | null;
 }
 
 interface RubricDetailRow {
@@ -59,6 +61,9 @@ interface RubricLastUsedRow {
   updated_at: string;
 }
 
+type RubricUpdateStatus = 'updated' | 'not_found' | 'inactive' | 'archived';
+type RubricDeleteStatus = 'deleted' | 'not_found' | 'active' | 'in_use';
+
 export class RubricRepository {
   private readonly db: SQLiteClient;
   private readonly now: () => string;
@@ -70,15 +75,18 @@ export class RubricRepository {
 
   async listRubrics(): Promise<RubricDto[]> {
     const rows = await this.db.all<RubricRow>(
-      `SELECT entity_uuid, name, type
+      `SELECT entity_uuid, name, type, is_active, is_archived
        FROM rubrics
+       WHERE is_archived = 0
        ORDER BY name COLLATE NOCASE ASC, entity_uuid ASC;`
     );
 
     return rows.map((row) => ({
       entityUuid: row.entity_uuid,
       name: row.name ?? 'Untitled rubric',
-      type: row.type ?? 'detailed'
+      type: row.type ?? 'detailed',
+      isActive: row.is_active === 1,
+      isArchived: row.is_archived === 1
     }));
   }
 
@@ -93,8 +101,8 @@ export class RubricRepository {
     try {
       await ensureEntity(this.db, rubricId, 'rubric', nowIso);
       await this.db.run(
-        `INSERT INTO rubrics (entity_uuid, name, type)
-         VALUES (?, ?, 'detailed');`,
+        `INSERT INTO rubrics (entity_uuid, name, type, is_active, is_archived)
+         VALUES (?, ?, 'detailed', 0, 0);`,
         [rubricId, rubricName]
       );
 
@@ -130,11 +138,127 @@ export class RubricRepository {
     }
   }
 
+  async cloneRubric(rubricId: string, profileKey = 'default'): Promise<string | null> {
+    const sourceRubric = await this.db.get<RubricRow>(
+      `SELECT entity_uuid, name, type, is_active, is_archived
+       FROM rubrics
+       WHERE entity_uuid = ?
+       LIMIT 1;`,
+      [rubricId]
+    );
+    if (!sourceRubric || sourceRubric.is_archived === 1) {
+      return null;
+    }
+
+    const sourceDetails = await this.db.all<RubricDetailRow>(
+      `SELECT uuid, entity_uuid, category, description
+       FROM rubric_details
+       WHERE entity_uuid = ?
+       ORDER BY uuid ASC;`,
+      [rubricId]
+    );
+
+    const sourceDetailIds = sourceDetails.map((detail) => detail.uuid);
+    let sourceScores: RubricScoreRow[] = [];
+    if (sourceDetailIds.length > 0) {
+      const placeholders = sourceDetailIds.map(() => '?').join(', ');
+      sourceScores = await this.db.all<RubricScoreRow>(
+        `SELECT uuid, details_uuid, score_values
+         FROM rubric_scores
+         WHERE details_uuid IN (${placeholders})
+         ORDER BY uuid ASC;`,
+        sourceDetailIds
+      );
+    }
+
+    const nowIso = this.now();
+    const clonedRubricId = randomUUID();
+    const clonedRubricName = `${(sourceRubric.name ?? 'Untitled rubric').trim() || 'Untitled rubric'} cloned`;
+    const detailIdMap = new Map<string, string>();
+
+    await this.db.exec('BEGIN;');
+    try {
+      await ensureEntity(this.db, clonedRubricId, 'rubric', nowIso);
+      await this.db.run(
+        `INSERT INTO rubrics (entity_uuid, name, type, is_active, is_archived)
+         VALUES (?, ?, ?, 0, 0);`,
+        [clonedRubricId, clonedRubricName, sourceRubric.type ?? 'detailed']
+      );
+
+      for (const sourceDetail of sourceDetails) {
+        const clonedDetailId = randomUUID();
+        detailIdMap.set(sourceDetail.uuid, clonedDetailId);
+        await this.db.run(
+          `INSERT INTO rubric_details (uuid, entity_uuid, category, description)
+           VALUES (?, ?, ?, ?);`,
+          [clonedDetailId, clonedRubricId, sourceDetail.category, sourceDetail.description]
+        );
+      }
+
+      for (const sourceScore of sourceScores) {
+        const clonedDetailId = detailIdMap.get(sourceScore.details_uuid);
+        if (!clonedDetailId) {
+          continue;
+        }
+        await this.db.run(
+          `INSERT INTO rubric_scores (uuid, details_uuid, score_values)
+           VALUES (?, ?, ?);`,
+          [randomUUID(), clonedDetailId, sourceScore.score_values]
+        );
+      }
+
+      await this.db.run(
+        `INSERT INTO rubric_last_used (profile_key, rubric_entity_uuid, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(profile_key)
+         DO UPDATE SET rubric_entity_uuid = excluded.rubric_entity_uuid, updated_at = excluded.updated_at;`,
+        [profileKey, clonedRubricId, nowIso]
+      );
+
+      await this.db.exec('COMMIT;');
+      return clonedRubricId;
+    } catch (error) {
+      await this.db.exec('ROLLBACK;');
+      throw error;
+    }
+  }
+
+  async deleteRubric(rubricId: string): Promise<RubricDeleteStatus> {
+    const existingRubric = await this.db.get<{ entity_uuid: string; is_active: number }>(
+      'SELECT entity_uuid, is_active FROM rubrics WHERE entity_uuid = ? LIMIT 1;',
+      [rubricId]
+    );
+    if (!existingRubric) {
+      return 'not_found';
+    }
+    if (existingRubric.is_active === 1) {
+      return 'active';
+    }
+
+    await this.db.exec('BEGIN;');
+    try {
+      await this.db.run('DELETE FROM entities WHERE uuid = ?;', [rubricId]);
+      await this.db.exec('COMMIT;');
+      return 'deleted';
+    } catch (error) {
+      await this.db.exec('ROLLBACK;');
+      if (
+        error instanceof Error &&
+        (error.message.includes('FOREIGN KEY constraint failed') || error.message.includes('SQLITE_CONSTRAINT'))
+      ) {
+        return 'in_use';
+      }
+      throw error;
+    }
+  }
+
   async getLastUsedRubricId(profileKey = 'default'): Promise<string | null> {
     const row = await this.db.get<RubricLastUsedRow>(
-      `SELECT profile_key, rubric_entity_uuid, updated_at
-       FROM rubric_last_used
-       WHERE profile_key = ?
+      `SELECT rlu.profile_key, rlu.rubric_entity_uuid, rlu.updated_at
+       FROM rubric_last_used rlu
+       INNER JOIN rubrics r ON r.entity_uuid = rlu.rubric_entity_uuid
+       WHERE rlu.profile_key = ?
+         AND r.is_archived = 0
        LIMIT 1;`,
       [profileKey]
     );
@@ -146,7 +270,7 @@ export class RubricRepository {
 
   async setLastUsedRubricId(rubricId: string, profileKey = 'default'): Promise<boolean> {
     const existingRubric = await this.db.get<{ entity_uuid: string }>(
-      'SELECT entity_uuid FROM rubrics WHERE entity_uuid = ? LIMIT 1;',
+      'SELECT entity_uuid FROM rubrics WHERE entity_uuid = ? AND is_archived = 0 LIMIT 1;',
       [rubricId]
     );
     if (!existingRubric) {
@@ -166,7 +290,11 @@ export class RubricRepository {
 
   async getRubricMatrix(rubricId: string): Promise<GetRubricMatrixResponse | null> {
     const row = await this.db.get<RubricRow>(
-      'SELECT entity_uuid, name, type FROM rubrics WHERE entity_uuid = ? LIMIT 1;',
+      `SELECT entity_uuid, name, type, is_active, is_archived
+       FROM rubrics
+       WHERE entity_uuid = ?
+         AND is_archived = 0
+       LIMIT 1;`,
       [rubricId]
     );
     if (!row) {
@@ -197,7 +325,9 @@ export class RubricRepository {
       rubric: {
         entityUuid: row.entity_uuid,
         name: row.name ?? 'Untitled rubric',
-        type: row.type ?? 'detailed'
+        type: row.type ?? 'detailed',
+        isActive: row.is_active === 1,
+        isArchived: row.is_archived === 1
       },
       details: details.map((detail): RubricDetailDto => ({
         uuid: detail.uuid,
@@ -213,13 +343,19 @@ export class RubricRepository {
     };
   }
 
-  async updateRubricMatrix(rubricId: string, operation: UpdateRubricOperation): Promise<boolean> {
-    const existingRubric = await this.db.get<{ entity_uuid: string }>(
-      'SELECT entity_uuid FROM rubrics WHERE entity_uuid = ? LIMIT 1;',
+  async updateRubricMatrix(rubricId: string, operation: UpdateRubricOperation): Promise<RubricUpdateStatus> {
+    const existingRubric = await this.db.get<{ entity_uuid: string; is_active: number; is_archived: number }>(
+      'SELECT entity_uuid, is_active, is_archived FROM rubrics WHERE entity_uuid = ? LIMIT 1;',
       [rubricId]
     );
     if (!existingRubric) {
-      return false;
+      return 'not_found';
+    }
+    if (existingRubric.is_archived === 1) {
+      return 'archived';
+    }
+    if (existingRubric.is_active === 1) {
+      return 'inactive';
     }
 
     const nowIso = this.now();
@@ -358,7 +494,7 @@ export class RubricRepository {
       }
 
       await this.db.exec('COMMIT;');
-      return true;
+      return 'updated';
     } catch (error) {
       await this.db.exec('ROLLBACK;');
       throw error;
@@ -422,12 +558,15 @@ export class RubricRepository {
       await ensureFileRecord(this.db, fileId, nowIso);
       await ensureEntity(this.db, rubricId, 'rubric', nowIso);
 
-      const rubricExists = await this.db.get<{ entity_uuid: string }>(
-        'SELECT entity_uuid FROM rubrics WHERE entity_uuid = ? LIMIT 1;',
+      const rubricExists = await this.db.get<{ entity_uuid: string; is_archived: number }>(
+        'SELECT entity_uuid, is_archived FROM rubrics WHERE entity_uuid = ? LIMIT 1;',
         [rubricId]
       );
       if (!rubricExists) {
         throw new Error(`Rubric does not exist: ${rubricId}`);
+      }
+      if (rubricExists.is_archived === 1) {
+        throw new Error(`Rubric is archived: ${rubricId}`);
       }
 
       let instanceRow = await this.db.get<RubricInstanceRow>(
