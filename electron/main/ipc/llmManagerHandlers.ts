@@ -1,5 +1,8 @@
 import { appErr, appOk } from '../../shared/appResult';
 import type {
+  DownloadModelRequest,
+  DownloadProgressEvent,
+  DownloadModelResponse,
   GetActiveModelResponse,
   GetSettingsResponse,
   ListCatalogModelsResponse,
@@ -14,24 +17,41 @@ import type {
 } from '../../shared/llmManagerContracts';
 import { LlmSelectionRepository } from '../db/repositories/llmSelectionRepository';
 import { LlmSettingsRepository } from '../db/repositories/llmSettingsRepository';
+import { downloadModelFile } from '../services/llmModelDownloader';
 import type { IpcMainLike } from './types';
 
 export const LLM_MANAGER_CHANNELS = {
   listCatalogModels: 'llmManager/listCatalogModels',
   listDownloadedModels: 'llmManager/listDownloadedModels',
   getActiveModel: 'llmManager/getActiveModel',
+  downloadModel: 'llmManager/downloadModel',
   selectModel: 'llmManager/selectModel',
   getSettings: 'llmManager/getSettings',
   updateSettings: 'llmManager/updateSettings',
   resetSettingsToDefaults: 'llmManager/resetSettingsToDefaults'
 } as const;
 
+export const LLM_MANAGER_EVENTS = {
+  downloadProgress: 'llmManager/downloadProgress'
+} as const;
+
 interface LlmManagerHandlerDeps {
   selectionRepository: Pick<
     LlmSelectionRepository,
-    'listCatalogModels' | 'listDownloadedModels' | 'getActiveModel' | 'selectModel' | 'resetSettingsToDefaults'
+    | 'listCatalogModels'
+    | 'listDownloadedModels'
+    | 'getActiveModel'
+    | 'selectModel'
+    | 'resetSettingsToDefaults'
+    | 'upsertDownloadedModel'
   >;
   settingsRepository: Pick<LlmSettingsRepository, 'getRuntimeSettings' | 'updateRuntimeSettings'>;
+  downloadModel: (request: {
+    key: LlmModelKey;
+    hfRepoId: string;
+    hfFilename: string;
+    onProgress?: (event: DownloadProgressEvent) => void;
+  }) => Promise<string>;
 }
 
 const VALID_MODEL_KEYS: ReadonlySet<LlmModelKey> = new Set(['qwen3_4b_q8', 'qwen3_8b_q8']);
@@ -68,11 +88,12 @@ function getDefaultDeps(): LlmManagerHandlerDeps {
   const selectionRepository = new LlmSelectionRepository();
   return {
     selectionRepository,
-    settingsRepository: new LlmSettingsRepository()
+    settingsRepository: new LlmSettingsRepository(),
+    downloadModel: downloadModelFile
   };
 }
 
-function normalizeSelectModelRequest(payload: unknown): SelectModelRequest | null {
+function normalizeModelRequest(payload: unknown): { key: LlmModelKey } | null {
   if (typeof payload !== 'object' || payload === null) {
     return null;
   }
@@ -81,6 +102,14 @@ function normalizeSelectModelRequest(payload: unknown): SelectModelRequest | nul
     return null;
   }
   return { key: candidate.key as LlmModelKey };
+}
+
+function normalizeSelectModelRequest(payload: unknown): SelectModelRequest | null {
+  return normalizeModelRequest(payload);
+}
+
+function normalizeDownloadModelRequest(payload: unknown): DownloadModelRequest | null {
+  return normalizeModelRequest(payload);
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -146,6 +175,16 @@ function normalizeUpdateSettingsRequest(payload: unknown): UpdateSettingsRequest
 }
 
 export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManagerHandlerDeps = getDefaultDeps()): void {
+  const emitDownloadProgress = (event: unknown, payload: DownloadProgressEvent): void => {
+    const sender =
+      typeof event === 'object' && event !== null && 'sender' in event
+        ? (event as { sender?: { send?: (channel: string, body: unknown) => void } }).sender
+        : undefined;
+    if (sender && typeof sender.send === 'function') {
+      sender.send(LLM_MANAGER_EVENTS.downloadProgress, payload);
+    }
+  };
+
   ipcMain.handle(LLM_MANAGER_CHANNELS.listCatalogModels, async () => {
     try {
       const models = await deps.selectionRepository.listCatalogModels();
@@ -180,6 +219,103 @@ export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManage
       return appErr({
         code: 'LLM_MANAGER_GET_ACTIVE_FAILED',
         message: 'Could not load active LLM model.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(LLM_MANAGER_CHANNELS.downloadModel, async (event, payload) => {
+    const request = normalizeDownloadModelRequest(payload);
+    if (!request) {
+      return appErr({
+        code: 'LLM_MANAGER_DOWNLOAD_INVALID_PAYLOAD',
+        message: 'Download model payload must include a supported model key.'
+      });
+    }
+
+    let catalogModel: Awaited<ReturnType<typeof deps.selectionRepository.listCatalogModels>>[number] | undefined;
+    try {
+      const catalogModels = await deps.selectionRepository.listCatalogModels();
+      catalogModel = catalogModels.find((model) => model.key === request.key);
+    } catch (error) {
+      return appErr({
+        code: 'LLM_MANAGER_LIST_CATALOG_FAILED',
+        message: 'Could not load LLM catalog models.',
+        details: error
+      });
+    }
+
+    if (!catalogModel) {
+      return appErr({
+        code: 'LLM_MANAGER_DOWNLOAD_MODEL_NOT_FOUND',
+        message: 'The requested model key does not exist in the LLM catalog.'
+      });
+    }
+
+    let localGgufPath: string;
+    try {
+      localGgufPath = await deps.downloadModel({
+        key: catalogModel.key,
+        hfRepoId: catalogModel.hfRepoId,
+        hfFilename: catalogModel.hfFilename,
+        onProgress: (progressEvent) => emitDownloadProgress(event, progressEvent)
+      });
+    } catch (error) {
+      emitDownloadProgress(event, {
+        key: catalogModel.key,
+        phase: 'failed',
+        bytesReceived: 0,
+        bytesTotal: null,
+        percent: null,
+        status: 'Download failed',
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+      return appErr({
+        code: 'LLM_MANAGER_DOWNLOAD_FAILED',
+        message: 'Could not download the selected LLM model.',
+        details: error
+      });
+    }
+
+    try {
+      emitDownloadProgress(event, {
+        key: catalogModel.key,
+        phase: 'persisting',
+        bytesReceived: 0,
+        bytesTotal: null,
+        percent: null,
+        status: 'Persisting model metadata',
+        errorMessage: null
+      });
+      const model = await deps.selectionRepository.upsertDownloadedModel({
+        key: catalogModel.key,
+        displayName: catalogModel.displayName,
+        localGgufPath,
+        localMmprojPath: null
+      });
+      emitDownloadProgress(event, {
+        key: catalogModel.key,
+        phase: 'completed',
+        bytesReceived: 0,
+        bytesTotal: null,
+        percent: 100,
+        status: 'Model ready',
+        errorMessage: null
+      });
+      return appOk<DownloadModelResponse>({ model });
+    } catch (error) {
+      emitDownloadProgress(event, {
+        key: catalogModel.key,
+        phase: 'failed',
+        bytesReceived: 0,
+        bytesTotal: null,
+        percent: null,
+        status: 'Persist failed',
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+      return appErr({
+        code: 'LLM_MANAGER_DOWNLOAD_PERSIST_FAILED',
+        message: 'Model download succeeded but could not be persisted.',
         details: error
       });
     }

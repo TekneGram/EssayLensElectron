@@ -12,7 +12,12 @@ import type {
   SendFeedbackToLlmRequest
 } from '../shared/assessmentContracts';
 import type { SendChatMessageRequest } from '../shared/chatContracts';
-import type { SelectModelRequest, UpdateSettingsRequest } from '../shared/llmManagerContracts';
+import type {
+  DownloadModelRequest,
+  DownloadProgressEvent,
+  SelectModelRequest,
+  UpdateSettingsRequest
+} from '../shared/llmManagerContracts';
 import type {
   ClearAppliedRubricRequest,
   CloneRubricRequest,
@@ -29,6 +34,7 @@ import type {
 type IpcRendererLike = {
   invoke<TResult = unknown>(channel: string, request?: unknown): Promise<TResult>;
   on(channel: string, listener: (event: IpcRendererEvent, ...args: unknown[]) => void): void;
+  removeListener?: (channel: string, listener: (event: IpcRendererEvent, ...args: unknown[]) => void) => void;
 };
 
 type ContextBridgeLike = {
@@ -78,6 +84,19 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
       listCatalogModels: () => invokeApi('llmManager/listCatalogModels'),
       listDownloadedModels: () => invokeApi('llmManager/listDownloadedModels'),
       getActiveModel: () => invokeApi('llmManager/getActiveModel'),
+      downloadModel: (request: DownloadModelRequest) => invokeApi('llmManager/downloadModel', request),
+      onDownloadProgress: (listener: (event: DownloadProgressEvent) => void) => {
+        const channel = 'llmManager/downloadProgress';
+        const wrappedListener = (_event: IpcRendererEvent, payload: unknown) => {
+          listener(payload as DownloadProgressEvent);
+        };
+        ipcRenderer.on(channel, wrappedListener);
+        return () => {
+          if (typeof ipcRenderer.removeListener === 'function') {
+            ipcRenderer.removeListener(channel, wrappedListener);
+          }
+        };
+      },
       selectModel: (request: SelectModelRequest) => invokeApi('llmManager/selectModel', request),
       getSettings: () => invokeApi('llmManager/getSettings'),
       updateSettings: (request: UpdateSettingsRequest) => invokeApi('llmManager/updateSettings', request),

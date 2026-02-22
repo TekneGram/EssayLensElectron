@@ -21,6 +21,9 @@ import type {
 } from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
 import type {
+  DownloadModelRequest,
+  DownloadModelResponse,
+  DownloadProgressEvent,
   GetActiveModelResponse,
   GetSettingsResponse,
   ListCatalogModelsResponse,
@@ -99,6 +102,8 @@ export interface EssayLensApi {
     listCatalogModels(): Promise<ApiResult<ListCatalogModelsResponse>>;
     listDownloadedModels(): Promise<ApiResult<ListDownloadedModelsResponse>>;
     getActiveModel(): Promise<ApiResult<GetActiveModelResponse>>;
+    downloadModel(request: DownloadModelRequest): Promise<ApiResult<DownloadModelResponse>>;
+    onDownloadProgress(listener: (event: DownloadProgressEvent) => void): () => void;
     selectModel(request: SelectModelRequest): Promise<ApiResult<SelectModelResponse>>;
     getSettings(): Promise<ApiResult<GetSettingsResponse>>;
     updateSettings(request: UpdateSettingsRequest): Promise<ApiResult<UpdateSettingsResponse>>;

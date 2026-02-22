@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import type { DownloadProgressEvent, LlmModelKey } from '../../../../electron/shared/llmManagerContracts';
 import { LlmConfiguration } from './components/LlmConfiguration';
 import { LlmDownload } from './components/LlmDownload';
 import { LlmSelector } from './components/LlmSelector';
@@ -6,7 +8,12 @@ import { useDownloadedLlmModelsQuery } from './hooks/useDownloadedLlmModelsQuery
 import { useLlmCatalogQuery } from './hooks/useLlmCatalogQuery';
 import { useLlmManagerMutations } from './hooks/useLlmManagerMutations';
 import { useLlmSettingsQuery } from './hooks/useLlmSettingsQuery';
+import { subscribeToDownloadProgress } from './services/llmManagerApi';
 import './styles/llm-manager.css';
+
+interface DownloadProgressView {
+  event: DownloadProgressEvent;
+}
 
 export function LlmManager() {
   const hasLlmManagerApi = Boolean((window as Window & { api?: { llmManager?: unknown } }).api?.llmManager);
@@ -33,6 +40,30 @@ export function LlmManager() {
   const downloadedModels = downloadedQuery.data ?? [];
   const activeModel = activeModelQuery.data ?? null;
   const settings = settingsQuery.data ?? null;
+  const [progressByKey, setProgressByKey] = useState<Partial<Record<LlmModelKey, DownloadProgressView>>>({});
+
+  useEffect(() => {
+    const unsubscribe = subscribeToDownloadProgress((event) => {
+      setProgressByKey((previous) => ({
+        ...previous,
+        [event.key]: { event }
+      }));
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (downloadedModels.length === 0) {
+      return;
+    }
+    setProgressByKey((previous) => {
+      const next = { ...previous };
+      for (const downloaded of downloadedModels) {
+        delete next[downloaded.key];
+      }
+      return next;
+    });
+  }, [downloadedModels]);
 
   const supportsDownload =
     typeof (window as Window & { api?: { llmManager?: { downloadModel?: unknown } } }).api?.llmManager?.downloadModel ===
@@ -53,6 +84,7 @@ export function LlmManager() {
           supportsDownload={supportsDownload}
           onDownload={downloadModel}
           isDownloading={isDownloading}
+          progressByKey={progressByKey}
           errorMessage={downloadError}
         />
         <LlmSelector

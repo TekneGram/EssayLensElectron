@@ -1,6 +1,9 @@
 import type { AppError, AppResult } from '../../../../../electron/shared/appResult';
 import type {
   CatalogLlmModelDto,
+  DownloadModelRequest,
+  DownloadModelResponse,
+  DownloadProgressEvent,
   DownloadedLlmModelDto,
   GetActiveModelResponse,
   GetSettingsResponse,
@@ -15,14 +18,6 @@ import type {
   UpdateSettingsResponse
 } from '../../../../../electron/shared/llmManagerContracts';
 
-type DownloadModelRequest = {
-  key: LlmModelKey;
-};
-
-type DownloadModelResponse = {
-  model: DownloadedLlmModelDto;
-};
-
 type LlmManagerApi = {
   listCatalogModels: () => Promise<AppResult<ListCatalogModelsResponse>>;
   listDownloadedModels: () => Promise<AppResult<ListDownloadedModelsResponse>>;
@@ -32,6 +27,7 @@ type LlmManagerApi = {
   updateSettings: (request: UpdateSettingsRequest) => Promise<AppResult<UpdateSettingsResponse>>;
   resetSettingsToDefaults: () => Promise<AppResult<ResetSettingsToDefaultsResponse>>;
   downloadModel?: (request: DownloadModelRequest) => Promise<AppResult<DownloadModelResponse>>;
+  onDownloadProgress?: (listener: (event: DownloadProgressEvent) => void) => () => void;
 };
 
 export const FALLBACK_CATALOG_MODELS: CatalogLlmModelDto[] = [
@@ -157,4 +153,12 @@ export async function downloadModel(key: LlmModelKey): Promise<DownloadedLlmMode
   }
 
   return result.data.model;
+}
+
+export function subscribeToDownloadProgress(listener: (event: DownloadProgressEvent) => void): () => void {
+  const llmApi = getLlmManagerApi();
+  if (typeof llmApi.onDownloadProgress !== 'function') {
+    return () => {};
+  }
+  return llmApi.onDownloadProgress(listener);
 }

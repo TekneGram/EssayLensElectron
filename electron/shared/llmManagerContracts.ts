@@ -71,6 +71,26 @@ export interface SelectModelRequest {
   key: LlmModelKey;
 }
 
+export interface DownloadModelRequest {
+  key: LlmModelKey;
+}
+
+export interface DownloadModelResponse {
+  model: DownloadedLlmModelDto;
+}
+
+export type DownloadProgressPhase = 'starting' | 'downloading' | 'persisting' | 'completed' | 'failed';
+
+export interface DownloadProgressEvent {
+  key: LlmModelKey;
+  phase: DownloadProgressPhase;
+  bytesReceived: number;
+  bytesTotal: number | null;
+  percent: number | null;
+  status: string;
+  errorMessage: string | null;
+}
+
 export interface SelectModelResponse {
   activeModel: DownloadedLlmModelDto;
   settings: LlmRuntimeSettings;

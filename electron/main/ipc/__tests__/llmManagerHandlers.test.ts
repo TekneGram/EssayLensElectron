@@ -67,12 +67,14 @@ describe('registerLlmManagerHandlers', () => {
           isActive: true
         }),
         selectModel: vi.fn(),
-        resetSettingsToDefaults: vi.fn()
+        resetSettingsToDefaults: vi.fn(),
+        upsertDownloadedModel: vi.fn()
       },
       settingsRepository: {
         getRuntimeSettings: vi.fn().mockResolvedValue(settingsFixture),
         updateRuntimeSettings: vi.fn()
-      }
+      },
+      downloadModel: vi.fn()
     };
 
     registerLlmManagerHandlers({ handle: harness.handle }, deps as never);
@@ -121,12 +123,14 @@ describe('registerLlmManagerHandlers', () => {
           listDownloadedModels: vi.fn(),
           getActiveModel: vi.fn(),
           selectModel,
-          resetSettingsToDefaults: vi.fn()
+          resetSettingsToDefaults: vi.fn(),
+          upsertDownloadedModel: vi.fn()
         } as never,
         settingsRepository: {
           getRuntimeSettings: vi.fn(),
           updateRuntimeSettings: vi.fn()
-        } as never
+        } as never,
+        downloadModel: vi.fn()
       }
     );
 
@@ -153,12 +157,14 @@ describe('registerLlmManagerHandlers', () => {
           listDownloadedModels: vi.fn(),
           getActiveModel: vi.fn(),
           selectModel,
-          resetSettingsToDefaults: vi.fn()
+          resetSettingsToDefaults: vi.fn(),
+          upsertDownloadedModel: vi.fn()
         } as never,
         settingsRepository: {
           getRuntimeSettings: vi.fn(),
           updateRuntimeSettings: vi.fn()
-        } as never
+        } as never,
+        downloadModel: vi.fn()
       }
     );
 
@@ -203,12 +209,14 @@ describe('registerLlmManagerHandlers', () => {
           listDownloadedModels: vi.fn(),
           getActiveModel: vi.fn(),
           selectModel: vi.fn(),
-          resetSettingsToDefaults
+          resetSettingsToDefaults,
+          upsertDownloadedModel: vi.fn()
         } as never,
         settingsRepository: {
           getRuntimeSettings: vi.fn(),
           updateRuntimeSettings
-        } as never
+        } as never,
+        downloadModel: vi.fn()
       }
     );
 
@@ -267,5 +275,183 @@ describe('registerLlmManagerHandlers', () => {
         message: 'No active model is selected to reset settings from defaults.'
       }
     });
+  });
+
+  it('downloads a catalog model and persists it as downloaded', async () => {
+    const harness = createHarness();
+    const downloadModel = vi.fn().mockResolvedValue('/Users/test/AppData/EssayLens/models/qwen3_4b_q8/Qwen3-4B-Q8_0.gguf');
+    const upsertDownloadedModel = vi.fn().mockResolvedValue({
+      key: 'qwen3_4b_q8',
+      displayName: 'Qwen3 4B Q8_0',
+      localGgufPath: '/Users/test/AppData/EssayLens/models/qwen3_4b_q8/Qwen3-4B-Q8_0.gguf',
+      localMmprojPath: null,
+      downloadedAt: '2026-02-22T12:00:00.000Z',
+      isActive: false
+    });
+
+    registerLlmManagerHandlers(
+      { handle: harness.handle },
+      {
+        selectionRepository: {
+          listCatalogModels: vi.fn().mockResolvedValue([
+            {
+              key: 'qwen3_4b_q8',
+              displayName: 'Qwen3 4B Q8_0',
+              hfRepoId: 'Qwen/Qwen3-4B-GGUF',
+              hfFilename: 'Qwen3-4B-Q8_0.gguf',
+              mmprojFilename: null,
+              backend: 'server',
+              modelFamily: 'instruct/think'
+            }
+          ]),
+          listDownloadedModels: vi.fn(),
+          getActiveModel: vi.fn(),
+          selectModel: vi.fn(),
+          resetSettingsToDefaults: vi.fn(),
+          upsertDownloadedModel
+        } as never,
+        settingsRepository: {
+          getRuntimeSettings: vi.fn(),
+          updateRuntimeSettings: vi.fn()
+        } as never,
+        downloadModel
+      }
+    );
+
+    const send = vi.fn();
+    const handler = harness.getHandler(LLM_MANAGER_CHANNELS.downloadModel);
+    await expect(handler({ sender: { send } }, { key: 'qwen3_4b_q8' })).resolves.toEqual({
+      ok: true,
+      data: {
+        model: {
+          key: 'qwen3_4b_q8',
+          displayName: 'Qwen3 4B Q8_0',
+          localGgufPath: '/Users/test/AppData/EssayLens/models/qwen3_4b_q8/Qwen3-4B-Q8_0.gguf',
+          localMmprojPath: null,
+          downloadedAt: '2026-02-22T12:00:00.000Z',
+          isActive: false
+        }
+      }
+    });
+
+    expect(downloadModel).toHaveBeenCalledWith({
+      key: 'qwen3_4b_q8',
+      hfRepoId: 'Qwen/Qwen3-4B-GGUF',
+      hfFilename: 'Qwen3-4B-Q8_0.gguf',
+      onProgress: expect.any(Function)
+    });
+    expect(upsertDownloadedModel).toHaveBeenCalledWith({
+      key: 'qwen3_4b_q8',
+      displayName: 'Qwen3 4B Q8_0',
+      localGgufPath: '/Users/test/AppData/EssayLens/models/qwen3_4b_q8/Qwen3-4B-Q8_0.gguf',
+      localMmprojPath: null
+    });
+    expect(send).toHaveBeenCalledWith(
+      'llmManager/downloadProgress',
+      expect.objectContaining({ key: 'qwen3_4b_q8', phase: 'persisting' })
+    );
+    expect(send).toHaveBeenCalledWith(
+      'llmManager/downloadProgress',
+      expect.objectContaining({ key: 'qwen3_4b_q8', phase: 'completed', percent: 100 })
+    );
+  });
+
+  it('rejects invalid download payload and unknown catalog entries', async () => {
+    const harness = createHarness();
+    const downloadModel = vi.fn();
+    registerLlmManagerHandlers(
+      { handle: harness.handle },
+      {
+        selectionRepository: {
+          listCatalogModels: vi.fn().mockResolvedValue([]),
+          listDownloadedModels: vi.fn(),
+          getActiveModel: vi.fn(),
+          selectModel: vi.fn(),
+          resetSettingsToDefaults: vi.fn(),
+          upsertDownloadedModel: vi.fn()
+        } as never,
+        settingsRepository: {
+          getRuntimeSettings: vi.fn(),
+          updateRuntimeSettings: vi.fn()
+        } as never,
+        downloadModel
+      }
+    );
+
+    const handler = harness.getHandler(LLM_MANAGER_CHANNELS.downloadModel);
+    await expect(handler({}, { key: 'bad_key' })).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'LLM_MANAGER_DOWNLOAD_INVALID_PAYLOAD',
+        message: 'Download model payload must include a supported model key.'
+      }
+    });
+    await expect(handler({}, { key: 'qwen3_8b_q8' })).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'LLM_MANAGER_DOWNLOAD_MODEL_NOT_FOUND',
+        message: 'The requested model key does not exist in the LLM catalog.'
+      }
+    });
+    expect(downloadModel).not.toHaveBeenCalled();
+  });
+
+  it('maps download failures and persistence failures separately', async () => {
+    const harness = createHarness();
+    const upsertDownloadedModel = vi.fn().mockRejectedValue(new Error('sqlite write failed'));
+    const downloadModel = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network timeout'))
+      .mockResolvedValueOnce('/Users/test/AppData/EssayLens/models/qwen3_8b_q8/Qwen3-8B-Q8_0.gguf');
+
+    registerLlmManagerHandlers(
+      { handle: harness.handle },
+      {
+        selectionRepository: {
+          listCatalogModels: vi.fn().mockResolvedValue([
+            {
+              key: 'qwen3_8b_q8',
+              displayName: 'Qwen3 8B Q8_0',
+              hfRepoId: 'Qwen/Qwen3-8B-GGUF',
+              hfFilename: 'Qwen3-8B-Q8_0.gguf',
+              mmprojFilename: null,
+              backend: 'server',
+              modelFamily: 'instruct/think'
+            }
+          ]),
+          listDownloadedModels: vi.fn(),
+          getActiveModel: vi.fn(),
+          selectModel: vi.fn(),
+          resetSettingsToDefaults: vi.fn(),
+          upsertDownloadedModel
+        } as never,
+        settingsRepository: {
+          getRuntimeSettings: vi.fn(),
+          updateRuntimeSettings: vi.fn()
+        } as never,
+        downloadModel
+      }
+    );
+
+    const send = vi.fn();
+    const handler = harness.getHandler(LLM_MANAGER_CHANNELS.downloadModel);
+    await expect(handler({ sender: { send } }, { key: 'qwen3_8b_q8' })).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: 'LLM_MANAGER_DOWNLOAD_FAILED',
+        message: 'Could not download the selected LLM model.'
+      }
+    });
+    await expect(handler({ sender: { send } }, { key: 'qwen3_8b_q8' })).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: 'LLM_MANAGER_DOWNLOAD_PERSIST_FAILED',
+        message: 'Model download succeeded but could not be persisted.'
+      }
+    });
+    expect(send).toHaveBeenCalledWith(
+      'llmManager/downloadProgress',
+      expect.objectContaining({ key: 'qwen3_8b_q8', phase: 'failed' })
+    );
   });
 });

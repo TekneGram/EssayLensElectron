@@ -4,9 +4,16 @@ import { createPreloadApi, registerPreloadApi } from '../index';
 describe('preload api', () => {
   it('exposes typed api surface to window', async () => {
     const invoke = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const listeners = new Map<string, (event: unknown, ...args: unknown[]) => void>();
+    const on = vi.fn((channel: string, listener: (event: unknown, ...args: unknown[]) => void) => {
+      listeners.set(channel, listener);
+    });
+    const removeListener = vi.fn((channel: string) => {
+      listeners.delete(channel);
+    });
     const exposeInMainWorld = vi.fn();
 
-    registerPreloadApi({ exposeInMainWorld }, { invoke, on: vi.fn() });
+    registerPreloadApi({ exposeInMainWorld }, { invoke, on, removeListener });
 
     expect(exposeInMainWorld).toHaveBeenCalledTimes(1);
     expect(exposeInMainWorld.mock.calls[0][0]).toBe('api');
@@ -42,10 +49,15 @@ describe('preload api', () => {
     await api.llmManager.listCatalogModels();
     await api.llmManager.listDownloadedModels();
     await api.llmManager.getActiveModel();
+    await api.llmManager.downloadModel({ key: 'qwen3_8b_q8' });
     await api.llmManager.selectModel({ key: 'qwen3_4b_q8' });
     await api.llmManager.getSettings();
     await api.llmManager.updateSettings({ settings: { llm_n_ctx: 4096, temperature: 0.2 } });
     await api.llmManager.resetSettingsToDefaults();
+    const progressListener = vi.fn();
+    const unsubscribe = api.llmManager.onDownloadProgress(progressListener);
+    listeners.get('llmManager/downloadProgress')?.({}, { key: 'qwen3_8b_q8', phase: 'downloading' });
+    unsubscribe();
 
     expect(invoke).toHaveBeenCalledWith('workspace/selectFolder', undefined);
     expect(invoke).toHaveBeenCalledWith('assessment/extractDocument', { fileId: 'file-1' });
@@ -74,11 +86,15 @@ describe('preload api', () => {
     expect(invoke).toHaveBeenCalledWith('llmManager/listCatalogModels', undefined);
     expect(invoke).toHaveBeenCalledWith('llmManager/listDownloadedModels', undefined);
     expect(invoke).toHaveBeenCalledWith('llmManager/getActiveModel', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/downloadModel', { key: 'qwen3_8b_q8' });
     expect(invoke).toHaveBeenCalledWith('llmManager/selectModel', { key: 'qwen3_4b_q8' });
     expect(invoke).toHaveBeenCalledWith('llmManager/getSettings', undefined);
     expect(invoke).toHaveBeenCalledWith('llmManager/updateSettings', {
       settings: { llm_n_ctx: 4096, temperature: 0.2 }
     });
     expect(invoke).toHaveBeenCalledWith('llmManager/resetSettingsToDefaults', undefined);
+    expect(progressListener).toHaveBeenCalledWith({ key: 'qwen3_8b_q8', phase: 'downloading' });
+    expect(on).toHaveBeenCalledWith('llmManager/downloadProgress', expect.any(Function));
+    expect(removeListener).toHaveBeenCalledWith('llmManager/downloadProgress', expect.any(Function));
   });
 });
