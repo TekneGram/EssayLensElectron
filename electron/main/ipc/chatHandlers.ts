@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { appErr, appOk } from '../../shared/appResult';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../../shared/chatContracts';
 import { ChatRepository } from '../db/repositories/chatRepository';
@@ -42,8 +43,8 @@ function normalizeSendMessageRequest(request: unknown): SendChatMessageRequest |
   };
 }
 
-function makeMessageId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+function makeMessageId(): string {
+  return randomUUID();
 }
 
 function getReplyText(data: unknown): string | null {
@@ -102,14 +103,14 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
     const createdAt = new Date().toISOString();
     try {
       await deps.repository.addMessage({
-        id: makeMessageId('teacher'),
+        id: makeMessageId(),
         role: 'teacher',
         content: normalizedRequest.message,
         relatedFileId: normalizedRequest.fileId,
         createdAt
       });
       await deps.repository.addMessage({
-        id: makeMessageId('assistant'),
+        id: makeMessageId(),
         role: 'assistant',
         content: reply,
         relatedFileId: normalizedRequest.fileId,

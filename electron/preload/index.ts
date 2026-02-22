@@ -12,6 +12,18 @@ import type {
   SendFeedbackToLlmRequest
 } from '../shared/assessmentContracts';
 import type { SendChatMessageRequest } from '../shared/chatContracts';
+import type {
+  ClearAppliedRubricRequest,
+  CloneRubricRequest,
+  CreateRubricRequest,
+  DeleteRubricRequest,
+  GetFileRubricScoresRequest,
+  GetRubricGradingContextRequest,
+  GetRubricMatrixRequest,
+  SaveFileRubricScoresRequest,
+  SetLastUsedRubricRequest,
+  UpdateRubricMatrixRequest
+} from '../shared/rubricContracts';
 
 type IpcRendererLike = {
   invoke<TResult = unknown>(channel: string, request?: unknown): Promise<TResult>;
@@ -46,8 +58,16 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     },
     rubric: {
       listRubrics: () => invokeApi('rubric/listRubrics'),
-      getMatrix: (rubricId: string) => invokeApi('rubric/getMatrix', { rubricId }),
-      updateMatrix: (request: unknown) => invokeApi('rubric/updateMatrix', request)
+      createRubric: (request: CreateRubricRequest) => invokeApi('rubric/createRubric', request),
+      cloneRubric: (request: CloneRubricRequest) => invokeApi('rubric/cloneRubric', request),
+      deleteRubric: (request: DeleteRubricRequest) => invokeApi('rubric/deleteRubric', request),
+      getFileScores: (request: GetFileRubricScoresRequest) => invokeApi('rubric/getFileScores', request),
+      saveFileScores: (request: SaveFileRubricScoresRequest) => invokeApi('rubric/saveFileScores', request),
+      clearAppliedRubric: (request: ClearAppliedRubricRequest) => invokeApi('rubric/clearAppliedRubric', request),
+      getGradingContext: (request: GetRubricGradingContextRequest) => invokeApi('rubric/getGradingContext', request),
+      getMatrix: (request: GetRubricMatrixRequest) => invokeApi('rubric/getMatrix', request),
+      updateMatrix: (request: UpdateRubricMatrixRequest) => invokeApi('rubric/updateMatrix', request),
+      setLastUsed: (request: SetLastUsedRubricRequest) => invokeApi('rubric/setLastUsed', request)
     },
     chat: {
       listMessages: (fileId?: string) => invokeApi('chat/listMessages', { fileId }),

@@ -124,6 +124,25 @@ CREATE TABLE file_rubric_instances (
 );
 ```
 ---
+# Table: rubric_last_used
+```sql
+CREATE TABLE rubric_last_used (
+    profile_key TEXT PRIMARY KEY,
+    rubric_entity_uuid TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (rubric_entity_uuid) REFERENCES rubrics(entity_uuid) ON DELETE CASCADE
+);
+```
+---
+
+### Startup rubric selection behavior
+```text
+1) On app start, read rubric_last_used.profile_key='default'.
+2) If found, load that rubric via rubrics + rubric_details + rubric_scores.
+3) If not found, fall back to the seeded default rubric.
+4) When the teacher selects another rubric, update rubric_last_used.
+```
+---
 # Table: file_rubric_scores
 ```sql
 CREATE TABLE file_rubric_scores (

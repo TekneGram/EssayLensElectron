@@ -126,16 +126,57 @@ export function rubricReducer(state: RubricState = initialRubricState, action: A
         ...state,
         rubricList: action.payload
       };
-    case 'rubric/select':
+    case 'rubric/selectEditing':
       return {
         ...state,
-        selectedRubricId: action.payload
+        selectedEditingRubricId: action.payload
+      };
+    case 'rubric/selectGradingForFile': {
+      const nextSelectedByFileId = { ...state.selectedGradingRubricIdByFileId };
+      if (!action.payload.rubricId) {
+        delete nextSelectedByFileId[action.payload.fileId];
+      } else {
+        nextSelectedByFileId[action.payload.fileId] = action.payload.rubricId;
+      }
+      return {
+        ...state,
+        selectedGradingRubricIdByFileId: nextSelectedByFileId
+      };
+    }
+    case 'rubric/setLockedGradingRubricId':
+      return {
+        ...state,
+        lockedGradingRubricId: action.payload
       };
     case 'rubric/setMatrix':
       return {
         ...state,
         activeMatrix: action.payload
       };
+    case 'rubric/setInteractionMode':
+      return {
+        ...state,
+        interactionMode: action.payload
+      };
+    case 'rubric/setGradingSelection':
+      return {
+        ...state,
+        gradingSelectionByFileId: {
+          ...state.gradingSelectionByFileId,
+          [action.payload.fileId]: {
+            rubricId: action.payload.rubricId,
+            selectedCellKeys: action.payload.selectedCellKeys
+          }
+        }
+      };
+    case 'rubric/clearGradingSelection': {
+      const nextSelection = { ...state.gradingSelectionByFileId };
+      delete nextSelection[action.payload.fileId];
+      return {
+        ...state,
+        gradingSelectionByFileId: nextSelection
+      };
+    }
     case 'rubric/setStatus':
       return {
         ...state,

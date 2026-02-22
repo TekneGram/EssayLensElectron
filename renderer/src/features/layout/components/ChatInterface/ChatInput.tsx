@@ -1,11 +1,10 @@
 interface ChatInputProps {
   draftText?: string;
   onDraftChange?: (text: string) => void;
-  onChatIntent: () => void;
   onSubmit?: () => void;
 }
 
-export function ChatInput({ draftText = '', onDraftChange, onChatIntent, onSubmit }: ChatInputProps) {
+export function ChatInput({ draftText = '', onDraftChange, onSubmit }: ChatInputProps) {
   return (
     <>
       <label htmlFor="chat-input" className="visually-hidden">
@@ -18,8 +17,6 @@ export function ChatInput({ draftText = '', onDraftChange, onChatIntent, onSubmi
         placeholder="Chat with me or write a comment."
         value={draftText}
         onChange={(event) => onDraftChange?.(event.target.value)}
-        onFocus={onChatIntent}
-        onClick={onChatIntent}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();

@@ -25,6 +25,18 @@ describe('preload api', () => {
     await api.assessment.sendFeedbackToLlm({ feedbackId: 'fb-1', command: 'evaluate-thesis' });
     await api.assessment.generateFeedbackDocument({ fileId: 'file-1' });
     await api.rubric.listRubrics();
+    await api.rubric.createRubric({ name: 'New Rubric' });
+    await api.rubric.cloneRubric({ rubricId: 'rubric-1' });
+    await api.rubric.deleteRubric({ rubricId: 'rubric-2' });
+    await api.rubric.getFileScores({ fileId: 'file-1', rubricId: 'rubric-1' });
+    await api.rubric.saveFileScores({
+      fileId: 'file-1',
+      rubricId: 'rubric-1',
+      selections: [{ rubricDetailId: 'detail-1', assignedScore: '4' }]
+    });
+    await api.rubric.clearAppliedRubric({ fileId: 'file-1', rubricId: 'rubric-1' });
+    await api.rubric.getGradingContext({ fileId: 'file-1' });
+    await api.rubric.setLastUsed({ rubricId: 'rubric-1' });
     await api.chat.sendMessage({ message: 'hello' });
 
     expect(invoke).toHaveBeenCalledWith('workspace/selectFolder', undefined);
@@ -38,6 +50,18 @@ describe('preload api', () => {
     });
     expect(invoke).toHaveBeenCalledWith('assessment/generateFeedbackDocument', { fileId: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('rubric/listRubrics', undefined);
+    expect(invoke).toHaveBeenCalledWith('rubric/createRubric', { name: 'New Rubric' });
+    expect(invoke).toHaveBeenCalledWith('rubric/cloneRubric', { rubricId: 'rubric-1' });
+    expect(invoke).toHaveBeenCalledWith('rubric/deleteRubric', { rubricId: 'rubric-2' });
+    expect(invoke).toHaveBeenCalledWith('rubric/getFileScores', { fileId: 'file-1', rubricId: 'rubric-1' });
+    expect(invoke).toHaveBeenCalledWith('rubric/saveFileScores', {
+      fileId: 'file-1',
+      rubricId: 'rubric-1',
+      selections: [{ rubricDetailId: 'detail-1', assignedScore: '4' }]
+    });
+    expect(invoke).toHaveBeenCalledWith('rubric/clearAppliedRubric', { fileId: 'file-1', rubricId: 'rubric-1' });
+    expect(invoke).toHaveBeenCalledWith('rubric/getGradingContext', { fileId: 'file-1' });
+    expect(invoke).toHaveBeenCalledWith('rubric/setLastUsed', { rubricId: 'rubric-1' });
     expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { message: 'hello' });
   });
 });

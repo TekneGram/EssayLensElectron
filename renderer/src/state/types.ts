@@ -11,6 +11,7 @@ export type {
   EntityId,
   FileKind,
   FeedbackItem,
+  RubricGradingSelection,
   FeedbackState,
   ISODateString,
   RubricMatrix,

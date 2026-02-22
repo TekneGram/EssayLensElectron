@@ -36,3 +36,6 @@ Thumbs.db
 .vscode/
 
 .planning/text-view
+electron-llm/third_party
+**/__pycache__/
+*.py[cod]

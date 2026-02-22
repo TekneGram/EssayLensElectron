@@ -29,6 +29,11 @@ describe('registerWorkspaceHandlers', () => {
         path: '/tmp/essays/draft.docx',
         name: 'draft.docx',
         extension: 'docx'
+      },
+      {
+        path: '/tmp/essays/archive.zip',
+        name: 'archive.zip',
+        extension: 'zip'
       }
     ]);
 
@@ -46,26 +51,35 @@ describe('registerWorkspaceHandlers', () => {
     const getCurrentFolderHandler = harness.getHandler(WORKSPACE_CHANNELS.getCurrentFolder);
 
     const selectResult = await selectFolderHandler({});
+    const selectedFolderId =
+      typeof selectResult === 'object' &&
+      selectResult !== null &&
+      'ok' in selectResult &&
+      (selectResult as { ok: boolean }).ok
+        ? (selectResult as { data: { folder: { id: string } } }).data.folder.id
+        : null;
 
-    expect(selectResult).toEqual({
+    expect(selectResult).toMatchObject({
       ok: true,
       data: {
         folder: {
-          id: '/tmp/essays',
+          id: expect.any(String),
           path: '/tmp/essays',
           name: 'essays'
         }
       }
     });
+    expect(selectedFolderId).not.toBe('/tmp/essays');
+    expect(selectedFolderId).toBeTruthy();
 
-    const listResult = await listFilesHandler({}, { folderId: '/tmp/essays' });
-    expect(listResult).toEqual({
+    const listResult = await listFilesHandler({}, { folderId: selectedFolderId });
+    expect(listResult).toMatchObject({
       ok: true,
       data: {
         files: [
           {
-            id: '/tmp/essays/draft.docx',
-            folderId: '/tmp/essays',
+            id: expect.any(String),
+            folderId: selectedFolderId,
             name: 'draft.docx',
             path: '/tmp/essays/draft.docx',
             kind: 'docx'
@@ -73,13 +87,16 @@ describe('registerWorkspaceHandlers', () => {
         ]
       }
     });
+    const listedFileId = (listResult as { data: { files: Array<{ id: string }> } }).data.files[0]?.id;
+    expect(listedFileId).toBeTruthy();
+    expect(listedFileId).not.toBe('/tmp/essays/draft.docx');
 
     const currentFolderResult = await getCurrentFolderHandler({});
-    expect(currentFolderResult).toEqual({
+    expect(currentFolderResult).toMatchObject({
       ok: true,
       data: {
         folder: {
-          id: '/tmp/essays',
+          id: selectedFolderId,
           path: '/tmp/essays',
           name: 'essays'
         }

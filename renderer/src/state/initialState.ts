@@ -24,8 +24,12 @@ export const initialFeedbackState: FeedbackState = {
 
 export const initialRubricState: RubricState = {
   rubricList: [],
-  selectedRubricId: null,
+  selectedEditingRubricId: null,
+  selectedGradingRubricIdByFileId: {},
+  lockedGradingRubricId: null,
   activeMatrix: null,
+  interactionMode: 'viewing',
+  gradingSelectionByFileId: {},
   status: 'idle'
 };
 

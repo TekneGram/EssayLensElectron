@@ -40,7 +40,7 @@ function getDefaultDeps(): PythonWorkerClientDeps {
   return {
     spawn,
     pythonCommand: process.env.PYTHON_EXECUTABLE ?? 'python3',
-    workerScriptPath: process.env.PYTHON_WORKER_PATH ?? path.resolve(process.cwd(), 'python', 'worker.py'),
+    workerScriptPath: process.env.PYTHON_WORKER_PATH ?? path.resolve(process.cwd(), 'python', 'electron_worker', 'main.py'),
     defaultTimeoutMs: 60_000
   };
 }
@@ -242,4 +242,3 @@ export class PythonWorkerClient {
     }
   }
 }
-

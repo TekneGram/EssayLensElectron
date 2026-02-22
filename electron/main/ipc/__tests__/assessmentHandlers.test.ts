@@ -222,6 +222,14 @@ describe('registerAssessmentHandlers', () => {
     const repository = new FeedbackRepository({ now: () => '2026-02-19T12:34:56.000Z' });
     registerAssessmentHandlers({ handle: harness.handle }, {
       repository,
+      workspaceRepository: {
+        resolveFileById: vi.fn().mockResolvedValue({
+          id: 'file-1',
+          folderId: 'folder-1',
+          name: 'draft.docx',
+          path: '/tmp/essays/draft.docx'
+        })
+      } as never,
       makeFeedbackId: () => 'fb-new-1',
       extractDocument: vi.fn().mockResolvedValue({
         text: '',
@@ -276,7 +284,7 @@ describe('registerAssessmentHandlers', () => {
         text: '',
         extractedAt: '2026-02-19T12:34:56.000Z',
         format: 'docx',
-        fileName: 'file-1',
+        fileName: 'draft.docx',
         dataBase64: 'ZmFrZQ=='
       }
     });

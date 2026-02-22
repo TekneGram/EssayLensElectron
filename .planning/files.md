@@ -1,49 +1,24 @@
 # File management advice for workspace vertical slice
 
-## Context reviewed
-I reviewed the workspace/file-management planning and implementation artifacts to align this advice with the current vertical slice:
-- `.planning/03_folder_system.md`
-- `.planning/01_database_plan.md`
-- `.planning/04_state_management.md`
-- `.planning/05_typescript_interfaces.md`
-- `.planning/round_1/features/01_file-control.md`
-- `electron/main/ipc/workspaceHandlers.ts`
-- `electron/main/services/fileScanner.ts`
-- `electron/main/db/repositories/workspaceRepository.ts`
-- `electron/main/db/migrations/0001_core_entities.sql`
-- `electron/shared/workspaceContracts.ts`
-- `electron/preload/index.ts`
-- `renderer/src/features/file-control/hooks/useFileControl.ts`
+## Context
+Review vertical slice code for the workspace, particularly the management of files.
+Expectation about file management:
+1. User selects a folder.
+2. System stores all file names in front end.
+3. Allowed file types’ names and paths are stored in the database in the tables filepath, filename and image. Only names and paths are saved. File blobs are not saved. Scanned image data will be saved in image table later.
+File path is absolute and is the directory of the folder the user selected.
+If a file comes from a subfolder then the file path stub beyond the absolute directory is stored in append_path column so that the full path to the subfolder can be reconstructed later.
+5, when a user opens the app, no folder is selected.
+6. When the user selects a folder, the information about file paths and file names should be stored on the front end, but we need to check that the information is in the database.
+7. If the information on the front end is not in the database, we add it.
+8. If the information is in the database we don’t need to do anything other than acknowledge it is there.
+9. If the user removed a file since they last used the app and the information is still in the database, this is stale information, but it does not mean that we delete the information because the user might add the file back in again later.
+10. If the user has added new files since last time we update only those.
 
 ---
 
-## First: does your expectation make sense?
-Short answer: **yes**, and it is a good model for resilient local indexing.
 
-Your expectations (select folder, scan, keep frontend list, sync metadata to DB, do not delete stale rows, add only net-new rows) are all consistent with a robust offline-first desktop workflow.
-
-The only thing to tighten is identity strategy and constraints so "exists vs add" checks are cheap and deterministic.
-
----
-
-## Answers to your specific questions
-
-## 1) Should checks be keyed by absolute path because it is stable?
-**Mostly yes, with one nuance.**
-
-- For `filepath.path` (root selected folder): absolute path is the right stable key in this app.
-- For files, absolute path is good for current implementation, but **your schema design is better represented as**:
-  - `filepath_uuid` (root folder)
-  - `append_path` (subfolder relative path or null)
-  - `file_name`
-
-That triple models identity relative to a selected root and avoids coupling identity to one pre-joined string.
-
-Recommendation:
-- Keep absolute root in `filepath.path`.
-- Add uniqueness over normalized `(filepath_uuid, append_path, file_name)` for fast existence checks and dedupe.
-
-## 2) Should we always check existence before inserting?
+## 1) Should we always check existence before inserting?
 **Yes in behavior, but do it with UPSERT semantics rather than app-side pre-check + insert.**
 
 Why:
@@ -54,17 +29,7 @@ Pattern:
 - For each scanned file, attempt UPSERT in `entities` and `filename`.
 - If row already exists, no-op/update minimal fields.
 
-## 3) Can we check a list of files in parallel with O(1)?
-**Not truly O(1) for a list.**
-
-Realistic complexity:
-- Use one SQL query to fetch all known keys for a folder into memory (`SELECT file_name, append_path FROM filename WHERE filepath_uuid = ?`).
-- Build a JS `Set`/`Map` of canonical keys => average O(1) lookup per file.
-- Total is O(n + m), where `n`=db rows for folder and `m`=scanned files.
-
-So you get very efficient behavior, but not strict O(1) for the entire list.
-
-## 4) Can we add multiple entries in parallel to SQLite?
+## 2) Can we add multiple entries in parallel to SQLite?
 **SQLite supports one writer at a time**, so true concurrent writes are not beneficial.
 
 Best practice:
@@ -129,7 +94,7 @@ This gives maximum throughput and consistency.
 ---
 
 ## Pseudocode (implementation-oriented)
-
+Database requires uuid. uuid should be created by the frontend before entry into any database.
 ```text
 function selectFolderAndSync():
   folder = openFolderDialog()

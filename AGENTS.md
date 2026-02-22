@@ -49,6 +49,10 @@ Then follow the instructions to implement the relevant phase.
   file_rubric_instances and file_rubric_scores tables are accessed and used to update the student's document, creating a new word document that is output to the folder specified by the information from filepath and filename tables.
 
 ----------------------Technical Specifications----------------------
+
+- When generating uuid numbers for database entry, do so in the electron repositories files.
+
+
 # EssayLens Electron App Guide (for Codex agents)
 
 This document describes the current implementation in `electron/` and `renderer/`, with emphasis on process contracts, UI/layout contracts, styling rules, component hierarchy, and end-to-end workflows.

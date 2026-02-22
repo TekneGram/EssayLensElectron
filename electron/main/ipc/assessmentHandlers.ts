@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import path from 'node:path';
 import { FeedbackRepository, type FeedbackRecord } from '../db/repositories/feedbackRepository';
 import { appErr, appOk } from '../../shared/appResult';
 import type {
@@ -25,6 +24,7 @@ import type {
 } from '../../shared/assessmentContracts';
 import { extractDocumentText, type ExtractedDocument } from '../services/documentExtractor';
 import { generateFeedbackFile } from '../services/feedbackFileGenerator';
+import { WorkspaceRepository } from '../db/repositories/workspaceRepository';
 import { notImplementedResult } from './result';
 import type { IpcMainLike } from './types';
 
@@ -42,6 +42,7 @@ export const ASSESSMENT_CHANNELS = {
 
 interface AssessmentHandlerDeps {
   repository: FeedbackRepository;
+  workspaceRepository: WorkspaceRepository;
   makeFeedbackId: () => string;
   makeMessageId?: () => string;
   extractDocument: (filePath: string) => Promise<ExtractedDocument>;
@@ -51,6 +52,7 @@ interface AssessmentHandlerDeps {
 function getDefaultDeps(): AssessmentHandlerDeps {
   return {
     repository: new FeedbackRepository(),
+    workspaceRepository: new WorkspaceRepository(),
     makeFeedbackId: () => randomUUID(),
     makeMessageId: () => randomUUID(),
     extractDocument: extractDocumentText,
@@ -388,13 +390,20 @@ export function registerAssessmentHandlers(
     }
 
     try {
-      const extracted = await resolvedDeps.extractDocument(normalizedRequest.fileId);
+      const sourceFile = await resolvedDeps.workspaceRepository.resolveFileById(normalizedRequest.fileId);
+      if (!sourceFile) {
+        return appErr({
+          code: 'ASSESSMENT_EXTRACT_DOCUMENT_NOT_FOUND',
+          message: 'Could not find the selected file.'
+        });
+      }
+      const extracted = await resolvedDeps.extractDocument(sourceFile.path);
       return appOk<ExtractDocumentResponse>({
         fileId: normalizedRequest.fileId,
         text: extracted.text,
         extractedAt: extracted.extractedAt,
         format: extracted.format,
-        fileName: path.basename(normalizedRequest.fileId),
+        fileName: sourceFile.name,
         dataBase64: extracted.dataBase64
       });
     } catch (error) {
@@ -613,10 +622,17 @@ export function registerAssessmentHandlers(
 
     try {
       const feedback = await resolvedDeps.repository.listByFileId(normalizedRequest.fileId);
+      const sourceFile = await resolvedDeps.workspaceRepository.resolveFileById(normalizedRequest.fileId);
+      if (!sourceFile) {
+        return appErr({
+          code: 'ASSESSMENT_GENERATE_FEEDBACK_DOCUMENT_NOT_FOUND',
+          message: 'Could not find the selected file.'
+        });
+      }
       const inlineFeedback = feedback.filter((item) => item.kind === 'inline');
-      const outputPath = normalizedRequest.fileId.replace(/\.docx$/i, '.annotated.docx');
+      const outputPath = sourceFile.path.replace(/\.docx$/i, '.annotated.docx');
       const result = await resolvedDeps.generateFeedbackFile({
-        sourceFilePath: normalizedRequest.fileId,
+        sourceFilePath: sourceFile.path,
         outputPath,
         comments: inlineFeedback.map((item) => ({
           commentText: item.commentText,

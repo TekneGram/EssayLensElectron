@@ -24,7 +24,9 @@ export function ChatInterface({
   const submitAriaLabel = chatMode === 'comment' ? 'Send comment' : 'Send chat message';
   const hasActiveCommand = Boolean(activeCommand?.id);
   const handleSubmit = () => {
-    onChatIntent();
+    if (chatMode === 'chat') {
+      onChatIntent();
+    }
     void onSubmit?.();
   };
 
@@ -44,7 +46,7 @@ export function ChatInterface({
         </div>
         <div className="middle-row">
           <CommandDropdown activeCommand={activeCommand} onCommandSelected={onCommandSelected} />
-          <ChatInput draftText={draftText} onDraftChange={onDraftChange} onChatIntent={onChatIntent} onSubmit={handleSubmit} />
+          <ChatInput draftText={draftText} onDraftChange={onDraftChange} onSubmit={handleSubmit} />
           <button className="chat-send" type="button" aria-label={submitAriaLabel} onClick={handleSubmit}>
             {chatMode === 'comment' ? (
               <svg className="chat-send-icon chat-send-icon--comment" viewBox="0 0 24 24" aria-hidden="true" focusable="false">

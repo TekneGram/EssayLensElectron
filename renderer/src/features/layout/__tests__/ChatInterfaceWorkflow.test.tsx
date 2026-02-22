@@ -187,8 +187,8 @@ describe('ChatInterface submit workflow', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'draft.docx' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show Process Center' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Select Command' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open command menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Evaluate Thesis' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('chat:true:evaluate-thesis');

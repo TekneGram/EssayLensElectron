@@ -12,6 +12,8 @@ export interface LoadedTextViewDocument {
   textMap: WordTextMap;
 }
 
+export type TextViewStatusKind = 'idle' | 'loading' | 'loaded' | 'unsupported' | 'error';
+
 interface UseTextViewDocumentArgs {
   selectedFileId: string | null;
   containerRef: RefObject<HTMLDivElement>;
@@ -22,6 +24,7 @@ interface UseTextViewDocumentResult {
   document: LoadedTextViewDocument | null;
   bridgeRef: MutableRefObject<RenderBridge | null>;
   statusMessage: string;
+  statusKind: TextViewStatusKind;
   isLoading: boolean;
 }
 
@@ -41,6 +44,7 @@ export function useTextViewDocument({
 }: UseTextViewDocumentArgs): UseTextViewDocumentResult {
   const [document, setDocument] = useState<LoadedTextViewDocument | null>(null);
   const [statusMessage, setStatusMessage] = useState('Select a .docx file to begin.');
+  const [statusKind, setStatusKind] = useState<TextViewStatusKind>('idle');
   const [isLoading, setIsLoading] = useState(false);
   const bridgeRef = useRef<RenderBridge | null>(null);
   const requestIdRef = useRef(0);
@@ -59,6 +63,7 @@ export function useTextViewDocument({
       setDocument(null);
       bridgeRef.current = null;
       setStatusMessage('Select a .docx file to begin.');
+      setStatusKind('idle');
       setIsLoading(false);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
@@ -69,6 +74,7 @@ export function useTextViewDocument({
     const load = async () => {
       setIsLoading(true);
       setStatusMessage('Loading document...');
+      setStatusKind('loading');
 
       try {
         const response = await extractDocument(selectedFileId);
@@ -80,6 +86,7 @@ export function useTextViewDocument({
           setDocument(null);
           bridgeRef.current = null;
           setStatusMessage('This view currently supports .docx files only.');
+          setStatusKind('unsupported');
           if (containerRef.current) {
             containerRef.current.innerHTML = '';
           }
@@ -102,6 +109,7 @@ export function useTextViewDocument({
 
         setDocument(nextDocument);
         setStatusMessage(`Loaded ${nextDocument.fileName}. Select text to add comments.`);
+        setStatusKind('loaded');
       } catch {
         if (requestId !== requestIdRef.current) {
           return;
@@ -109,6 +117,7 @@ export function useTextViewDocument({
         setDocument(null);
         bridgeRef.current = null;
         setStatusMessage('Unable to load document.');
+        setStatusKind('error');
         if (containerRef.current) {
           containerRef.current.innerHTML = '';
         }
@@ -154,6 +163,7 @@ export function useTextViewDocument({
     document,
     bridgeRef,
     statusMessage,
+    statusKind,
     isLoading
   };
 }

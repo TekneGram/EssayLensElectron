@@ -54,6 +54,8 @@ export type FeedbackItem = FeedbackDto;
 export interface RubricSummary {
   id: EntityId;
   name: string;
+  isActive: boolean;
+  isArchived: boolean;
   description?: string;
 }
 
@@ -79,4 +81,9 @@ export interface RubricMatrix {
   categories: RubricCategory[];
   scores: RubricScoreLevel[];
   cells: RubricCell[];
+}
+
+export interface RubricGradingSelection {
+  rubricId: EntityId;
+  selectedCellKeys: string[];
 }

@@ -1,6 +1,7 @@
 import type { CommentsTab } from '../../../../state';
 import type { CommentsViewProps } from '../../types';
 import { CommentView } from './CommentView';
+import { ScoreTool } from './ScoreTool';
 
 interface AssessmentCommentsViewProps extends CommentsViewProps {
   activeTab: CommentsTab;
@@ -78,7 +79,7 @@ export function CommentsView({
           ) : null}
         </div>
         <div className="content-block comments-panel" role="tabpanel" hidden={activeTab !== 'score'}>
-          ScoreTool
+          {activeTab === 'score' ? <ScoreTool /> : null}
         </div>
       </div>
     </section>

@@ -16,6 +16,7 @@ export type {
   FeedbackItem,
   RubricCategory,
   RubricCell,
+  RubricGradingSelection,
   RubricMatrix,
   RubricScoreLevel,
   RubricSummary,
