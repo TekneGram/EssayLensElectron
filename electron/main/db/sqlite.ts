@@ -24,7 +24,7 @@ export class SQLiteClient {
 
   constructor(options: SQLiteOptions) {
     this.dbPath = options.dbPath;
-    this.migrationsDir = options.migrationsDir ?? path.resolve(process.cwd(), 'electron/main/db/migrations');
+    this.migrationsDir = options.migrationsDir ?? resolveDefaultMigrationsDir();
   }
 
   async initialize(): Promise<void> {
@@ -199,4 +199,17 @@ export class SQLiteClient {
     }
     return this.database;
   }
+}
+
+function resolveDefaultMigrationsDir(): string {
+  try {
+    const electron = require('electron') as typeof import('electron');
+    if (electron.app?.isPackaged) {
+      return path.resolve(process.resourcesPath, 'db', 'migrations');
+    }
+  } catch {
+    // Ignore electron resolution errors and fall back to dev path.
+  }
+
+  return path.resolve(process.cwd(), 'electron/main/db/migrations');
 }

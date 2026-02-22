@@ -31,16 +31,61 @@ interface PendingRequest {
 
 export interface PythonWorkerClientDeps {
   spawn: SpawnLike;
-  pythonCommand: string;
-  workerScriptPath: string;
+  workerCommand: string;
+  workerArgs: string[];
   defaultTimeoutMs: number;
 }
 
+function isPackagedApp(): boolean {
+  try {
+    const electron = require('electron') as typeof import('electron');
+    return Boolean(electron.app?.isPackaged);
+  } catch {
+    return false;
+  }
+}
+
+function getDefaultWorkerScriptPath(resourcesPath: string): string {
+  if (isPackagedApp()) {
+    return path.resolve(resourcesPath, 'electron-llm', 'main.py');
+  }
+  return path.resolve(process.cwd(), 'electron-llm', 'main.py');
+}
+
+function getBundledWorkerExecutablePath(resourcesPath: string): string {
+  const workerRoot = path.resolve(resourcesPath, 'python-worker', `${process.platform}-${process.arch}`);
+  const executable = process.platform === 'win32' ? 'essaylens-llm-worker.exe' : 'essaylens-llm-worker';
+  return path.join(workerRoot, executable);
+}
+
 function getDefaultDeps(): PythonWorkerClientDeps {
+  const resourcesPath = process.resourcesPath;
+  const packaged = isPackagedApp();
+  const pythonExecutable = process.env.PYTHON_EXECUTABLE;
+  const workerScriptPath = process.env.PYTHON_WORKER_PATH ?? getDefaultWorkerScriptPath(resourcesPath);
+
+  if (pythonExecutable) {
+    return {
+      spawn,
+      workerCommand: pythonExecutable,
+      workerArgs: ['-u', workerScriptPath],
+      defaultTimeoutMs: 60_000
+    };
+  }
+
+  if (packaged) {
+    return {
+      spawn,
+      workerCommand: getBundledWorkerExecutablePath(resourcesPath),
+      workerArgs: [],
+      defaultTimeoutMs: 60_000
+    };
+  }
+
   return {
     spawn,
-    pythonCommand: process.env.PYTHON_EXECUTABLE ?? 'python3',
-    workerScriptPath: process.env.PYTHON_WORKER_PATH ?? path.resolve(process.cwd(), 'electron-llm', 'main.py'),
+    workerCommand: 'python3',
+    workerArgs: ['-u', workerScriptPath],
     defaultTimeoutMs: 60_000
   };
 }
@@ -140,8 +185,8 @@ export class PythonWorkerClient {
 
     try {
       const worker = this.deps.spawn(
-        this.deps.pythonCommand,
-        ['-u', this.deps.workerScriptPath],
+        this.deps.workerCommand,
+        this.deps.workerArgs,
         {
           stdio: 'pipe'
         }

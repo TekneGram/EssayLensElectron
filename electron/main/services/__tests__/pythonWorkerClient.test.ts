@@ -42,8 +42,8 @@ describe('PythonWorkerClient', () => {
     const worker = new FakeChildProcess();
     const client = new PythonWorkerClient({
       spawn: vi.fn().mockReturnValue(worker as never),
-      pythonCommand: 'python3',
-      workerScriptPath: '/tmp/fake-worker.py',
+      workerCommand: 'python3',
+      workerArgs: ['-u', '/tmp/fake-worker.py'],
       defaultTimeoutMs: 1000
     });
 
@@ -71,8 +71,8 @@ describe('PythonWorkerClient', () => {
     const worker = new FakeChildProcess();
     const client = new PythonWorkerClient({
       spawn: vi.fn().mockReturnValue(worker as never),
-      pythonCommand: 'python3',
-      workerScriptPath: '/tmp/fake-worker.py',
+      workerCommand: 'python3',
+      workerArgs: ['-u', '/tmp/fake-worker.py'],
       defaultTimeoutMs: 1000
     });
 
@@ -88,8 +88,8 @@ describe('PythonWorkerClient', () => {
     const worker = new FakeChildProcess();
     const client = new PythonWorkerClient({
       spawn: vi.fn().mockReturnValue(worker as never),
-      pythonCommand: 'python3',
-      workerScriptPath: '/tmp/fake-worker.py',
+      workerCommand: 'python3',
+      workerArgs: ['-u', '/tmp/fake-worker.py'],
       defaultTimeoutMs: 1000
     });
 
@@ -106,8 +106,8 @@ describe('PythonWorkerClient', () => {
     const worker = new FakeChildProcess();
     const client = new PythonWorkerClient({
       spawn: vi.fn().mockReturnValue(worker as never),
-      pythonCommand: 'python3',
-      workerScriptPath: '/tmp/fake-worker.py',
+      workerCommand: 'python3',
+      workerArgs: ['-u', '/tmp/fake-worker.py'],
       defaultTimeoutMs: 1000
     });
 
