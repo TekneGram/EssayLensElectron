@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, Sequence
 from nlp.llm.llm_types import ChatRequest
 
 if TYPE_CHECKING:
-    from interfaces.config.app_config import AppConfigShape
     from services.llm_service import LlmService
+    from app.settings import AppConfig
 
 
 # --- RUBRIC DESCRIPTORS ONLY ----
@@ -65,7 +65,7 @@ SYSTEM_PROMPT_REASONABLE_WITH_QWEN_8B = (
 )
 
 SYSTEM_PROMPT = (
-    "Say hello for now."
+    "You are a nice teacher!"
 )
 
 
@@ -82,7 +82,7 @@ def build_prompt_tester(text_tasks: Sequence[str]) -> list[ChatRequest]:
 
 async def run_parallel_prompt_tester(
     llm_service: "LlmService",
-    app_cfg: "AppConfigShape",
+    app_cfg: "AppConfig",
     text_tasks: Sequence[str],
     max_concurrency: int | None = None,
 ) -> dict[str, Any]:
