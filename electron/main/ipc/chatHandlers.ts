@@ -1,9 +1,17 @@
+import fsPromises from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { appErr, appOk } from '../../shared/appResult';
-import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../../shared/chatContracts';
+import type {
+  ListMessagesResponse,
+  LlmNotReadyErrorDetails,
+  SendChatMessageRequest,
+  SendChatMessageResponse
+} from '../../shared/chatContracts';
 import { ChatRepository } from '../db/repositories/chatRepository';
 import { LlmSettingsRepository, type LlmRuntimeSettings } from '../db/repositories/llmSettingsRepository';
 import { LlmOrchestrator } from '../services/llmOrchestrator';
+import { getLlmNotReadyDetails } from '../services/llmRuntimeReadiness';
 import type { IpcMainLike } from './types';
 
 export const CHAT_CHANNELS = {
@@ -15,17 +23,42 @@ interface ChatHandlerDeps {
   repository: ChatRepository;
   llmOrchestrator: LlmOrchestrator;
   llmSettingsRepository?: LlmSettingsRepository;
+  fileExists?: (targetPath: string) => Promise<boolean>;
+  isExecutable?: (targetPath: string) => Promise<boolean>;
 }
 
 interface LlmChatPayload extends SendChatMessageRequest {
   settings: LlmRuntimeSettings;
 }
 
+async function fileExists(targetPath: string): Promise<boolean> {
+  try {
+    await fsPromises.access(targetPath, fsConstants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isExecutable(targetPath: string): Promise<boolean> {
+  if (process.platform === 'win32') {
+    return true;
+  }
+  try {
+    await fsPromises.access(targetPath, fsConstants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function getDefaultDeps(): ChatHandlerDeps {
   return {
     repository: new ChatRepository(),
     llmOrchestrator: new LlmOrchestrator(),
-    llmSettingsRepository: new LlmSettingsRepository()
+    llmSettingsRepository: new LlmSettingsRepository(),
+    fileExists,
+    isExecutable
   };
 }
 
@@ -99,6 +132,21 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
         code: 'LLM_SETTINGS_LOAD_FAILED',
         message: 'Could not load LLM runtime settings.',
         details: error
+      });
+    }
+
+    const validateFileExists = deps.fileExists ?? fileExists;
+    const validateExecutable = deps.isExecutable ?? isExecutable;
+    const notReadyDetails = await getLlmNotReadyDetails(settings, {
+      fileExists: validateFileExists,
+      isExecutable: validateExecutable
+    });
+    if (notReadyDetails) {
+      const details: LlmNotReadyErrorDetails = notReadyDetails;
+      return appErr({
+        code: 'LLM_NOT_READY',
+        message: 'LLM runtime is not ready. Select a downloaded model and ensure llama-server is configured.',
+        details
       });
     }
 

@@ -120,6 +120,9 @@ describe('LlmConfiguration flows', () => {
 
     const editTemperatureButton = await screen.findByRole('button', { name: 'Edit setting temperature' });
     expect(editTemperatureButton.textContent).toBe('0.2');
+    expect(screen.getByRole('button', { name: 'Edit setting use_fake_reply' }).textContent).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Edit setting llm_host' })).toBeNull();
+    expect(screen.getByText('127.0.0.1')).toBeTruthy();
 
     fireEvent.click(editTemperatureButton);
     fireEvent.change(screen.getByRole('textbox', { name: 'Value for temperature' }), {

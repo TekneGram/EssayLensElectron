@@ -23,3 +23,21 @@ export interface SendChatMessageRequest {
 export interface SendChatMessageResponse {
   reply: string;
 }
+
+export type LlmReadinessIssueCode =
+  | 'MISSING_GGUF_PATH'
+  | 'GGUF_FILE_NOT_FOUND'
+  | 'MISSING_SERVER_PATH'
+  | 'SERVER_FILE_NOT_FOUND'
+  | 'SERVER_NOT_EXECUTABLE';
+
+export interface LlmReadinessIssue {
+  code: LlmReadinessIssueCode;
+  message: string;
+  path?: string;
+}
+
+export interface LlmNotReadyErrorDetails {
+  issues: LlmReadinessIssue[];
+  fakeMode: boolean;
+}

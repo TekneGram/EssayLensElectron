@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DownloadedLlmModelDto, LlmModelKey, LlmRuntimeSettings } from '../../../../../electron/shared/llmManagerContracts';
-import { downloadModel, resetSettingsToDefaults, selectModel, updateSettings } from '../services/llmManagerApi';
+import { deleteDownloadedModel, downloadModel, resetSettingsToDefaults, selectModel, updateSettings } from '../services/llmManagerApi';
 import { llmManagerQueryKeys } from './queryKeys';
 
 export function useLlmManagerMutations() {
@@ -23,6 +23,15 @@ export function useLlmManagerMutations() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteDownloadedModel,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: llmManagerQueryKeys.downloaded() });
+      await queryClient.invalidateQueries({ queryKey: llmManagerQueryKeys.activeModel() });
+      await queryClient.invalidateQueries({ queryKey: llmManagerQueryKeys.settings() });
+    }
+  });
+
   const updateSettingsMutation = useMutation({
     mutationFn: (settings: Partial<LlmRuntimeSettings>) => updateSettings(settings),
     onSuccess: (settings) => {
@@ -41,14 +50,17 @@ export function useLlmManagerMutations() {
 
   return {
     downloadModel: downloadMutation.mutateAsync,
+    deleteModel: deleteMutation.mutateAsync,
     selectModel: selectMutation.mutateAsync,
     updateSettings: updateSettingsMutation.mutateAsync,
     resetSettingsToDefaults: resetSettingsMutation.mutateAsync,
     isDownloading: downloadMutation.isPending,
+    isDeleting: deleteMutation.isPending,
     isSelecting: selectMutation.isPending,
     isSavingSettings: updateSettingsMutation.isPending,
     isResettingSettings: resetSettingsMutation.isPending,
     downloadError: downloadMutation.error instanceof Error ? downloadMutation.error.message : undefined,
+    deleteError: deleteMutation.error instanceof Error ? deleteMutation.error.message : undefined,
     selectError: selectMutation.error instanceof Error ? selectMutation.error.message : undefined,
     settingsError:
       updateSettingsMutation.error instanceof Error

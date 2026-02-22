@@ -91,6 +91,16 @@ export interface DownloadProgressEvent {
   errorMessage: string | null;
 }
 
+export interface DeleteDownloadedModelRequest {
+  key: LlmModelKey;
+  deleteFiles?: boolean;
+}
+
+export interface DeleteDownloadedModelResponse {
+  deletedKey: LlmModelKey;
+  removedFromDisk: boolean;
+}
+
 export interface SelectModelResponse {
   activeModel: DownloadedLlmModelDto;
   settings: LlmRuntimeSettings;

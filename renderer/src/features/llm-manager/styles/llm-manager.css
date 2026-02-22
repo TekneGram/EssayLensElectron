@@ -50,6 +50,12 @@
   gap: 3px;
 }
 
+.llm-download-actions {
+  display: grid;
+  gap: 6px;
+  min-width: 122px;
+}
+
 .llm-model-name {
   margin: 0;
   font-size: 0.8rem;
@@ -96,14 +102,13 @@
 }
 
 .llm-action-button,
-.llm-config-value-button,
 .llm-select,
 .llm-config-editor input {
   font-size: 0.74rem;
 }
 
 .llm-action-button,
-.llm-config-value-button {
+.llm-config-editor-actions .llm-action-button {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   background: var(--bg-surface);
@@ -116,6 +121,11 @@
 .llm-select:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.llm-action-danger {
+  border-color: var(--danger-color, #b42318);
+  color: var(--danger-color, #b42318);
 }
 
 .llm-field-label {
@@ -175,6 +185,31 @@
 .llm-config-editor-actions {
   display: flex;
   gap: 6px;
+}
+
+.llm-config-value-button {
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.llm-config-value-button:hover {
+  text-decoration: underline;
+}
+
+.llm-config-value-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.llm-config-value-text {
+  color: var(--text-primary);
+  font-weight: 400;
 }
 
 .llm-checkbox-field {

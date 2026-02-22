@@ -74,7 +74,8 @@ describe('registerLlmManagerHandlers', () => {
         getRuntimeSettings: vi.fn().mockResolvedValue(settingsFixture),
         updateRuntimeSettings: vi.fn()
       },
-      downloadModel: vi.fn()
+      downloadModel: vi.fn(),
+      fileExists: vi.fn().mockResolvedValue(true)
     };
 
     registerLlmManagerHandlers({ handle: harness.handle }, deps as never);
@@ -136,7 +137,7 @@ describe('registerLlmManagerHandlers', () => {
 
     const handler = harness.getHandler(LLM_MANAGER_CHANNELS.selectModel);
     const result = await handler({}, { key: 'qwen3_8b_q8' });
-    expect(selectModel).toHaveBeenCalledWith('qwen3_8b_q8');
+    expect(selectModel).toHaveBeenCalledWith('qwen3_8b_q8', expect.any(String));
     expect(result).toMatchObject({
       ok: true,
       data: {
@@ -266,6 +267,7 @@ describe('registerLlmManagerHandlers', () => {
         settings: settingsFixture
       }
     });
+    expect(resetSettingsToDefaults).toHaveBeenCalledWith(expect.any(String));
 
     resetSettingsToDefaults.mockResolvedValueOnce(null);
     await expect(resetHandler({}, undefined)).resolves.toEqual({

@@ -14,7 +14,9 @@ interface LlmDownloadProps {
   downloadedModels: DownloadedLlmModelDto[];
   supportsDownload: boolean;
   onDownload: (key: LlmModelKey) => Promise<unknown>;
+  onDelete: (key: LlmModelKey) => Promise<unknown>;
   isDownloading: boolean;
+  isDeleting: boolean;
   progressByKey: Partial<Record<LlmModelKey, DownloadProgressView>>;
   errorMessage?: string;
 }
@@ -24,7 +26,9 @@ export function LlmDownload({
   downloadedModels,
   supportsDownload,
   onDownload,
+  onDelete,
   isDownloading,
+  isDeleting,
   progressByKey,
   errorMessage
 }: LlmDownloadProps) {
@@ -70,15 +74,34 @@ export function LlmDownload({
                     </div>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  className="llm-action-button"
-                  disabled={isDownloaded || isDownloading || isInProgress || !supportsDownload}
-                  onClick={() => void onDownload(model.key)}
-                  aria-label={`Download ${model.displayName}`}
-                >
-                  {isDownloaded ? 'Downloaded' : isInProgress ? 'Downloading...' : supportsDownload ? 'Download' : 'Download unavailable'}
-                </button>
+                <div className="llm-download-actions">
+                  <button
+                    type="button"
+                    className="llm-action-button"
+                    disabled={isDownloaded || isDownloading || isDeleting || isInProgress || !supportsDownload}
+                    onClick={() => void onDownload(model.key)}
+                    aria-label={`Download ${model.displayName}`}
+                  >
+                    {isDownloaded ? 'Downloaded' : isInProgress ? 'Downloading...' : supportsDownload ? 'Download' : 'Download unavailable'}
+                  </button>
+                  {isDownloaded ? (
+                    <button
+                      type="button"
+                      className="llm-action-button llm-action-danger"
+                      disabled={isDownloading || isDeleting || isInProgress}
+                      aria-label={`Delete ${model.displayName}`}
+                      onClick={() => {
+                        const shouldDelete = window.confirm(`Delete ${model.displayName} from disk and database?`);
+                        if (!shouldDelete) {
+                          return;
+                        }
+                        void onDelete(model.key);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  ) : null}
+                </div>
               </li>
             );
           })}

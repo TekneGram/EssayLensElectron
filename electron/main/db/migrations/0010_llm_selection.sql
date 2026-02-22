@@ -117,8 +117,8 @@ INSERT OR IGNORE INTO llm_selection_defaults (
   40,
   1.1,
   NULL,
-  1,
-  'Qwen3 4B Q8_0 is selected but fake reply is enabled.'
+  0,
+  NULL
 );
 
 INSERT OR IGNORE INTO llm_selection_defaults (
@@ -185,6 +185,6 @@ INSERT OR IGNORE INTO llm_selection_defaults (
   50,
   1.05,
   NULL,
-  1,
-  'Qwen3 8B Q8_0 is selected but fake reply is enabled.'
+  0,
+  NULL
 );

@@ -1,5 +1,9 @@
+import fsPromises from 'node:fs/promises';
+import path from 'node:path';
 import { appErr, appOk } from '../../shared/appResult';
 import type {
+  DeleteDownloadedModelRequest,
+  DeleteDownloadedModelResponse,
   DownloadModelRequest,
   DownloadProgressEvent,
   DownloadModelResponse,
@@ -18,6 +22,7 @@ import type {
 import { LlmSelectionRepository } from '../db/repositories/llmSelectionRepository';
 import { LlmSettingsRepository } from '../db/repositories/llmSettingsRepository';
 import { downloadModelFile } from '../services/llmModelDownloader';
+import { resolveLlamaServerPath } from '../services/llmRuntimePaths';
 import type { IpcMainLike } from './types';
 
 export const LLM_MANAGER_CHANNELS = {
@@ -25,6 +30,7 @@ export const LLM_MANAGER_CHANNELS = {
   listDownloadedModels: 'llmManager/listDownloadedModels',
   getActiveModel: 'llmManager/getActiveModel',
   downloadModel: 'llmManager/downloadModel',
+  deleteDownloadedModel: 'llmManager/deleteDownloadedModel',
   selectModel: 'llmManager/selectModel',
   getSettings: 'llmManager/getSettings',
   updateSettings: 'llmManager/updateSettings',
@@ -44,6 +50,8 @@ interface LlmManagerHandlerDeps {
     | 'selectModel'
     | 'resetSettingsToDefaults'
     | 'upsertDownloadedModel'
+    | 'getDownloadedModelByKey'
+    | 'deleteDownloadedModel'
   >;
   settingsRepository: Pick<LlmSettingsRepository, 'getRuntimeSettings' | 'updateRuntimeSettings'>;
   downloadModel: (request: {
@@ -52,6 +60,9 @@ interface LlmManagerHandlerDeps {
     hfFilename: string;
     onProgress?: (event: DownloadProgressEvent) => void;
   }) => Promise<string>;
+  fileExists?: (targetPath: string) => Promise<boolean>;
+  removePath?: (targetPath: string) => Promise<void>;
+  resolveLlmServerPath?: () => string;
 }
 
 const VALID_MODEL_KEYS: ReadonlySet<LlmModelKey> = new Set(['qwen3_4b_q8', 'qwen3_8b_q8']);
@@ -84,13 +95,34 @@ const RUNTIME_SETTINGS_SCHEMA: Record<keyof LlmRuntimeSettings, 'string' | 'numb
     fake_reply_text: 'nullable-string'
   };
 
+function resolveDefaultLlmServerPath(): string {
+  const runtimeMode = process.env.VITE_DEV_SERVER_URL || process.env.NODE_ENV === 'development' ? 'dev' : 'packaged';
+  return resolveLlamaServerPath({ mode: runtimeMode });
+}
+
 function getDefaultDeps(): LlmManagerHandlerDeps {
   const selectionRepository = new LlmSelectionRepository();
   return {
     selectionRepository,
     settingsRepository: new LlmSettingsRepository(),
-    downloadModel: downloadModelFile
+    downloadModel: downloadModelFile,
+    fileExists: defaultFileExists,
+    removePath: defaultRemovePath,
+    resolveLlmServerPath: resolveDefaultLlmServerPath
   };
+}
+
+async function defaultFileExists(targetPath: string): Promise<boolean> {
+  try {
+    await fsPromises.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function defaultRemovePath(targetPath: string): Promise<void> {
+  await fsPromises.rm(targetPath, { recursive: true, force: true });
 }
 
 function normalizeModelRequest(payload: unknown): { key: LlmModelKey } | null {
@@ -110,6 +142,24 @@ function normalizeSelectModelRequest(payload: unknown): SelectModelRequest | nul
 
 function normalizeDownloadModelRequest(payload: unknown): DownloadModelRequest | null {
   return normalizeModelRequest(payload);
+}
+
+function normalizeDeleteDownloadedModelRequest(payload: unknown): DeleteDownloadedModelRequest | null {
+  if (typeof payload !== 'object' || payload === null) {
+    return null;
+  }
+  const candidate = payload as Record<string, unknown>;
+  const keyPayload = normalizeModelRequest(payload);
+  if (!keyPayload) {
+    return null;
+  }
+  if ('deleteFiles' in candidate && typeof candidate.deleteFiles !== 'boolean') {
+    return null;
+  }
+  return {
+    key: keyPayload.key,
+    deleteFiles: candidate.deleteFiles === undefined ? true : (candidate.deleteFiles as boolean)
+  };
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -175,6 +225,9 @@ function normalizeUpdateSettingsRequest(payload: unknown): UpdateSettingsRequest
 }
 
 export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManagerHandlerDeps = getDefaultDeps()): void {
+  const fileExists = deps.fileExists ?? defaultFileExists;
+  const removePath = deps.removePath ?? defaultRemovePath;
+
   const emitDownloadProgress = (event: unknown, payload: DownloadProgressEvent): void => {
     const sender =
       typeof event === 'object' && event !== null && 'sender' in event
@@ -182,6 +235,31 @@ export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManage
         : undefined;
     if (sender && typeof sender.send === 'function') {
       sender.send(LLM_MANAGER_EVENTS.downloadProgress, payload);
+    }
+  };
+
+  const clearRuntimeModelPaths = async (): Promise<void> => {
+    await deps.settingsRepository.updateRuntimeSettings({
+      llm_gguf_path: null,
+      llm_mmproj_path: null
+    });
+  };
+
+  const reconcileDownloadedModels = async (): Promise<void> => {
+    const downloadedResponse = await deps.selectionRepository.listDownloadedModels();
+    const downloaded = Array.isArray(downloadedResponse) ? downloadedResponse : [];
+    for (const model of downloaded) {
+      const ggufExists = await fileExists(model.localGgufPath);
+      const mmprojExists =
+        model.localMmprojPath === null ? true : await fileExists(model.localMmprojPath);
+      if (ggufExists && mmprojExists) {
+        continue;
+      }
+
+      const removed = await deps.selectionRepository.deleteDownloadedModel(model.key);
+      if (removed?.isActive) {
+        await clearRuntimeModelPaths();
+      }
     }
   };
 
@@ -200,6 +278,7 @@ export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManage
 
   ipcMain.handle(LLM_MANAGER_CHANNELS.listDownloadedModels, async () => {
     try {
+      await reconcileDownloadedModels();
       const models = await deps.selectionRepository.listDownloadedModels();
       return appOk<ListDownloadedModelsResponse>({ models });
     } catch (error) {
@@ -213,12 +292,72 @@ export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManage
 
   ipcMain.handle(LLM_MANAGER_CHANNELS.getActiveModel, async () => {
     try {
+      await reconcileDownloadedModels();
       const model = await deps.selectionRepository.getActiveModel();
       return appOk<GetActiveModelResponse>({ model });
     } catch (error) {
       return appErr({
         code: 'LLM_MANAGER_GET_ACTIVE_FAILED',
         message: 'Could not load active LLM model.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(LLM_MANAGER_CHANNELS.deleteDownloadedModel, async (_event, payload) => {
+    const request = normalizeDeleteDownloadedModelRequest(payload);
+    if (!request) {
+      return appErr({
+        code: 'LLM_MANAGER_DELETE_INVALID_PAYLOAD',
+        message: 'Delete model payload must include a supported model key.'
+      });
+    }
+
+    const existing = await deps.selectionRepository.getDownloadedModelByKey(request.key);
+    if (!existing) {
+      return appErr({
+        code: 'LLM_MANAGER_DELETE_MODEL_NOT_FOUND',
+        message: 'The selected model is not currently downloaded.'
+      });
+    }
+
+    let removedFromDisk = false;
+    if (request.deleteFiles !== false) {
+      try {
+        await removePath(existing.localGgufPath);
+        if (existing.localMmprojPath) {
+          await removePath(existing.localMmprojPath);
+        }
+        await removePath(path.dirname(existing.localGgufPath));
+        removedFromDisk = true;
+      } catch (error) {
+        return appErr({
+          code: 'LLM_MANAGER_DELETE_FILE_REMOVE_FAILED',
+          message: 'Could not remove model files from disk.',
+          details: error
+        });
+      }
+    }
+
+    try {
+      const deleted = await deps.selectionRepository.deleteDownloadedModel(request.key);
+      if (!deleted) {
+        return appErr({
+          code: 'LLM_MANAGER_DELETE_MODEL_NOT_FOUND',
+          message: 'The selected model is not currently downloaded.'
+        });
+      }
+      if (deleted.isActive) {
+        await clearRuntimeModelPaths();
+      }
+      return appOk<DeleteDownloadedModelResponse>({
+        deletedKey: request.key,
+        removedFromDisk
+      });
+    } catch (error) {
+      return appErr({
+        code: 'LLM_MANAGER_DELETE_PERSIST_FAILED',
+        message: 'Could not remove downloaded model from the database.',
         details: error
       });
     }
@@ -331,7 +470,9 @@ export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManage
     }
 
     try {
-      const selected = await deps.selectionRepository.selectModel(request.key);
+      await reconcileDownloadedModels();
+      const llmServerPath = (deps.resolveLlmServerPath ?? resolveDefaultLlmServerPath)();
+      const selected = await deps.selectionRepository.selectModel(request.key, llmServerPath);
       if (!selected) {
         return appErr({
           code: 'LLM_MANAGER_SELECT_MODEL_NOT_DOWNLOADED',
@@ -385,7 +526,8 @@ export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManage
 
   ipcMain.handle(LLM_MANAGER_CHANNELS.resetSettingsToDefaults, async () => {
     try {
-      const reset = await deps.selectionRepository.resetSettingsToDefaults();
+      const llmServerPath = (deps.resolveLlmServerPath ?? resolveDefaultLlmServerPath)();
+      const reset = await deps.selectionRepository.resetSettingsToDefaults(llmServerPath);
       if (!reset) {
         return appErr({
           code: 'LLM_MANAGER_RESET_NO_ACTIVE_MODEL',

@@ -34,7 +34,7 @@ describe('LlmSelectionRepository', () => {
       localGgufPath: '/models/Qwen3-8B-Q8_0.gguf'
     });
 
-    const selected = await repository.selectModel('qwen3_8b_q8');
+    const selected = await repository.selectModel('qwen3_8b_q8', '/runtime/llama-server');
     expect(selected?.activeModel.key).toBe('qwen3_8b_q8');
     expect(selected?.activeModel.isActive).toBe(true);
 
@@ -46,7 +46,10 @@ describe('LlmSelectionRepository', () => {
     expect(settings.llm_n_ctx).toBe(8192);
     expect(settings.temperature).toBe(0.15);
     expect(settings.top_k).toBe(50);
+    expect(settings.llm_server_path).toBe('/runtime/llama-server');
     expect(settings.llm_gguf_path).toBe('/models/Qwen3-8B-Q8_0.gguf');
+    expect(settings.use_fake_reply).toBe(false);
+    expect(settings.fake_reply_text).toBeNull();
   });
 
   it('resets mutable runtime settings from active model defaults', async () => {
@@ -59,7 +62,7 @@ describe('LlmSelectionRepository', () => {
       displayName: 'Qwen3 4B Q8_0',
       localGgufPath: '/models/Qwen3-4B-Q8_0.gguf'
     });
-    await repository.selectModel('qwen3_4b_q8');
+    await repository.selectModel('qwen3_4b_q8', '/runtime/llama-server-v1');
 
     await settingsRepository.updateRuntimeSettings({
       llm_n_ctx: 2048,
@@ -74,12 +77,15 @@ describe('LlmSelectionRepository', () => {
     expect(updated.llm_flash_attn).toBe(false);
     expect(updated.llm_gguf_path).toBe('/models/custom.gguf');
 
-    const reset = await repository.resetSettingsToDefaults();
+    const reset = await repository.resetSettingsToDefaults('/runtime/llama-server-v2');
     expect(reset?.activeModel.key).toBe('qwen3_4b_q8');
     expect(reset?.settings.llm_n_ctx).toBe(4096);
     expect(reset?.settings.temperature).toBe(0.2);
     expect(reset?.settings.llm_flash_attn).toBe(true);
+    expect(reset?.settings.llm_server_path).toBe('/runtime/llama-server-v2');
     expect(reset?.settings.llm_gguf_path).toBe('/models/Qwen3-4B-Q8_0.gguf');
+    expect(reset?.settings.use_fake_reply).toBe(false);
+    expect(reset?.settings.fake_reply_text).toBeNull();
   });
 
   it('returns null when selecting a model that has not been downloaded', async () => {

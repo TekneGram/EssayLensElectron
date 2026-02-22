@@ -21,6 +21,8 @@ import type {
 } from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
 import type {
+  DeleteDownloadedModelRequest,
+  DeleteDownloadedModelResponse,
   DownloadModelRequest,
   DownloadModelResponse,
   DownloadProgressEvent,
@@ -103,6 +105,7 @@ export interface EssayLensApi {
     listDownloadedModels(): Promise<ApiResult<ListDownloadedModelsResponse>>;
     getActiveModel(): Promise<ApiResult<GetActiveModelResponse>>;
     downloadModel(request: DownloadModelRequest): Promise<ApiResult<DownloadModelResponse>>;
+    deleteDownloadedModel(request: DeleteDownloadedModelRequest): Promise<ApiResult<DeleteDownloadedModelResponse>>;
     onDownloadProgress(listener: (event: DownloadProgressEvent) => void): () => void;
     selectModel(request: SelectModelRequest): Promise<ApiResult<SelectModelResponse>>;
     getSettings(): Promise<ApiResult<GetSettingsResponse>>;

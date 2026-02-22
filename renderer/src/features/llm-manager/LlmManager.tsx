@@ -24,14 +24,17 @@ export function LlmManager() {
 
   const {
     downloadModel,
+    deleteModel,
     selectModel,
     updateSettings,
     resetSettingsToDefaults,
     isDownloading,
+    isDeleting,
     isSelecting,
     isSavingSettings,
     isResettingSettings,
     downloadError,
+    deleteError,
     selectError,
     settingsError
   } = useLlmManagerMutations();
@@ -83,9 +86,11 @@ export function LlmManager() {
           downloadedModels={downloadedModels}
           supportsDownload={supportsDownload}
           onDownload={downloadModel}
+          onDelete={deleteModel}
           isDownloading={isDownloading}
+          isDeleting={isDeleting}
           progressByKey={progressByKey}
-          errorMessage={downloadError}
+          errorMessage={downloadError ?? deleteError}
         />
         <LlmSelector
           downloadedModels={downloadedModels}

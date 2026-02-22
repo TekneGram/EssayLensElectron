@@ -35,6 +35,20 @@ const NULLABLE_NUMBER_KEYS: ReadonlySet<SettingKey> = new Set([
 
 const NULLABLE_STRING_KEYS: ReadonlySet<SettingKey> = new Set(['llm_gguf_path', 'llm_mmproj_path', 'fake_reply_text']);
 
+const EDITABLE_KEYS: ReadonlySet<SettingKey> = new Set([
+  'fake_reply_text',
+  'llm_n_batch',
+  'llm_n_ctx',
+  'llm_n_gpu_layers',
+  'llm_n_threads',
+  'max_tokens',
+  'repeat_penalty',
+  'temperature',
+  'top_k',
+  'top_p',
+  'use_fake_reply'
+]);
+
 function formatValue(value: EditableValue): string {
   if (value === null) {
     return 'null';
@@ -95,6 +109,9 @@ export function LlmConfiguration({
 
   const beginEdit = (key: SettingKey) => {
     if (!settings) {
+      return;
+    }
+    if (!EDITABLE_KEYS.has(key)) {
       return;
     }
 
@@ -161,12 +178,13 @@ export function LlmConfiguration({
                 const value = settings[key] as EditableValue;
                 const isEditing = editingKey === key;
                 const isBoolean = BOOLEAN_KEYS.has(key);
+                const isEditable = EDITABLE_KEYS.has(key);
 
                 return (
                   <tr key={key}>
                     <th scope="row">{key}</th>
                     <td>
-                      {isEditing ? (
+                      {isEditing && isEditable ? (
                         <div className="llm-config-editor">
                           {isBoolean ? (
                             <label className="llm-checkbox-field">
@@ -195,14 +213,20 @@ export function LlmConfiguration({
                           </div>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          className="llm-config-value-button"
-                          onClick={() => beginEdit(key)}
-                          aria-label={`Edit setting ${key}`}
-                        >
-                          {formatValue(value)}
-                        </button>
+                        <>
+                          {isEditable ? (
+                            <button
+                              type="button"
+                              className="llm-config-value-button"
+                              onClick={() => beginEdit(key)}
+                              aria-label={`Edit setting ${key}`}
+                            >
+                              {formatValue(value)}
+                            </button>
+                          ) : (
+                            <span className="llm-config-value-text">{formatValue(value)}</span>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>

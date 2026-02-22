@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ChatRepository } from '../../db/repositories/chatRepository';
+import type { LlmRuntimeSettings } from '../../../shared/llmManagerContracts';
 import { CHAT_CHANNELS, registerChatHandlers } from '../chatHandlers';
 
 function createHarness() {
@@ -16,6 +17,34 @@ function createHarness() {
 }
 
 describe('registerChatHandlers', () => {
+  const readySettings: LlmRuntimeSettings = {
+    llm_server_path: '/usr/local/bin/llama-server',
+    llm_gguf_path: '/models/Qwen3-4B-Q8_0.gguf',
+    llm_mmproj_path: null,
+    llm_server_url: 'http://127.0.0.1:8080/v1/chat/completions',
+    llm_host: '127.0.0.1',
+    llm_port: 8080,
+    llm_n_ctx: 4096,
+    llm_n_threads: null,
+    llm_n_gpu_layers: null,
+    llm_n_batch: null,
+    llm_n_parallel: null,
+    llm_seed: null,
+    llm_rope_freq_base: null,
+    llm_rope_freq_scale: null,
+    llm_use_jinja: true,
+    llm_cache_prompt: true,
+    llm_flash_attn: true,
+    max_tokens: 1024,
+    temperature: 0.2,
+    top_p: 0.95,
+    top_k: 50,
+    repeat_penalty: 1.1,
+    request_seed: null,
+    use_fake_reply: false,
+    fake_reply_text: null
+  };
+
   it('sends llm.chat through orchestrator and persists user + assistant messages', async () => {
     const harness = createHarness();
     const repository = new ChatRepository();
@@ -30,7 +59,10 @@ describe('registerChatHandlers', () => {
       { handle: harness.handle },
       {
         repository,
-        llmOrchestrator: { requestAction } as never
+        llmOrchestrator: { requestAction } as never,
+        llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(readySettings) } as never,
+        fileExists: vi.fn().mockResolvedValue(true),
+        isExecutable: vi.fn().mockResolvedValue(true)
       }
     );
 
@@ -89,7 +121,10 @@ describe('registerChatHandlers', () => {
       { handle: harness.handle },
       {
         repository,
-        llmOrchestrator: { requestAction } as never
+        llmOrchestrator: { requestAction } as never,
+        llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(readySettings) } as never,
+        fileExists: vi.fn().mockResolvedValue(true),
+        isExecutable: vi.fn().mockResolvedValue(true)
       }
     );
 
@@ -129,6 +164,127 @@ describe('registerChatHandlers', () => {
       error: {
         code: 'CHAT_SEND_INVALID_PAYLOAD',
         message: 'Chat message payload must include a non-empty message.'
+      }
+    });
+    expect(requestAction).not.toHaveBeenCalled();
+  });
+
+  it('returns LLM_NOT_READY when fake mode is off and gguf path is missing', async () => {
+    const harness = createHarness();
+    const repository = new ChatRepository();
+    const requestAction = vi.fn();
+    const settings: LlmRuntimeSettings = {
+      llm_server_path: '/usr/local/bin/llama-server',
+      llm_gguf_path: null,
+      llm_mmproj_path: null,
+      llm_server_url: 'http://127.0.0.1:8080/v1/chat/completions',
+      llm_host: '127.0.0.1',
+      llm_port: 8080,
+      llm_n_ctx: 4096,
+      llm_n_threads: null,
+      llm_n_gpu_layers: null,
+      llm_n_batch: null,
+      llm_n_parallel: null,
+      llm_seed: null,
+      llm_rope_freq_base: null,
+      llm_rope_freq_scale: null,
+      llm_use_jinja: true,
+      llm_cache_prompt: true,
+      llm_flash_attn: true,
+      max_tokens: 1024,
+      temperature: 0.2,
+      top_p: 0.95,
+      top_k: 50,
+      repeat_penalty: 1.1,
+      request_seed: null,
+      use_fake_reply: false,
+      fake_reply_text: null
+    };
+
+    registerChatHandlers(
+      { handle: harness.handle },
+      {
+        repository,
+        llmOrchestrator: { requestAction } as never,
+        llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(settings) } as never,
+        fileExists: vi.fn().mockResolvedValue(true),
+        isExecutable: vi.fn().mockResolvedValue(true)
+      }
+    );
+
+    const sendMessageHandler = harness.getHandler(CHAT_CHANNELS.sendMessage);
+    const sendResult = await sendMessageHandler({}, { message: 'Teacher prompt' });
+    expect(sendResult).toMatchObject({
+      ok: false,
+      error: {
+        code: 'LLM_NOT_READY'
+      }
+    });
+    expect(sendResult).toMatchObject({
+      ok: false,
+      error: {
+        details: {
+          issues: [{ code: 'MISSING_GGUF_PATH' }],
+          fakeMode: false
+        }
+      }
+    });
+    expect(requestAction).not.toHaveBeenCalled();
+  });
+
+  it('returns LLM_NOT_READY when fake mode is off and server binary is missing', async () => {
+    const harness = createHarness();
+    const repository = new ChatRepository();
+    const requestAction = vi.fn();
+    const settings: LlmRuntimeSettings = {
+      llm_server_path: '/tmp/missing-llama-server',
+      llm_gguf_path: '/tmp/model.gguf',
+      llm_mmproj_path: null,
+      llm_server_url: 'http://127.0.0.1:8080/v1/chat/completions',
+      llm_host: '127.0.0.1',
+      llm_port: 8080,
+      llm_n_ctx: 4096,
+      llm_n_threads: null,
+      llm_n_gpu_layers: null,
+      llm_n_batch: null,
+      llm_n_parallel: null,
+      llm_seed: null,
+      llm_rope_freq_base: null,
+      llm_rope_freq_scale: null,
+      llm_use_jinja: true,
+      llm_cache_prompt: true,
+      llm_flash_attn: true,
+      max_tokens: 1024,
+      temperature: 0.2,
+      top_p: 0.95,
+      top_k: 50,
+      repeat_penalty: 1.1,
+      request_seed: null,
+      use_fake_reply: false,
+      fake_reply_text: null
+    };
+
+    const fileExists = vi.fn(async (targetPath: string) => targetPath !== '/tmp/missing-llama-server');
+    registerChatHandlers(
+      { handle: harness.handle },
+      {
+        repository,
+        llmOrchestrator: { requestAction } as never,
+        llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(settings) } as never,
+        fileExists,
+        isExecutable: vi.fn().mockResolvedValue(true)
+      }
+    );
+
+    const sendMessageHandler = harness.getHandler(CHAT_CHANNELS.sendMessage);
+    const sendResult = await sendMessageHandler({}, { message: 'Teacher prompt' });
+    expect(sendResult).toMatchObject({
+      ok: false,
+      error: {
+        code: 'LLM_NOT_READY',
+        details: {
+          issues: [{ code: 'SERVER_FILE_NOT_FOUND' }]
+        }
       }
     });
     expect(requestAction).not.toHaveBeenCalled();

@@ -13,6 +13,7 @@ import type {
 } from '../shared/assessmentContracts';
 import type { SendChatMessageRequest } from '../shared/chatContracts';
 import type {
+  DeleteDownloadedModelRequest,
   DownloadModelRequest,
   DownloadProgressEvent,
   SelectModelRequest,
@@ -85,6 +86,8 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
       listDownloadedModels: () => invokeApi('llmManager/listDownloadedModels'),
       getActiveModel: () => invokeApi('llmManager/getActiveModel'),
       downloadModel: (request: DownloadModelRequest) => invokeApi('llmManager/downloadModel', request),
+      deleteDownloadedModel: (request: DeleteDownloadedModelRequest) =>
+        invokeApi('llmManager/deleteDownloadedModel', request),
       onDownloadProgress: (listener: (event: DownloadProgressEvent) => void) => {
         const channel = 'llmManager/downloadProgress';
         const wrappedListener = (_event: IpcRendererEvent, payload: unknown) => {

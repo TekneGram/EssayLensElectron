@@ -50,6 +50,7 @@ describe('preload api', () => {
     await api.llmManager.listDownloadedModels();
     await api.llmManager.getActiveModel();
     await api.llmManager.downloadModel({ key: 'qwen3_8b_q8' });
+    await api.llmManager.deleteDownloadedModel({ key: 'qwen3_8b_q8', deleteFiles: true });
     await api.llmManager.selectModel({ key: 'qwen3_4b_q8' });
     await api.llmManager.getSettings();
     await api.llmManager.updateSettings({ settings: { llm_n_ctx: 4096, temperature: 0.2 } });
@@ -87,6 +88,7 @@ describe('preload api', () => {
     expect(invoke).toHaveBeenCalledWith('llmManager/listDownloadedModels', undefined);
     expect(invoke).toHaveBeenCalledWith('llmManager/getActiveModel', undefined);
     expect(invoke).toHaveBeenCalledWith('llmManager/downloadModel', { key: 'qwen3_8b_q8' });
+    expect(invoke).toHaveBeenCalledWith('llmManager/deleteDownloadedModel', { key: 'qwen3_8b_q8', deleteFiles: true });
     expect(invoke).toHaveBeenCalledWith('llmManager/selectModel', { key: 'qwen3_4b_q8' });
     expect(invoke).toHaveBeenCalledWith('llmManager/getSettings', undefined);
     expect(invoke).toHaveBeenCalledWith('llmManager/updateSettings', {

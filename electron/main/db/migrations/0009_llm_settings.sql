@@ -81,6 +81,6 @@ INSERT OR IGNORE INTO llm_settings (
   40,
   1.1,
   NULL,
-  1,
-  'LLM is not configured yet. This is a fake response.'
+  0,
+  NULL
 );

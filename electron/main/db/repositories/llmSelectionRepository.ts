@@ -40,6 +40,15 @@ interface SelectableModelRow {
   downloaded_at: string;
 }
 
+interface DownloadedModelByKeyRow {
+  model_key: LlmModelKey;
+  display_name: string;
+  local_gguf_path: string;
+  local_mmproj_path: string | null;
+  downloaded_at: string;
+  is_active: number;
+}
+
 export class LlmSelectionRepository {
   private readonly db: SQLiteClient;
   private readonly now: () => string;
@@ -119,7 +128,31 @@ export class LlmSelectionRepository {
     return this.mapDownloadedModel(row);
   }
 
-  async selectModel(modelKey: LlmModelKey): Promise<{ activeModel: DownloadedLlmModelDto; settings: LlmRuntimeSettings } | null> {
+  async getDownloadedModelByKey(modelKey: LlmModelKey): Promise<DownloadedLlmModelDto | null> {
+    const row = await this.db.get<DownloadedModelByKeyRow>(
+      `SELECT model_key, display_name, local_gguf_path, local_mmproj_path, downloaded_at, is_active
+       FROM llm_selection
+       WHERE model_key = ?
+       LIMIT 1;`,
+      [modelKey]
+    );
+    return row ? this.mapDownloadedModel(row) : null;
+  }
+
+  async deleteDownloadedModel(modelKey: LlmModelKey): Promise<DownloadedLlmModelDto | null> {
+    const existing = await this.getDownloadedModelByKey(modelKey);
+    if (!existing) {
+      return null;
+    }
+
+    await this.db.run(`DELETE FROM llm_selection WHERE model_key = ?;`, [modelKey]);
+    return existing;
+  }
+
+  async selectModel(
+    modelKey: LlmModelKey,
+    llmServerPath?: string
+  ): Promise<{ activeModel: DownloadedLlmModelDto; settings: LlmRuntimeSettings } | null> {
     await this.db.exec('BEGIN;');
     try {
       const modelRow = await this.db.get<SelectableModelRow>(
@@ -137,7 +170,7 @@ export class LlmSelectionRepository {
       }
 
       await this.db.run('UPDATE llm_selection SET is_active = CASE WHEN model_key = ? THEN 1 ELSE 0 END;', [modelKey]);
-      await this.applyDefaultsToRuntimeSettings(modelKey, modelRow.local_gguf_path, modelRow.local_mmproj_path);
+      await this.applyDefaultsToRuntimeSettings(modelKey, modelRow.local_gguf_path, modelRow.local_mmproj_path, llmServerPath);
       await this.db.exec('COMMIT;');
 
       const settings = await this.settingsRepository.getRuntimeSettings();
@@ -158,7 +191,9 @@ export class LlmSelectionRepository {
     }
   }
 
-  async resetSettingsToDefaults(): Promise<{ activeModel: DownloadedLlmModelDto; settings: LlmRuntimeSettings } | null> {
+  async resetSettingsToDefaults(
+    llmServerPath?: string
+  ): Promise<{ activeModel: DownloadedLlmModelDto; settings: LlmRuntimeSettings } | null> {
     const active = await this.db.get<DownloadedModelRow>(
       `SELECT model_key, display_name, local_gguf_path, local_mmproj_path, downloaded_at, is_active
        FROM llm_selection
@@ -171,7 +206,7 @@ export class LlmSelectionRepository {
 
     await this.db.exec('BEGIN;');
     try {
-      await this.applyDefaultsToRuntimeSettings(active.model_key, active.local_gguf_path, active.local_mmproj_path);
+      await this.applyDefaultsToRuntimeSettings(active.model_key, active.local_gguf_path, active.local_mmproj_path, llmServerPath);
       await this.db.exec('COMMIT;');
     } catch (error) {
       await this.db.exec('ROLLBACK;');
@@ -184,7 +219,12 @@ export class LlmSelectionRepository {
     };
   }
 
-  private async applyDefaultsToRuntimeSettings(modelKey: LlmModelKey, ggufPath: string, mmprojPath: string | null): Promise<void> {
+  private async applyDefaultsToRuntimeSettings(
+    modelKey: LlmModelKey,
+    ggufPath: string,
+    mmprojPath: string | null,
+    llmServerPath?: string
+  ): Promise<void> {
     await this.db.run(
       `INSERT INTO llm_settings (
          id,
@@ -272,10 +312,16 @@ export class LlmSelectionRepository {
       [modelKey]
     );
 
-    await this.db.run(`UPDATE llm_settings SET llm_gguf_path = ?, llm_mmproj_path = ? WHERE id = 'default';`, [
-      ggufPath,
-      mmprojPath
-    ]);
+    await this.db.run(
+      `UPDATE llm_settings
+       SET llm_server_path = COALESCE(?, llm_server_path),
+           llm_gguf_path = ?,
+           llm_mmproj_path = ?,
+           use_fake_reply = 0,
+           fake_reply_text = NULL
+       WHERE id = 'default';`,
+      [llmServerPath ?? null, ggufPath, mmprojPath]
+    );
   }
 
   private mapDownloadedModel(row: DownloadedModelRow): DownloadedLlmModelDto {

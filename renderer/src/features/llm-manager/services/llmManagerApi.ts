@@ -1,6 +1,8 @@
 import type { AppError, AppResult } from '../../../../../electron/shared/appResult';
 import type {
   CatalogLlmModelDto,
+  DeleteDownloadedModelRequest,
+  DeleteDownloadedModelResponse,
   DownloadModelRequest,
   DownloadModelResponse,
   DownloadProgressEvent,
@@ -27,6 +29,7 @@ type LlmManagerApi = {
   updateSettings: (request: UpdateSettingsRequest) => Promise<AppResult<UpdateSettingsResponse>>;
   resetSettingsToDefaults: () => Promise<AppResult<ResetSettingsToDefaultsResponse>>;
   downloadModel?: (request: DownloadModelRequest) => Promise<AppResult<DownloadModelResponse>>;
+  deleteDownloadedModel?: (request: DeleteDownloadedModelRequest) => Promise<AppResult<DeleteDownloadedModelResponse>>;
   onDownloadProgress?: (listener: (event: DownloadProgressEvent) => void) => () => void;
 };
 
@@ -161,4 +164,18 @@ export function subscribeToDownloadProgress(listener: (event: DownloadProgressEv
     return () => {};
   }
   return llmApi.onDownloadProgress(listener);
+}
+
+export async function deleteDownloadedModel(key: LlmModelKey): Promise<DeleteDownloadedModelResponse> {
+  const llmApi = getLlmManagerApi();
+  if (typeof llmApi.deleteDownloadedModel !== 'function') {
+    throw new Error('Model delete action is not available in this build.');
+  }
+
+  const result = await llmApi.deleteDownloadedModel({ key, deleteFiles: true });
+  if (!result.ok) {
+    throw toError(result.error);
+  }
+
+  return result.data;
 }
