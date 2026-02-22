@@ -6,6 +6,7 @@ import { FileControlContainer } from './features/file-control/FileControlContain
 import { ChatCollapsedRail } from './features/layout/components/ChatCollapsedRail';
 import { ChatInterface } from './features/layout/components/ChatInterface';
 import { ChatView } from './features/layout/components/ChatView';
+import { LlmManager } from './features/llm-manager/LlmManager';
 import { RubricTab } from './features/rubric-tab/components/RubricTab';
 import { selectActiveTopTab, selectIsChatCollapsed, selectSelectedFileType, useAppDispatch, useAppState } from './state';
 
@@ -28,6 +29,7 @@ export function App() {
         onTabChange={(tab) => dispatch({ type: 'ui/setTopTab', payload: tab })}
         assessmentPanel={<AssessmentTab selectedFileType={selectedFileType} onChatBindingsChange={setAssessmentChatBindings} />}
         rubricPanel={<RubricTab />}
+        llmPanel={<LlmManager />}
       />
       {isChatCollapsed ? <ChatCollapsedRail onExpand={expandChat} /> : <ChatView onCollapse={collapseChat} />}
       <ChatInterface onChatIntent={expandChat} {...(assessmentChatBindings ?? {})} />

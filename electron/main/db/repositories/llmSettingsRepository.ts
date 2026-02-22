@@ -1,33 +1,8 @@
 import { getSharedDatabaseClient } from '../appDatabase';
 import type { SQLiteClient } from '../sqlite';
+import type { LlmRuntimeSettings } from '../../../shared/llmManagerContracts';
 
-export interface LlmRuntimeSettings {
-  llm_server_path: string;
-  llm_gguf_path: string | null;
-  llm_mmproj_path: string | null;
-  llm_server_url: string;
-  llm_host: string;
-  llm_port: number;
-  llm_n_ctx: number;
-  llm_n_threads: number | null;
-  llm_n_gpu_layers: number | null;
-  llm_n_batch: number | null;
-  llm_n_parallel: number | null;
-  llm_seed: number | null;
-  llm_rope_freq_base: number | null;
-  llm_rope_freq_scale: number | null;
-  llm_use_jinja: boolean;
-  llm_cache_prompt: boolean;
-  llm_flash_attn: boolean;
-  max_tokens: number;
-  temperature: number;
-  top_p: number | null;
-  top_k: number | null;
-  repeat_penalty: number | null;
-  request_seed: number | null;
-  use_fake_reply: boolean;
-  fake_reply_text: string | null;
-}
+export type { LlmRuntimeSettings } from '../../../shared/llmManagerContracts';
 
 interface LlmSettingsRow {
   llm_server_path: string;
@@ -110,5 +85,33 @@ export class LlmSettingsRepository {
       use_fake_reply: row.use_fake_reply === 1,
       fake_reply_text: row.fake_reply_text
     };
+  }
+
+  async updateRuntimeSettings(settings: Partial<LlmRuntimeSettings>): Promise<LlmRuntimeSettings> {
+    const updates = Object.entries(settings) as Array<[keyof LlmRuntimeSettings, LlmRuntimeSettings[keyof LlmRuntimeSettings]]>;
+    if (updates.length === 0) {
+      return this.getRuntimeSettings();
+    }
+
+    const setClauses: string[] = [];
+    const params: Array<string | number | null> = [];
+    for (const [field, value] of updates) {
+      setClauses.push(`${field} = ?`);
+      params.push(this.toSqlValue(field, value));
+    }
+    params.push('default');
+
+    await this.db.run(`UPDATE llm_settings SET ${setClauses.join(', ')} WHERE id = ?;`, params);
+    return this.getRuntimeSettings();
+  }
+
+  private toSqlValue(
+    field: keyof LlmRuntimeSettings,
+    value: LlmRuntimeSettings[keyof LlmRuntimeSettings]
+  ): string | number | null {
+    if (field === 'llm_use_jinja' || field === 'llm_cache_prompt' || field === 'llm_flash_attn' || field === 'use_fake_reply') {
+      return value ? 1 : 0;
+    }
+    return value as string | number | null;
   }
 }

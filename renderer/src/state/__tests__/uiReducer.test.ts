@@ -6,10 +6,10 @@ describe('uiReducer', () => {
   it('changes active top tab', () => {
     const next = uiReducer(initialUiState, {
       type: 'ui/setTopTab',
-      payload: 'rubric'
+      payload: 'llm'
     });
 
-    expect(next.activeTopTab).toBe('rubric');
+    expect(next.activeTopTab).toBe('llm');
     expect(initialUiState.activeTopTab).toBe('assessment');
   });
 

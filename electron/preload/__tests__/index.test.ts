@@ -16,6 +16,7 @@ describe('preload api', () => {
     expect(api.assessment).toBeDefined();
     expect(api.rubric).toBeDefined();
     expect(api.chat).toBeDefined();
+    expect(api.llmManager).toBeDefined();
 
     await api.workspace.selectFolder();
     await api.assessment.extractDocument({ fileId: 'file-1' });
@@ -38,6 +39,13 @@ describe('preload api', () => {
     await api.rubric.getGradingContext({ fileId: 'file-1' });
     await api.rubric.setLastUsed({ rubricId: 'rubric-1' });
     await api.chat.sendMessage({ message: 'hello' });
+    await api.llmManager.listCatalogModels();
+    await api.llmManager.listDownloadedModels();
+    await api.llmManager.getActiveModel();
+    await api.llmManager.selectModel({ key: 'qwen3_4b_q8' });
+    await api.llmManager.getSettings();
+    await api.llmManager.updateSettings({ settings: { llm_n_ctx: 4096, temperature: 0.2 } });
+    await api.llmManager.resetSettingsToDefaults();
 
     expect(invoke).toHaveBeenCalledWith('workspace/selectFolder', undefined);
     expect(invoke).toHaveBeenCalledWith('assessment/extractDocument', { fileId: 'file-1' });
@@ -63,5 +71,14 @@ describe('preload api', () => {
     expect(invoke).toHaveBeenCalledWith('rubric/getGradingContext', { fileId: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('rubric/setLastUsed', { rubricId: 'rubric-1' });
     expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { message: 'hello' });
+    expect(invoke).toHaveBeenCalledWith('llmManager/listCatalogModels', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/listDownloadedModels', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/getActiveModel', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/selectModel', { key: 'qwen3_4b_q8' });
+    expect(invoke).toHaveBeenCalledWith('llmManager/getSettings', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/updateSettings', {
+      settings: { llm_n_ctx: 4096, temperature: 0.2 }
+    });
+    expect(invoke).toHaveBeenCalledWith('llmManager/resetSettingsToDefaults', undefined);
   });
 });
