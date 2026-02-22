@@ -53,7 +53,7 @@
     "files": [
       "dist-electron/**",
       "renderer/dist/**",
-      "python/**",
+      "electron-llm/**",
       "package.json",
       "!**/*.test.*",
       "!**/*.spec.*",
@@ -64,8 +64,8 @@
     ],
     "extraResources": [
       {
-        "from": "python",
-        "to": "python",
+        "from": "electron-llm",
+        "to": "electron-llm",
         "filter": [
           "**/*",
           "!**/*.test.*",

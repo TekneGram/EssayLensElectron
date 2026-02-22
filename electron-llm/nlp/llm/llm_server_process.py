@@ -24,7 +24,7 @@ class LlmServerProcess:
             return self._flash_attn_value_supported
         try:
             help_text = subprocess.check_output(
-                [str(self.server_cfg.llama_server_path), "-h"],
+                [str(self.server_cfg.llm_server_path), "-h"],
                 stderr=subprocess.STDOUT,
                 text=True,
             )
@@ -38,49 +38,49 @@ class LlmServerProcess:
         if self.is_running():
             return
         
-        if not self.server_cfg.llama_server_path.exists():
-            raise FileNotFoundError(f"llm server not found: {self.server_cfg.llama_server_path}")
+        if not self.server_cfg.llm_server_path.exists():
+            raise FileNotFoundError(f"llm server not found: {self.server_cfg.llm_server_path}")
 
-        if self.llm_cfg.llama_gguf_path is None:
-            raise ValueError("llm_cfg.llama_gguf_path is required to start the llm server.")
+        if self.llm_cfg.llm_gguf_path is None:
+            raise ValueError("llm_cfg.llm_gguf_path is required to start the llm server.")
 
-        if not self.llm_cfg.llama_gguf_path.exists():
-            raise FileNotFoundError(f"llm gguf not found: {self.llm_cfg.llama_gguf_path}")
+        if not self.llm_cfg.llm_gguf_path.exists():
+            raise FileNotFoundError(f"llm gguf not found: {self.llm_cfg.llm_gguf_path}")
         
-        if self.llm_cfg.llama_mmproj_path is not None:
-            if not self.llm_cfg.llama_mmproj_path.exists():
-                raise FileNotFoundError(f"llm mmproj not found: {self.llm_cfg.llama_mmproj_path}")
-            if not self.llm_cfg.llama_mmproj_path.is_file():
-                raise FileNotFoundError(f"llm mmproj is not a file: {self.llm_cfg.llama_mmproj_path}")
+        if self.llm_cfg.llm_mmproj_path is not None:
+            if not self.llm_cfg.llm_mmproj_path.exists():
+                raise FileNotFoundError(f"llm mmproj not found: {self.llm_cfg.llm_mmproj_path}")
+            if not self.llm_cfg.llm_mmproj_path.is_file():
+                raise FileNotFoundError(f"llm mmproj is not a file: {self.llm_cfg.llm_mmproj_path}")
 
         cmd = [
-            str(self.server_cfg.llama_server_path),
-            "-m", str(self.llm_cfg.llama_gguf_path),
-            "--host", str(self.server_cfg.llama_host),
-            "--port", str(self.server_cfg.llama_port),
-            "-c", str(self.server_cfg.llama_n_ctx),
+            str(self.server_cfg.llm_server_path),
+            "-m", str(self.llm_cfg.llm_gguf_path),
+            "--host", str(self.server_cfg.llm_host),
+            "--port", str(self.server_cfg.llm_port),
+            "-c", str(self.server_cfg.llm_n_ctx),
         ]
-        if self.llm_cfg.llama_mmproj_path is not None:
-            cmd.extend(["--mmproj", str(self.llm_cfg.llama_mmproj_path)])
-        if self.server_cfg.llama_n_threads is not None:
-            cmd.extend(["-t", str(self.server_cfg.llama_n_threads)])
-        if self.server_cfg.llama_n_gpu_layers is not None:
-            cmd.extend(["-ngl", str(self.server_cfg.llama_n_gpu_layers)])
-        if self.server_cfg.llama_n_batch is not None:
-            cmd.extend(["-b", str(self.server_cfg.llama_n_batch)])
-        if self.server_cfg.llama_n_parallel is not None:
-            cmd.extend(["-np", str(self.server_cfg.llama_n_parallel)])
-        if self.server_cfg.llama_seed is not None:
-            cmd.extend(["--seed", str(self.server_cfg.llama_seed)])
-        if self.server_cfg.llama_rope_freq_base is not None:
-            cmd.extend(["--rope-freq-base", str(self.server_cfg.llama_rope_freq_base)])
-        if self.server_cfg.llama_rope_freq_scale is not None:
-            cmd.extend(["--rope-freq-scale", str(self.server_cfg.llama_rope_freq_scale)])
-        cmd.append("--jinja" if self.server_cfg.llama_use_jinja else "--no-jinja")
-        cmd.append("--cache-prompt" if self.server_cfg.llama_cache_prompt else "--no-cache-prompt")
+        if self.llm_cfg.llm_mmproj_path is not None:
+            cmd.extend(["--mmproj", str(self.llm_cfg.llm_mmproj_path)])
+        if self.server_cfg.llm_n_threads is not None:
+            cmd.extend(["-t", str(self.server_cfg.llm_n_threads)])
+        if self.server_cfg.llm_n_gpu_layers is not None:
+            cmd.extend(["-ngl", str(self.server_cfg.llm_n_gpu_layers)])
+        if self.server_cfg.llm_n_batch is not None:
+            cmd.extend(["-b", str(self.server_cfg.llm_n_batch)])
+        if self.server_cfg.llm_n_parallel is not None:
+            cmd.extend(["-np", str(self.server_cfg.llm_n_parallel)])
+        if self.server_cfg.llm_seed is not None:
+            cmd.extend(["--seed", str(self.server_cfg.llm_seed)])
+        if self.server_cfg.llm_rope_freq_base is not None:
+            cmd.extend(["--rope-freq-base", str(self.server_cfg.llm_rope_freq_base)])
+        if self.server_cfg.llm_rope_freq_scale is not None:
+            cmd.extend(["--rope-freq-scale", str(self.server_cfg.llm_rope_freq_scale)])
+        cmd.append("--jinja" if self.server_cfg.llm_use_jinja else "--no-jinja")
+        cmd.append("--cache-prompt" if self.server_cfg.llm_cache_prompt else "--no-cache-prompt")
         if self._supports_flash_attn_value():
-            cmd.extend(["--flash-attn", "on" if self.server_cfg.llama_flash_attn else "off"])
-        elif self.server_cfg.llama_flash_attn:
+            cmd.extend(["--flash-attn", "on" if self.server_cfg.llm_flash_attn else "off"])
+        elif self.server_cfg.llm_flash_attn:
             cmd.append("--flash-attn")
 
         # Start server (persistent model load)
@@ -93,7 +93,7 @@ class LlmServerProcess:
 
         # Wait until Openai-compatible chat endpoint responds (model loaded)
         deadline = time.time() + wait_s
-        health_url = f"http://{self.server_cfg.llama_host}:{self.server_cfg.llama_port}/health"
+        health_url = f"http://{self.server_cfg.llm_host}:{self.server_cfg.llm_port}/health"
 
         while time.time() < deadline:
             if self._proc.poll() is not None:

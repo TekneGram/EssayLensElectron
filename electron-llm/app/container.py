@@ -69,7 +69,7 @@ def build_container(app_cfg: AppConfig):
             server_url = app_cfg.llm_server.llm_server_url,
             model_name = "",
             model_family = "",
-            request=app_cfg.llm_request
+            request_cfg=app_cfg.llm_request
         )
 
         llm_service = LlmService(

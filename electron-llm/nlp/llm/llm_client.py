@@ -252,7 +252,6 @@ class OpenAICompatChatClient:
     
     async def chat_async(self, system: str, user: str, **kwargs) -> ChatResponse:
         payload = self._build_payload(system=system, user=user, **kwargs)
-        print("Payload:", payload)
 
         async with httpx.AsyncClient(timeout=self.timeout_s) as client:
             try:

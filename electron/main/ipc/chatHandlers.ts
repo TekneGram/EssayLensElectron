@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { appErr, appOk } from '../../shared/appResult';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../../shared/chatContracts';
 import { ChatRepository } from '../db/repositories/chatRepository';
+import { LlmSettingsRepository, type LlmRuntimeSettings } from '../db/repositories/llmSettingsRepository';
 import { LlmOrchestrator } from '../services/llmOrchestrator';
 import type { IpcMainLike } from './types';
 
@@ -13,12 +14,18 @@ export const CHAT_CHANNELS = {
 interface ChatHandlerDeps {
   repository: ChatRepository;
   llmOrchestrator: LlmOrchestrator;
+  llmSettingsRepository?: LlmSettingsRepository;
+}
+
+interface LlmChatPayload extends SendChatMessageRequest {
+  settings: LlmRuntimeSettings;
 }
 
 function getDefaultDeps(): ChatHandlerDeps {
   return {
     repository: new ChatRepository(),
-    llmOrchestrator: new LlmOrchestrator()
+    llmOrchestrator: new LlmOrchestrator(),
+    llmSettingsRepository: new LlmSettingsRepository()
   };
 }
 
@@ -83,10 +90,27 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
       });
     }
 
+    const llmSettingsRepository = deps.llmSettingsRepository ?? new LlmSettingsRepository();
+    let settings: LlmRuntimeSettings;
+    try {
+      settings = await llmSettingsRepository.getRuntimeSettings();
+    } catch (error) {
+      return appErr({
+        code: 'LLM_SETTINGS_LOAD_FAILED',
+        message: 'Could not load LLM runtime settings.',
+        details: error
+      });
+    }
+
+    const llmPayload: LlmChatPayload = {
+      ...normalizedRequest,
+      settings
+    };
+
     const llmResult = await deps.llmOrchestrator.requestAction<
-      SendChatMessageRequest,
+      LlmChatPayload,
       SendChatMessageResponse
-    >('llm.chat', normalizedRequest);
+    >('llm.chat', llmPayload);
     if (!llmResult.ok) {
       return appErr(llmResult.error);
     }

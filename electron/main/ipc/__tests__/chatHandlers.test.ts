@@ -40,11 +40,17 @@ describe('registerChatHandlers', () => {
     const sendResult = await sendMessageHandler({}, { fileId: 'file-1', message: 'Teacher prompt' });
     expect(sendResult).toEqual({ ok: true, data: { reply: 'Assistant reply' } });
 
-    expect(requestAction).toHaveBeenCalledWith('llm.chat', {
-      fileId: 'file-1',
-      contextText: undefined,
-      message: 'Teacher prompt'
-    });
+    expect(requestAction).toHaveBeenCalledWith(
+      'llm.chat',
+      expect.objectContaining({
+        fileId: 'file-1',
+        contextText: undefined,
+        message: 'Teacher prompt',
+        settings: expect.objectContaining({
+          llm_server_url: 'http://127.0.0.1:8080/v1/chat/completions'
+        })
+      })
+    );
 
     const listResult = await listMessagesHandler({}, { fileId: 'file-1' });
     expect(listResult).toMatchObject({

@@ -87,7 +87,7 @@ async def run_parallel_prompt_tester(
     max_concurrency: int | None = None,
 ) -> dict[str, Any]:
     requests_ = build_prompt_tester(text_tasks)
-    concurrency = max_concurrency or app_cfg.llm_server.llama_n_parallel
+    concurrency = max_concurrency or app_cfg.llm_server.llm_n_parallel
 
     started = time.perf_counter()
     outputs = await llm_service.chat_many(
