@@ -89,6 +89,11 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "vendor/llama-server",
+        "to": "llama-server",
+        "filter": ["**/*"]
       }
     ]
   }

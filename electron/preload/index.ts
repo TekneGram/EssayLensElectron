@@ -12,6 +12,7 @@ import type {
   SendFeedbackToLlmRequest
 } from '../shared/assessmentContracts';
 import type { SendChatMessageRequest } from '../shared/chatContracts';
+import type { SelectModelRequest, UpdateSettingsRequest } from '../shared/llmManagerContracts';
 import type {
   ClearAppliedRubricRequest,
   CloneRubricRequest,
@@ -72,6 +73,15 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     chat: {
       listMessages: (fileId?: string) => invokeApi('chat/listMessages', { fileId }),
       sendMessage: (request: SendChatMessageRequest) => invokeApi('chat/sendMessage', request)
+    },
+    llmManager: {
+      listCatalogModels: () => invokeApi('llmManager/listCatalogModels'),
+      listDownloadedModels: () => invokeApi('llmManager/listDownloadedModels'),
+      getActiveModel: () => invokeApi('llmManager/getActiveModel'),
+      selectModel: (request: SelectModelRequest) => invokeApi('llmManager/selectModel', request),
+      getSettings: () => invokeApi('llmManager/getSettings'),
+      updateSettings: (request: UpdateSettingsRequest) => invokeApi('llmManager/updateSettings', request),
+      resetSettingsToDefaults: () => invokeApi('llmManager/resetSettingsToDefaults')
     }
   };
 }

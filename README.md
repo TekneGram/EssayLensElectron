@@ -78,6 +78,93 @@ If only Electron/renderer TypeScript/CSS/UI changed (and Python did not), you ca
 npm run package
 ```
 
+## Build `llama-server` (llama.cpp) For Dev + Packaging
+
+This project keeps llama.cpp source in:
+
+- `electron-llm/third_party/llama.cpp`
+
+Build output is copied to:
+
+- `vendor/llama-server/darwin-arm64/llama-server`
+
+The `vendor` path is the shared runtime source for:
+
+- Dev mode (directly from repo)
+- Packaged mode (copied into app `Resources` by `electron-builder`)
+
+Step-by-step on Apple Silicon macOS:
+
+1. Go to repo root
+
+```bash
+cd /Users/danielmikaleola/Documents/Development/EssayLensElectron
+```
+
+2. Confirm llama.cpp source exists
+
+```bash
+ls -la electron-llm/third_party/llama.cpp
+```
+
+3. Create build directory
+
+```bash
+mkdir -p electron-llm/third_party/llama.cpp/build-darwin-arm64
+```
+
+4. Configure CMake
+
+```bash
+cmake -S electron-llm/third_party/llama.cpp -B electron-llm/third_party/llama.cpp/build-darwin-arm64 -DCMAKE_BUILD_TYPE=Release
+```
+
+5. Build `llama-server`
+
+```bash
+cmake --build electron-llm/third_party/llama.cpp/build-darwin-arm64 --config Release --target llama-server
+```
+
+6. Create runtime destination
+
+```bash
+mkdir -p vendor/llama-server/darwin-arm64
+```
+
+7. Copy built binary
+
+```bash
+cp electron-llm/third_party/llama.cpp/build-darwin-arm64/bin/llama-server vendor/llama-server/darwin-arm64/llama-server
+```
+
+8. Ensure executable permission
+
+```bash
+chmod +x vendor/llama-server/darwin-arm64/llama-server
+```
+
+9. Verify binary runs
+
+```bash
+vendor/llama-server/darwin-arm64/llama-server --help | head -n 20
+```
+
+10. Ensure packaging includes this folder in `package.json` `build.extraResources`:
+
+```json
+{
+  "from": "vendor/llama-server",
+  "to": "llama-server",
+  "filter": ["**/*"]
+}
+```
+
+Quick check:
+
+```bash
+grep -nE '"from": "vendor/llama-server"|"to": "llama-server"' package.json
+```
+
 ## Fake LLM Test
 
 The chat flow can use fake reply mode via persisted `llm_settings` defaults.

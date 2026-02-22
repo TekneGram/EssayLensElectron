@@ -160,6 +160,12 @@
   align-content: start;
 }
 
+.assessment-llm-status {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .assessment-window-tabs,
 .comments-tabs {
   display: flex;

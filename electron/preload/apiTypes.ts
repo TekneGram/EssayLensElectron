@@ -21,6 +21,17 @@ import type {
 } from '../shared/assessmentContracts';
 import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
 import type {
+  GetActiveModelResponse,
+  GetSettingsResponse,
+  ListCatalogModelsResponse,
+  ListDownloadedModelsResponse,
+  ResetSettingsToDefaultsResponse,
+  SelectModelRequest,
+  SelectModelResponse,
+  UpdateSettingsRequest,
+  UpdateSettingsResponse
+} from '../shared/llmManagerContracts';
+import type {
   ClearAppliedRubricRequest,
   ClearAppliedRubricResponse,
   CloneRubricRequest,
@@ -83,6 +94,15 @@ export interface EssayLensApi {
   chat: {
     listMessages(fileId?: string): Promise<ApiResult<ListMessagesResponse>>;
     sendMessage(request: SendChatMessageRequest): Promise<ApiResult<SendChatMessageResponse>>;
+  };
+  llmManager: {
+    listCatalogModels(): Promise<ApiResult<ListCatalogModelsResponse>>;
+    listDownloadedModels(): Promise<ApiResult<ListDownloadedModelsResponse>>;
+    getActiveModel(): Promise<ApiResult<GetActiveModelResponse>>;
+    selectModel(request: SelectModelRequest): Promise<ApiResult<SelectModelResponse>>;
+    getSettings(): Promise<ApiResult<GetSettingsResponse>>;
+    updateSettings(request: UpdateSettingsRequest): Promise<ApiResult<UpdateSettingsResponse>>;
+    resetSettingsToDefaults(): Promise<ApiResult<ResetSettingsToDefaultsResponse>>;
   };
 }
 

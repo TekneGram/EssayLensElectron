@@ -1,23 +1,33 @@
 import type { ReactNode } from 'react';
 import type { AssessmentTopTab } from '../../../state';
+import { useActiveLlmModelQuery } from '../../llm-manager/hooks/useActiveLlmModelQuery';
 
 interface AssessmentWindowProps {
   activeTab: AssessmentTopTab;
   onTabChange: (tab: AssessmentTopTab) => void;
   assessmentPanel: ReactNode;
   rubricPanel: ReactNode;
+  llmPanel: ReactNode;
 }
 
 export function AssessmentWindow({
   activeTab,
   onTabChange,
   assessmentPanel,
-  rubricPanel
+  rubricPanel,
+  llmPanel
 }: AssessmentWindowProps) {
+  const hasLlmManagerApi = Boolean((window as Window & { api?: { llmManager?: unknown } }).api?.llmManager);
+  const { data: activeModel } = useActiveLlmModelQuery(hasLlmManagerApi);
+  const llmStatusText = activeModel?.displayName ?? 'No LLM installed.';
+
   return (
     <section className="assessment-window pane main" data-testid="assessment-window" aria-label="Assessment window">
       <div className="main-head">
         <h3>AssessmentWindow</h3>
+        <p className="assessment-llm-status" data-testid="assessment-llm-status">
+          {llmStatusText}
+        </p>
         <div role="tablist" aria-label="Assessment window tabs" className="assessment-window-tabs tabs">
           <button
             id="assessment-tab"
@@ -40,6 +50,17 @@ export function AssessmentWindow({
             onClick={() => onTabChange('rubric')}
           >
             Rubric
+          </button>
+          <button
+            id="llm-tab"
+            role="tab"
+            type="button"
+            aria-selected={activeTab === 'llm'}
+            aria-controls="llm-panel"
+            className={activeTab === 'llm' ? 'tab active is-active' : 'tab'}
+            onClick={() => onTabChange('llm')}
+          >
+            Your LLM
           </button>
         </div>
       </div>
@@ -64,6 +85,17 @@ export function AssessmentWindow({
         hidden={activeTab !== 'rubric'}
       >
         {rubricPanel}
+      </div>
+
+      <div
+        id="llm-panel"
+        className="workspace-panel"
+        role="tabpanel"
+        aria-labelledby="llm-tab"
+        data-testid="llm-panel"
+        hidden={activeTab !== 'llm'}
+      >
+        {llmPanel}
       </div>
     </section>
   );

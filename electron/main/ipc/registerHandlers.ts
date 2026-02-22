@@ -1,5 +1,6 @@
 import { ASSESSMENT_CHANNELS, registerAssessmentHandlers } from './assessmentHandlers';
 import { CHAT_CHANNELS, registerChatHandlers } from './chatHandlers';
+import { LLM_MANAGER_CHANNELS, registerLlmManagerHandlers } from './llmManagerHandlers';
 import { RUBRIC_CHANNELS, registerRubricHandlers } from './rubricHandlers';
 import type { IpcMainLike } from './types';
 import { WORKSPACE_CHANNELS, registerWorkspaceHandlers } from './workspaceHandlers';
@@ -8,7 +9,8 @@ export const ALL_IPC_CHANNELS = [
   ...Object.values(WORKSPACE_CHANNELS),
   ...Object.values(ASSESSMENT_CHANNELS),
   ...Object.values(RUBRIC_CHANNELS),
-  ...Object.values(CHAT_CHANNELS)
+  ...Object.values(CHAT_CHANNELS),
+  ...Object.values(LLM_MANAGER_CHANNELS)
 ] as const;
 
 export function registerIpcHandlers(ipcMain: IpcMainLike): readonly string[] {
@@ -16,5 +18,6 @@ export function registerIpcHandlers(ipcMain: IpcMainLike): readonly string[] {
   registerAssessmentHandlers(ipcMain);
   registerRubricHandlers(ipcMain);
   registerChatHandlers(ipcMain);
+  registerLlmManagerHandlers(ipcMain);
   return ALL_IPC_CHANNELS;
 }
