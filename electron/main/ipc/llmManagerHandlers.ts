@@ -100,6 +100,11 @@ function resolveDefaultLlmServerPath(): string {
   return resolveLlamaServerPath({ mode: runtimeMode });
 }
 
+function isUnsetLlmServerPath(value: string): boolean {
+  const normalized = value.trim();
+  return normalized.length === 0 || normalized === '__unset_llm_server__';
+}
+
 function getDefaultDeps(): LlmManagerHandlerDeps {
   const selectionRepository = new LlmSelectionRepository();
   return {
@@ -261,6 +266,22 @@ export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManage
         await clearRuntimeModelPaths();
       }
     }
+  };
+
+  const healLegacyActiveModelSettings = async (): Promise<LlmRuntimeSettings> => {
+    const settings = await deps.settingsRepository.getRuntimeSettings();
+    if (!isUnsetLlmServerPath(settings.llm_server_path)) {
+      return settings;
+    }
+
+    const activeModel = await deps.selectionRepository.getActiveModel();
+    if (!activeModel) {
+      return settings;
+    }
+
+    const llmServerPath = (deps.resolveLlmServerPath ?? resolveDefaultLlmServerPath)();
+    const reset = await deps.selectionRepository.resetSettingsToDefaults(llmServerPath);
+    return reset?.settings ?? settings;
   };
 
   ipcMain.handle(LLM_MANAGER_CHANNELS.listCatalogModels, async () => {
@@ -492,7 +513,8 @@ export function registerLlmManagerHandlers(ipcMain: IpcMainLike, deps: LlmManage
 
   ipcMain.handle(LLM_MANAGER_CHANNELS.getSettings, async () => {
     try {
-      const settings = await deps.settingsRepository.getRuntimeSettings();
+      await reconcileDownloadedModels();
+      const settings = await healLegacyActiveModelSettings();
       return appOk<GetSettingsResponse>({ settings });
     } catch (error) {
       return appErr({

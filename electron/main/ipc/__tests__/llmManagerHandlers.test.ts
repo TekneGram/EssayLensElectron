@@ -279,6 +279,60 @@ describe('registerLlmManagerHandlers', () => {
     });
   });
 
+  it('auto-heals legacy active model settings when server path is unset on getSettings', async () => {
+    const harness = createHarness();
+    const getRuntimeSettings = vi
+      .fn()
+      .mockResolvedValueOnce({ ...settingsFixture, llm_server_path: '__unset_llm_server__' });
+    const resetSettingsToDefaults = vi.fn().mockResolvedValue({
+      activeModel: {
+        key: 'qwen3_4b_q8',
+        displayName: 'Qwen3 4B Q8_0',
+        localGgufPath: '/models/Qwen3-4B-Q8_0.gguf',
+        localMmprojPath: null,
+        downloadedAt: '2026-02-22T10:00:00.000Z',
+        isActive: true
+      },
+      settings: settingsFixture
+    });
+
+    registerLlmManagerHandlers(
+      { handle: harness.handle },
+      {
+        selectionRepository: {
+          listCatalogModels: vi.fn(),
+          listDownloadedModels: vi.fn().mockResolvedValue([]),
+          getActiveModel: vi.fn().mockResolvedValue({
+            key: 'qwen3_4b_q8',
+            displayName: 'Qwen3 4B Q8_0',
+            localGgufPath: '/models/Qwen3-4B-Q8_0.gguf',
+            localMmprojPath: null,
+            downloadedAt: '2026-02-22T10:00:00.000Z',
+            isActive: true
+          }),
+          selectModel: vi.fn(),
+          resetSettingsToDefaults,
+          upsertDownloadedModel: vi.fn(),
+          getDownloadedModelByKey: vi.fn(),
+          deleteDownloadedModel: vi.fn()
+        } as never,
+        settingsRepository: {
+          getRuntimeSettings,
+          updateRuntimeSettings: vi.fn()
+        } as never,
+        downloadModel: vi.fn(),
+        resolveLlmServerPath: () => '/runtime/llama-server'
+      }
+    );
+
+    const getSettingsHandler = harness.getHandler(LLM_MANAGER_CHANNELS.getSettings);
+    await expect(getSettingsHandler({}, undefined)).resolves.toEqual({
+      ok: true,
+      data: { settings: settingsFixture }
+    });
+    expect(resetSettingsToDefaults).toHaveBeenCalledWith('/runtime/llama-server');
+  });
+
   it('downloads a catalog model and persists it as downloaded', async () => {
     const harness = createHarness();
     const downloadModel = vi.fn().mockResolvedValue('/Users/test/AppData/EssayLens/models/qwen3_4b_q8/Qwen3-4B-Q8_0.gguf');

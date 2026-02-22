@@ -9,8 +9,10 @@ import type {
   SendChatMessageResponse
 } from '../../shared/chatContracts';
 import { ChatRepository } from '../db/repositories/chatRepository';
+import { LlmSelectionRepository } from '../db/repositories/llmSelectionRepository';
 import { LlmSettingsRepository, type LlmRuntimeSettings } from '../db/repositories/llmSettingsRepository';
 import { LlmOrchestrator } from '../services/llmOrchestrator';
+import { resolveLlamaServerPath } from '../services/llmRuntimePaths';
 import { getLlmNotReadyDetails } from '../services/llmRuntimeReadiness';
 import type { IpcMainLike } from './types';
 
@@ -23,8 +25,10 @@ interface ChatHandlerDeps {
   repository: ChatRepository;
   llmOrchestrator: LlmOrchestrator;
   llmSettingsRepository?: LlmSettingsRepository;
+  llmSelectionRepository?: Pick<LlmSelectionRepository, 'getActiveModel' | 'resetSettingsToDefaults'>;
   fileExists?: (targetPath: string) => Promise<boolean>;
   isExecutable?: (targetPath: string) => Promise<boolean>;
+  resolveLlmServerPath?: () => string;
 }
 
 interface LlmChatPayload extends SendChatMessageRequest {
@@ -52,13 +56,24 @@ async function isExecutable(targetPath: string): Promise<boolean> {
   }
 }
 
+function resolveDefaultLlmServerPath(): string {
+  const runtimeMode = process.env.VITE_DEV_SERVER_URL || process.env.NODE_ENV === 'development' ? 'dev' : 'packaged';
+  return resolveLlamaServerPath({ mode: runtimeMode });
+}
+
+function canRecoverMissingServerPath(details: LlmNotReadyErrorDetails): boolean {
+  return details.issues.length === 1 && details.issues[0]?.code === 'MISSING_SERVER_PATH';
+}
+
 function getDefaultDeps(): ChatHandlerDeps {
   return {
     repository: new ChatRepository(),
     llmOrchestrator: new LlmOrchestrator(),
     llmSettingsRepository: new LlmSettingsRepository(),
+    llmSelectionRepository: new LlmSelectionRepository(),
     fileExists,
-    isExecutable
+    isExecutable,
+    resolveLlmServerPath: resolveDefaultLlmServerPath
   };
 }
 
@@ -137,10 +152,26 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
 
     const validateFileExists = deps.fileExists ?? fileExists;
     const validateExecutable = deps.isExecutable ?? isExecutable;
-    const notReadyDetails = await getLlmNotReadyDetails(settings, {
+    let notReadyDetails = await getLlmNotReadyDetails(settings, {
       fileExists: validateFileExists,
       isExecutable: validateExecutable
     });
+    if (notReadyDetails && canRecoverMissingServerPath(notReadyDetails)) {
+      const llmSelectionRepository = deps.llmSelectionRepository ?? new LlmSelectionRepository();
+      const activeModel = await llmSelectionRepository.getActiveModel();
+      if (activeModel) {
+        const llmServerPath = (deps.resolveLlmServerPath ?? resolveDefaultLlmServerPath)();
+        const reset = await llmSelectionRepository.resetSettingsToDefaults(llmServerPath);
+        if (reset?.settings) {
+          settings = reset.settings;
+          notReadyDetails = await getLlmNotReadyDetails(settings, {
+            fileExists: validateFileExists,
+            isExecutable: validateExecutable
+          });
+        }
+      }
+    }
+
     if (notReadyDetails) {
       const details: LlmNotReadyErrorDetails = notReadyDetails;
       return appErr({

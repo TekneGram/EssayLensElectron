@@ -289,4 +289,72 @@ describe('registerChatHandlers', () => {
     });
     expect(requestAction).not.toHaveBeenCalled();
   });
+
+  it('auto-heals missing server path at chat time when an active model exists', async () => {
+    const harness = createHarness();
+    const repository = new ChatRepository();
+    const requestAction = vi.fn().mockResolvedValue({
+      requestId: 'req-1',
+      ok: true,
+      data: { reply: 'Recovered reply' },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    });
+    const initialSettings: LlmRuntimeSettings = {
+      ...readySettings,
+      llm_server_path: '__unset_llm_server__'
+    };
+    const llmSettingsRepository = {
+      getRuntimeSettings: vi.fn().mockResolvedValue(initialSettings)
+    };
+    const llmSelectionRepository = {
+      getActiveModel: vi.fn().mockResolvedValue({
+        key: 'qwen3_4b_q8',
+        displayName: 'Qwen3 4B Q8_0',
+        localGgufPath: '/models/Qwen3-4B-Q8_0.gguf',
+        localMmprojPath: null,
+        downloadedAt: '2026-02-22T10:00:00.000Z',
+        isActive: true
+      }),
+      resetSettingsToDefaults: vi.fn().mockResolvedValue({
+        activeModel: {
+          key: 'qwen3_4b_q8',
+          displayName: 'Qwen3 4B Q8_0',
+          localGgufPath: '/models/Qwen3-4B-Q8_0.gguf',
+          localMmprojPath: null,
+          downloadedAt: '2026-02-22T10:00:00.000Z',
+          isActive: true
+        },
+        settings: {
+          ...readySettings,
+          llm_server_path: '/runtime/llama-server'
+        }
+      })
+    };
+
+    registerChatHandlers(
+      { handle: harness.handle },
+      {
+        repository,
+        llmOrchestrator: { requestAction } as never,
+        llmSettingsRepository: llmSettingsRepository as never,
+        llmSelectionRepository: llmSelectionRepository as never,
+        resolveLlmServerPath: () => '/runtime/llama-server',
+        fileExists: vi.fn().mockResolvedValue(true),
+        isExecutable: vi.fn().mockResolvedValue(true)
+      }
+    );
+
+    const sendMessageHandler = harness.getHandler(CHAT_CHANNELS.sendMessage);
+    const sendResult = await sendMessageHandler({}, { fileId: 'file-1', message: 'Teacher prompt' });
+    expect(sendResult).toEqual({ ok: true, data: { reply: 'Recovered reply' } });
+    expect(llmSelectionRepository.resetSettingsToDefaults).toHaveBeenCalledWith('/runtime/llama-server');
+    expect(requestAction).toHaveBeenCalledWith(
+      'llm.chat',
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          llm_server_path: '/runtime/llama-server'
+        })
+      })
+    );
+  });
 });
