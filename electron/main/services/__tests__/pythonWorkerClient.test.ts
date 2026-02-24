@@ -119,4 +119,109 @@ describe('PythonWorkerClient', () => {
       code: 'PY_TIMEOUT'
     });
   });
+
+  it('forwards stream events and resolves on final response envelope', async () => {
+    const worker = new FakeChildProcess();
+    const client = new PythonWorkerClient({
+      spawn: vi.fn().mockReturnValue(worker as never),
+      workerCommand: 'python3',
+      workerArgs: ['-u', '/tmp/fake-worker.py'],
+      defaultTimeoutMs: 1000
+    });
+    const onStreamEvent = vi.fn();
+
+    const requestPromise = client.request(makeRequest('req-stream'), { onStreamEvent });
+    worker.stdout.write(
+      `${JSON.stringify({
+        requestId: 'req-stream',
+        type: 'stream_start',
+        data: { channel: 'meta', text: '', done: false, seq: 1 },
+        timestamp: 't'
+      })}\n`
+    );
+    worker.stdout.write(
+      `${JSON.stringify({
+        requestId: 'req-stream',
+        type: 'stream_chunk',
+        data: { channel: 'content', text: 'hello', done: false, seq: 2 },
+        timestamp: 't'
+      })}\n`
+    );
+    worker.stdout.write(
+      `${JSON.stringify({
+        requestId: 'req-stream',
+        ok: true,
+        data: { reply: 'hello' },
+        timestamp: 't'
+      })}\n`
+    );
+
+    await expect(requestPromise).resolves.toMatchObject({
+      requestId: 'req-stream',
+      ok: true,
+      data: { reply: 'hello' }
+    });
+    expect(onStreamEvent).toHaveBeenCalledTimes(2);
+    expect(onStreamEvent).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        requestId: 'req-stream',
+        type: 'stream_chunk',
+        data: expect.objectContaining({
+          text: 'hello'
+        })
+      })
+    );
+  });
+
+  it('resets timeout on stream_start and stream_chunk activity', async () => {
+    vi.useFakeTimers();
+    const worker = new FakeChildProcess();
+    const client = new PythonWorkerClient({
+      spawn: vi.fn().mockReturnValue(worker as never),
+      workerCommand: 'python3',
+      workerArgs: ['-u', '/tmp/fake-worker.py'],
+      defaultTimeoutMs: 1000
+    });
+
+    const requestPromise = client.request(makeRequest('req-stream-timeout'), { timeoutMs: 25 });
+    const captured = requestPromise.catch((error) => error);
+
+    await vi.advanceTimersByTimeAsync(20);
+    worker.stdout.write(
+      `${JSON.stringify({
+        requestId: 'req-stream-timeout',
+        type: 'stream_start',
+        data: { channel: 'meta', text: '', done: false, seq: 1 },
+        timestamp: 't'
+      })}\n`
+    );
+
+    await vi.advanceTimersByTimeAsync(20);
+    worker.stdout.write(
+      `${JSON.stringify({
+        requestId: 'req-stream-timeout',
+        type: 'stream_chunk',
+        data: { channel: 'content', text: 'hello', done: false, seq: 2 },
+        timestamp: 't'
+      })}\n`
+    );
+
+    await vi.advanceTimersByTimeAsync(20);
+    worker.stdout.write(
+      `${JSON.stringify({
+        requestId: 'req-stream-timeout',
+        ok: true,
+        data: { reply: 'hello' },
+        timestamp: 't'
+      })}\n`
+    );
+
+    await expect(requestPromise).resolves.toMatchObject({
+      requestId: 'req-stream-timeout',
+      ok: true,
+      data: { reply: 'hello' }
+    });
+    await expect(captured).resolves.not.toMatchObject({ code: 'PY_TIMEOUT' });
+  });
 });

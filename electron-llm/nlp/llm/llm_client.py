@@ -236,6 +236,12 @@ class OpenAICompatChatClient:
             state.add(event)
         return events, False
 
+    @staticmethod
+    def _decode_stream_line(line: str | bytes) -> str:
+        if isinstance(line, bytes):
+            return line.decode("utf-8", errors="replace")
+        return line
+
     # ----- API: chat, chat_async, chat_many -----
 
     def chat(self, system: str, user: str, **kwargs) -> ChatResponse:
@@ -397,9 +403,12 @@ class OpenAICompatChatClient:
             raise RuntimeError(f"LLM Server connection failed: {e}")
 
         with response:
-            for line in response.iter_lines(decode_unicode=True):
-                if not isinstance(line, str):
+            # Force UTF-8 decoding to avoid mojibake when server omits charset.
+            response.encoding = "utf-8"
+            for raw_line in response.iter_lines(decode_unicode=False):
+                if not isinstance(raw_line, (str, bytes)):
                     continue
+                line = self._decode_stream_line(raw_line)
                 events, done = self._events_from_stream_line(line, state)
                 for event in events:
                     yield event
@@ -420,6 +429,7 @@ class OpenAICompatChatClient:
             try:
                 async with client.stream("POST", self.server_url, json=payload) as response:
                     response.raise_for_status()
+                    response.encoding = "utf-8"
                     async for line in response.aiter_lines():
                         if not isinstance(line, str):
                             continue

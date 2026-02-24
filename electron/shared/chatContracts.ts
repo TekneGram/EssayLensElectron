@@ -18,10 +18,29 @@ export interface SendChatMessageRequest {
   fileId?: string;
   message: string;
   contextText?: string;
+  clientRequestId?: string;
 }
 
 export interface SendChatMessageResponse {
   reply: string;
+}
+
+export type ChatStreamEventType = 'start' | 'chunk' | 'done' | 'error';
+
+export interface ChatStreamChunkEvent {
+  requestId: string;
+  clientRequestId: string;
+  fileId?: string;
+  type: ChatStreamEventType;
+  seq: number;
+  channel?: 'content' | 'reasoning' | 'meta';
+  text?: string;
+  done?: boolean;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
 }
 
 export type LlmReadinessIssueCode =
