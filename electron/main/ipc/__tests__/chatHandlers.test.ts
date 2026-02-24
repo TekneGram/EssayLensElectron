@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ChatRepository } from '../../db/repositories/chatRepository';
 import type { LlmRuntimeSettings } from '../../../shared/llmManagerContracts';
-import { CHAT_CHANNELS, registerChatHandlers } from '../chatHandlers';
+import { CHAT_CHANNELS, CHAT_EVENTS, registerChatHandlers } from '../chatHandlers';
 
 function createHarness() {
   const handle = vi.fn();
@@ -45,21 +45,42 @@ describe('registerChatHandlers', () => {
     fake_reply_text: null
   };
 
-  it('sends llm.chat through orchestrator and persists user + assistant messages', async () => {
+  it('streams llm.chatStream chunks and persists user + assistant messages after final', async () => {
     const harness = createHarness();
     const repository = new ChatRepository();
-    const requestAction = vi.fn().mockResolvedValue({
-      requestId: 'req-1',
-      ok: true,
-      data: { reply: 'Assistant reply' },
-      timestamp: '2026-02-18T00:00:00.000Z'
+    const requestActionStream = vi.fn().mockImplementation(async (_action, _payload, onStreamEvent) => {
+      onStreamEvent({
+        requestId: 'req-1',
+        type: 'stream_start',
+        data: { clientRequestId: 'client-1', channel: 'meta', text: '', done: false, seq: 1 },
+        timestamp: '2026-02-18T00:00:00.000Z'
+      });
+      onStreamEvent({
+        requestId: 'req-1',
+        type: 'stream_chunk',
+        data: { clientRequestId: 'client-1', channel: 'content', text: 'Assistant ', done: false, seq: 2 },
+        timestamp: '2026-02-18T00:00:00.000Z'
+      });
+      onStreamEvent({
+        requestId: 'req-1',
+        type: 'stream_done',
+        data: { clientRequestId: 'client-1', channel: 'meta', text: '', done: true, seq: 3 },
+        timestamp: '2026-02-18T00:00:00.000Z'
+      });
+      return {
+        requestId: 'req-1',
+        ok: true,
+        data: { reply: 'Assistant reply' },
+        timestamp: '2026-02-18T00:00:00.000Z'
+      };
     });
+    const send = vi.fn();
 
     registerChatHandlers(
       { handle: harness.handle },
       {
         repository,
-        llmOrchestrator: { requestAction } as never,
+        llmOrchestrator: { requestActionStream } as never,
         llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(readySettings) } as never,
         fileExists: vi.fn().mockResolvedValue(true),
         isExecutable: vi.fn().mockResolvedValue(true)
@@ -69,18 +90,31 @@ describe('registerChatHandlers', () => {
     const sendMessageHandler = harness.getHandler(CHAT_CHANNELS.sendMessage);
     const listMessagesHandler = harness.getHandler(CHAT_CHANNELS.listMessages);
 
-    const sendResult = await sendMessageHandler({}, { fileId: 'file-1', message: 'Teacher prompt' });
+    const sendResult = await sendMessageHandler(
+      { sender: { send } },
+      { fileId: 'file-1', message: 'Teacher prompt', clientRequestId: 'client-1' }
+    );
     expect(sendResult).toEqual({ ok: true, data: { reply: 'Assistant reply' } });
 
-    expect(requestAction).toHaveBeenCalledWith(
-      'llm.chat',
+    expect(requestActionStream).toHaveBeenCalledWith(
+      'llm.chatStream',
       expect.objectContaining({
         fileId: 'file-1',
         contextText: undefined,
         message: 'Teacher prompt',
+        clientRequestId: 'client-1',
         settings: expect.objectContaining({
           llm_server_url: 'http://127.0.0.1:8080/v1/chat/completions'
         })
+      }),
+      expect.any(Function)
+    );
+    expect(send).toHaveBeenCalledWith(
+      CHAT_EVENTS.streamChunk,
+      expect.objectContaining({
+        clientRequestId: 'client-1',
+        type: 'chunk',
+        text: 'Assistant '
       })
     );
 

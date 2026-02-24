@@ -28,6 +28,7 @@ export type WorkspaceAction =
 export type ChatAction =
   | { type: 'chat/setMessages'; payload: ChatMessage[] }
   | { type: 'chat/addMessage'; payload: ChatMessage }
+  | { type: 'chat/updateMessageContent'; payload: { messageId: string; content: string; mode: 'append' | 'replace' } }
   | { type: 'chat/setDraft'; payload: string }
   | { type: 'chat/setStatus'; payload: ChatState['status'] }
   | { type: 'chat/setError'; payload?: string };

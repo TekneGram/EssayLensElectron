@@ -1,6 +1,11 @@
 import { spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'node:child_process';
 import path from 'node:path';
-import type { PythonRequest, PythonResponse } from '../../shared/llmContracts';
+import type {
+  PythonRequest,
+  PythonResponse,
+  PythonStreamEventEnvelope,
+  PythonWorkerEnvelope
+} from '../../shared/llmContracts';
 
 export type PythonBridgeErrorCode = 'PY_TIMEOUT' | 'PY_PROCESS_DOWN' | 'PY_INVALID_RESPONSE';
 
@@ -24,9 +29,12 @@ type SpawnLike = (
 
 interface PendingRequest {
   requestId: string;
+  action: string;
   resolve: (value: PythonResponse<unknown>) => void;
   reject: (error: PythonBridgeError) => void;
   timeoutId: NodeJS.Timeout;
+  timeoutMs: number;
+  onStreamEvent?: (event: PythonStreamEventEnvelope) => void;
 }
 
 export interface PythonWorkerClientDeps {
@@ -69,7 +77,7 @@ function getDefaultDeps(): PythonWorkerClientDeps {
       spawn,
       workerCommand: pythonExecutable,
       workerArgs: ['-u', workerScriptPath],
-      defaultTimeoutMs: 60_000
+      defaultTimeoutMs: 180_000
     };
   }
 
@@ -78,7 +86,7 @@ function getDefaultDeps(): PythonWorkerClientDeps {
       spawn,
       workerCommand: getBundledWorkerExecutablePath(resourcesPath),
       workerArgs: [],
-      defaultTimeoutMs: 60_000
+      defaultTimeoutMs: 180_000
     };
   }
 
@@ -86,7 +94,7 @@ function getDefaultDeps(): PythonWorkerClientDeps {
     spawn,
     workerCommand: 'python3',
     workerArgs: ['-u', workerScriptPath],
-    defaultTimeoutMs: 60_000
+    defaultTimeoutMs: 180_000
   };
 }
 
@@ -110,6 +118,32 @@ function isValidPythonResponse(value: unknown): value is PythonResponse<unknown>
   return typeof value.error.message === 'string';
 }
 
+function isValidPythonStreamEvent(value: unknown): value is PythonStreamEventEnvelope {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  if (typeof value.requestId !== 'string' || typeof value.type !== 'string' || !isPlainObject(value.data)) {
+    return false;
+  }
+
+  const validType =
+    value.type === 'stream_start' ||
+    value.type === 'stream_chunk' ||
+    value.type === 'stream_done' ||
+    value.type === 'stream_error';
+  if (!validType) {
+    return false;
+  }
+
+  return (
+    typeof value.data.channel === 'string' &&
+    typeof value.data.text === 'string' &&
+    typeof value.data.done === 'boolean' &&
+    typeof value.data.seq === 'number'
+  );
+}
+
 export class PythonWorkerClient {
   private readonly deps: PythonWorkerClientDeps;
   private worker: ChildProcessWithoutNullStreams | null = null;
@@ -125,7 +159,7 @@ export class PythonWorkerClient {
 
   async request(
     request: PythonRequest<unknown>,
-    options?: { timeoutMs?: number }
+    options?: { timeoutMs?: number; onStreamEvent?: (event: PythonStreamEventEnvelope) => void }
   ): Promise<PythonResponse<unknown>> {
     const worker = this.ensureWorker();
     const timeoutMs = options?.timeoutMs ?? this.deps.defaultTimeoutMs;
@@ -143,9 +177,12 @@ export class PythonWorkerClient {
 
       this.pendingRequests.set(request.requestId, {
         requestId: request.requestId,
+        action: request.action,
         resolve,
         reject,
-        timeoutId
+        timeoutId,
+        timeoutMs,
+        onStreamEvent: options?.onStreamEvent
       });
 
       worker.stdin.write(`${JSON.stringify(request)}\n`, (error) => {
@@ -248,23 +285,36 @@ export class PythonWorkerClient {
         continue;
       }
 
-      if (!isValidPythonResponse(parsed)) {
+      const envelope = parsed as PythonWorkerEnvelope<unknown>;
+      if (isValidPythonStreamEvent(envelope)) {
+        const pending = this.pendingRequests.get(envelope.requestId);
+        if (!pending) {
+          continue;
+        }
+        if (envelope.type === 'stream_start' || envelope.type === 'stream_chunk') {
+          this.refreshPendingTimeout(pending);
+        }
+        pending.onStreamEvent?.(envelope);
+        continue;
+      }
+
+      if (!isValidPythonResponse(envelope)) {
         this.rejectAllPending(
           new PythonBridgeError('PY_INVALID_RESPONSE', 'Python worker returned an invalid response envelope.', {
-            response: parsed
+            response: envelope
           })
         );
         continue;
       }
 
-      const pending = this.pendingRequests.get(parsed.requestId);
+      const pending = this.pendingRequests.get(envelope.requestId);
       if (!pending) {
         continue;
       }
 
       clearTimeout(pending.timeoutId);
-      this.pendingRequests.delete(parsed.requestId);
-      pending.resolve(parsed);
+      this.pendingRequests.delete(envelope.requestId);
+      pending.resolve(envelope);
     }
   }
 
@@ -276,6 +326,19 @@ export class PythonWorkerClient {
     clearTimeout(pending.timeoutId);
     this.pendingRequests.delete(requestId);
     pending.reject(error);
+  }
+
+  private refreshPendingTimeout(pending: PendingRequest): void {
+    clearTimeout(pending.timeoutId);
+    pending.timeoutId = setTimeout(() => {
+      this.rejectPending(
+        pending.requestId,
+        new PythonBridgeError(
+          'PY_TIMEOUT',
+          `Python worker timed out after ${pending.timeoutMs}ms for action ${pending.action}.`
+        )
+      );
+    }, pending.timeoutMs);
   }
 
   private rejectAllPending(error: PythonBridgeError): void {

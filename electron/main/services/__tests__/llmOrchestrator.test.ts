@@ -100,4 +100,42 @@ describe('LlmOrchestrator', () => {
       error: { code: 'PY_INVALID_RESPONSE' }
     });
   });
+
+  it('forwards stream callback and resolves final response for llm.chatStream', async () => {
+    const streamEvent = {
+      requestId: 'req-123',
+      type: 'stream_chunk',
+      data: { channel: 'content', text: 'hello', done: false, seq: 2 },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    } as const;
+    const workerRequest = vi.fn(async (_request, options?: { onStreamEvent?: (event: typeof streamEvent) => void }) => {
+      options?.onStreamEvent?.(streamEvent);
+      return {
+        requestId: 'req-123',
+        ok: true,
+        data: { reply: 'hello' },
+        timestamp: '2026-02-18T00:00:00.000Z'
+      } as const;
+    });
+    const orchestrator = new LlmOrchestrator({
+      workerClient: { request: workerRequest },
+      requestIdFactory: () => 'req-123',
+      now: () => '2026-02-18T00:00:00.000Z',
+      timeoutMs: 1000
+    });
+    const onStreamEvent = vi.fn();
+
+    const result = await orchestrator.requestActionStream('llm.chatStream', { message: 'hi' }, onStreamEvent);
+
+    expect(result).toMatchObject({
+      requestId: 'req-123',
+      ok: true,
+      data: { reply: 'hello' }
+    });
+    expect(onStreamEvent).toHaveBeenCalledWith(streamEvent);
+    expect(workerRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'llm.chatStream' }),
+      expect.objectContaining({ onStreamEvent: expect.any(Function) })
+    );
+  });
 });

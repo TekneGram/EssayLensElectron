@@ -3,6 +3,7 @@ import { constants as fsConstants } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { appErr, appOk } from '../../shared/appResult';
 import type {
+  ChatStreamChunkEvent,
   ListMessagesResponse,
   LlmNotReadyErrorDetails,
   SendChatMessageRequest,
@@ -19,6 +20,10 @@ import type { IpcMainLike } from './types';
 export const CHAT_CHANNELS = {
   listMessages: 'chat/listMessages',
   sendMessage: 'chat/sendMessage'
+} as const;
+
+export const CHAT_EVENTS = {
+  streamChunk: 'chat/streamChunk'
 } as const;
 
 interface ChatHandlerDeps {
@@ -94,7 +99,8 @@ function normalizeSendMessageRequest(request: unknown): SendChatMessageRequest |
   return {
     fileId: typeof candidate.fileId === 'string' ? candidate.fileId : undefined,
     contextText: typeof candidate.contextText === 'string' ? candidate.contextText : undefined,
-    message
+    message,
+    clientRequestId: typeof candidate.clientRequestId === 'string' ? candidate.clientRequestId : undefined
   };
 }
 
@@ -108,6 +114,19 @@ function getReplyText(data: unknown): string | null {
   }
   const reply = (data as Record<string, unknown>).reply;
   return typeof reply === 'string' && reply.trim().length > 0 ? reply : null;
+}
+
+function isEventWithSender(
+  event: unknown
+): event is { sender: { send: (channel: string, payload: unknown) => void } } {
+  if (typeof event !== 'object' || event === null) {
+    return false;
+  }
+  const sender = (event as { sender?: unknown }).sender;
+  if (typeof sender !== 'object' || sender === null) {
+    return false;
+  }
+  return typeof (sender as { send?: unknown }).send === 'function';
 }
 
 export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps = getDefaultDeps()): void {
@@ -129,7 +148,7 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
     }
   });
 
-  ipcMain.handle(CHAT_CHANNELS.sendMessage, async (_event, request) => {
+  ipcMain.handle(CHAT_CHANNELS.sendMessage, async (event, request) => {
     const normalizedRequest = normalizeSendMessageRequest(request);
     if (!normalizedRequest) {
       return appErr({
@@ -186,10 +205,47 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
       settings
     };
 
-    const llmResult = await deps.llmOrchestrator.requestAction<
-      LlmChatPayload,
-      SendChatMessageResponse
-    >('llm.chat', llmPayload);
+    const emitToRenderer = (payload: ChatStreamChunkEvent) => {
+      if (!isEventWithSender(event)) {
+        return;
+      }
+      event.sender.send(CHAT_EVENTS.streamChunk, payload);
+    };
+
+    const fallbackClientRequestId = makeMessageId();
+    const clientRequestId = normalizedRequest.clientRequestId ?? fallbackClientRequestId;
+    let llmResult;
+    if (typeof deps.llmOrchestrator.requestActionStream === 'function') {
+      llmResult = await deps.llmOrchestrator.requestActionStream<
+        LlmChatPayload,
+        SendChatMessageResponse
+      >('llm.chatStream', llmPayload, (streamEvent) => {
+        const mappedType =
+          streamEvent.type === 'stream_start'
+            ? 'start'
+            : streamEvent.type === 'stream_chunk'
+              ? 'chunk'
+              : streamEvent.type === 'stream_done'
+                ? 'done'
+                : 'error';
+        emitToRenderer({
+          requestId: streamEvent.requestId,
+          clientRequestId: streamEvent.data.clientRequestId ?? clientRequestId,
+          fileId: normalizedRequest.fileId,
+          type: mappedType,
+          seq: streamEvent.data.seq,
+          channel: streamEvent.data.channel,
+          text: streamEvent.data.text,
+          done: streamEvent.data.done,
+          error: streamEvent.data.error
+        });
+      });
+    } else {
+      llmResult = await deps.llmOrchestrator.requestAction<
+        LlmChatPayload,
+        SendChatMessageResponse
+      >('llm.chat', llmPayload);
+    }
     if (!llmResult.ok) {
       return appErr(llmResult.error);
     }

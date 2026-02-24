@@ -19,7 +19,12 @@ import type {
   SendFeedbackToLlmRequest,
   SendFeedbackToLlmResponse
 } from '../shared/assessmentContracts';
-import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
+import type {
+  ChatStreamChunkEvent,
+  ListMessagesResponse,
+  SendChatMessageRequest,
+  SendChatMessageResponse
+} from '../shared/chatContracts';
 import type {
   DeleteDownloadedModelRequest,
   DeleteDownloadedModelResponse,
@@ -99,6 +104,7 @@ export interface EssayLensApi {
   chat: {
     listMessages(fileId?: string): Promise<ApiResult<ListMessagesResponse>>;
     sendMessage(request: SendChatMessageRequest): Promise<ApiResult<SendChatMessageResponse>>;
+    onStreamChunk(listener: (event: ChatStreamChunkEvent) => void): () => void;
   };
   llmManager: {
     listCatalogModels(): Promise<ApiResult<ListCatalogModelsResponse>>;

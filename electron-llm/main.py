@@ -50,6 +50,19 @@ def _success(request_id: str, data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _stream_event(
+    request_id: str,
+    event_type: str,
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "requestId": request_id,
+        "type": event_type,
+        "data": data,
+        "timestamp": _now_iso(),
+    }
+
+
 def _extract_message(payload: dict[str, Any]) -> str:
     message = payload.get("message")
     if not isinstance(message, str):
@@ -72,18 +85,21 @@ def _extract_fake_reply(payload: dict[str, Any]) -> str | None:
     return "LLM is not configured yet."
 
 
-def _run_chat(payload: dict[str, Any], lifecycle: RuntimeLifecycle) -> str:
-    fake_reply = _extract_fake_reply(payload)
-    if fake_reply is not None:
-        return fake_reply
+def _extract_client_request_id(payload: dict[str, Any]) -> str | None:
+    value = payload.get("clientRequestId")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
 
+
+def _build_runtime(payload: dict[str, Any], lifecycle: RuntimeLifecycle) -> tuple[Any, Any]:
     try:
         app_cfg = build_settings_from_payload(payload)
     except ValueError as exc:
         raise WorkerActionError(f"Invalid LLM settings: {exc}") from exc
 
     if app_cfg.use_fake_reply:
-        return app_cfg.fake_reply_text
+        raise WorkerActionError("Invalid configuration: use_fake_reply should be handled before runtime setup.")
 
     deps = lifecycle.get_or_create_llm_runtime(app_cfg, build_container)
     server_proc = deps.get("server_proc")
@@ -101,7 +117,16 @@ def _run_chat(payload: dict[str, Any], lifecycle: RuntimeLifecycle) -> str:
     except RuntimeError as exc:
         raise WorkerActionError(f"Failed to start llama-server: {exc}") from exc
 
+    return app_cfg, llm_task_service
+
+
+def _run_chat(payload: dict[str, Any], lifecycle: RuntimeLifecycle) -> str:
+    fake_reply = _extract_fake_reply(payload)
+    if fake_reply is not None:
+        return fake_reply
+
     message = _extract_message(payload)
+    app_cfg, llm_task_service = _build_runtime(payload, lifecycle)
 
     try:
         result = llm_task_service.prompt_tester_parallel(
@@ -133,6 +158,123 @@ def _run_chat(payload: dict[str, Any], lifecycle: RuntimeLifecycle) -> str:
     return reply.strip()
 
 
+def _run_chat_stream(payload: dict[str, Any], request_id: str, lifecycle: RuntimeLifecycle) -> dict[str, Any]:
+    client_request_id = _extract_client_request_id(payload)
+    message = _extract_message(payload)
+    seq = 1
+
+    _write_response(
+        _stream_event(
+            request_id,
+            "stream_start",
+            {
+                "clientRequestId": client_request_id,
+                "channel": "meta",
+                "text": "",
+                "done": False,
+                "seq": seq,
+            },
+        )
+    )
+
+    fake_reply = _extract_fake_reply(payload)
+    if fake_reply is not None:
+        seq += 1
+        _write_response(
+            _stream_event(
+                request_id,
+                "stream_chunk",
+                {
+                    "clientRequestId": client_request_id,
+                    "channel": "content",
+                    "text": fake_reply,
+                    "done": False,
+                    "seq": seq,
+                },
+            )
+        )
+        seq += 1
+        _write_response(
+            _stream_event(
+                request_id,
+                "stream_done",
+                {
+                    "clientRequestId": client_request_id,
+                    "channel": "meta",
+                    "text": "",
+                    "done": True,
+                    "seq": seq,
+                },
+            )
+        )
+        return _success(request_id, {"reply": fake_reply})
+
+    app_cfg, llm_task_service = _build_runtime(payload, lifecycle)
+    stream = llm_task_service.prompt_tester_stream(app_cfg=app_cfg, text=message)
+
+    while True:
+        try:
+            stream_event = next(stream)
+        except StopIteration as stop:
+            reply = stop.value
+            break
+        except Exception as exc:
+            seq += 1
+            _write_response(
+                _stream_event(
+                    request_id,
+                    "stream_error",
+                    {
+                        "clientRequestId": client_request_id,
+                        "channel": "meta",
+                        "text": "",
+                        "done": True,
+                        "seq": seq,
+                        "error": {
+                            "code": "PY_ACTION_FAILED",
+                            "message": f"LLM request failed: {exc}",
+                        },
+                    },
+                )
+            )
+            raise WorkerActionError(f"LLM request failed: {exc}") from exc
+
+        seq += 1
+        _write_response(
+            _stream_event(
+                request_id,
+                "stream_chunk",
+                {
+                    "clientRequestId": client_request_id,
+                    "channel": stream_event.channel,
+                    "text": stream_event.text,
+                    "done": stream_event.done,
+                    "seq": seq,
+                    "finishReason": stream_event.finish_reason,
+                    "model": stream_event.model,
+                    "usage": stream_event.usage,
+                },
+            )
+        )
+
+    seq += 1
+    _write_response(
+        _stream_event(
+            request_id,
+            "stream_done",
+            {
+                "clientRequestId": client_request_id,
+                "channel": "meta",
+                "text": "",
+                "done": True,
+                "seq": seq,
+            },
+        )
+    )
+
+    return _success(request_id, {"reply": reply})
+
+
 def _handle_request(req: dict[str, Any], lifecycle: RuntimeLifecycle) -> dict[str, Any]:
     request_id = req.get("requestId")
     action = req.get("action")
@@ -151,6 +293,8 @@ def _handle_request(req: dict[str, Any], lifecycle: RuntimeLifecycle) -> dict[st
         if action == "llm.chat":
             reply = _run_chat(payload, lifecycle)
             return _success(request_id, {"reply": reply})
+        if action == "llm.chatStream":
+            return _run_chat_stream(payload, request_id, lifecycle)
 
         # Keep contract with electron orchestrator supported actions
         if action in {"llm.assessEssay", "llm.generateFeedbackSummary"}:

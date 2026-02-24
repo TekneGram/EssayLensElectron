@@ -7,8 +7,9 @@ interface CommandDropdownProps {
 }
 
 const COMMAND_OPTIONS = [
-  { id: 'evaluate-thesis', label: 'Evaluate Thesis' },
-  { id: 'check-hedging', label: 'Check Hedging' }
+  { id: 'evaluate-simple', label: 'Overview Comments' },
+  { id: 'evaluate-with-rubric', label: 'Rubric based comments' },
+  { id: 'bulk-evaluate', label: 'Comment in bulk' }
 ] as const;
 
 export function CommandDropdown({ activeCommand = null, onCommandSelected }: CommandDropdownProps) {

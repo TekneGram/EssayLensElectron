@@ -46,6 +46,8 @@ describe('preload api', () => {
     await api.rubric.getGradingContext({ fileId: 'file-1' });
     await api.rubric.setLastUsed({ rubricId: 'rubric-1' });
     await api.chat.sendMessage({ message: 'hello' });
+    const streamListener = vi.fn();
+    const unsubscribeStream = api.chat.onStreamChunk(streamListener);
     await api.llmManager.listCatalogModels();
     await api.llmManager.listDownloadedModels();
     await api.llmManager.getActiveModel();
@@ -58,7 +60,19 @@ describe('preload api', () => {
     const progressListener = vi.fn();
     const unsubscribe = api.llmManager.onDownloadProgress(progressListener);
     listeners.get('llmManager/downloadProgress')?.({}, { key: 'qwen3_8b_q8', phase: 'downloading' });
+    listeners.get('chat/streamChunk')?.(
+      {},
+      {
+        requestId: 'req-1',
+        clientRequestId: 'client-1',
+        type: 'chunk',
+        seq: 2,
+        channel: 'content',
+        text: 'hello'
+      }
+    );
     unsubscribe();
+    unsubscribeStream();
 
     expect(invoke).toHaveBeenCalledWith('workspace/selectFolder', undefined);
     expect(invoke).toHaveBeenCalledWith('assessment/extractDocument', { fileId: 'file-1' });
@@ -96,6 +110,16 @@ describe('preload api', () => {
     });
     expect(invoke).toHaveBeenCalledWith('llmManager/resetSettingsToDefaults', undefined);
     expect(progressListener).toHaveBeenCalledWith({ key: 'qwen3_8b_q8', phase: 'downloading' });
+    expect(streamListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: 'req-1',
+        clientRequestId: 'client-1',
+        type: 'chunk',
+        text: 'hello'
+      })
+    );
+    expect(on).toHaveBeenCalledWith('chat/streamChunk', expect.any(Function));
+    expect(removeListener).toHaveBeenCalledWith('chat/streamChunk', expect.any(Function));
     expect(on).toHaveBeenCalledWith('llmManager/downloadProgress', expect.any(Function));
     expect(removeListener).toHaveBeenCalledWith('llmManager/downloadProgress', expect.any(Function));
   });

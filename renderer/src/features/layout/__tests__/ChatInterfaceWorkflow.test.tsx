@@ -41,6 +41,99 @@ function renderApp() {
   );
 }
 
+function createLlmManagerMocks() {
+  return {
+    listCatalogModels: vi.fn().mockResolvedValue({ ok: true, data: { models: [] } }),
+    listDownloadedModels: vi.fn().mockResolvedValue({ ok: true, data: { models: [] } }),
+    getActiveModel: vi.fn().mockResolvedValue({ ok: true, data: { model: null } }),
+    getSettings: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        settings: {
+          llm_server_path: null,
+          llm_gguf_path: null,
+          llm_mmproj_path: null,
+          llm_server_url: null,
+          llm_host: '127.0.0.1',
+          llm_port: 8080,
+          llm_n_ctx: 4096,
+          llm_n_threads: null,
+          llm_n_gpu_layers: null,
+          llm_n_batch: null,
+          llm_n_parallel: null,
+          llm_seed: null,
+          llm_rope_freq_base: null,
+          llm_rope_freq_scale: null,
+          llm_use_jinja: true,
+          llm_cache_prompt: true,
+          llm_flash_attn: true,
+          max_tokens: 1024,
+          temperature: 0.2,
+          top_p: 0.95,
+          top_k: 50,
+          repeat_penalty: 1.1,
+          request_seed: null,
+          use_fake_reply: false,
+          fake_reply_text: null
+        }
+      }
+    }),
+    selectModel: vi.fn().mockResolvedValue({ ok: true, data: { model: null } }),
+    updateSettings: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        settings: {}
+      }
+    }),
+    resetSettingsToDefaults: vi.fn().mockResolvedValue({ ok: true, data: { settings: {}, activeModel: null } }),
+    onDownloadProgress: vi.fn().mockImplementation(() => () => {})
+  };
+}
+
+function createRubricMocks() {
+  return {
+    listRubrics: vi.fn().mockResolvedValue({ ok: true, data: { rubrics: [] } }),
+    getGradingContext: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        selectedRubricId: null,
+        selectedMatrix: null,
+        availableRubrics: []
+      }
+    }),
+    getFileScores: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        rubricId: null,
+        selections: []
+      }
+    }),
+    clearAppliedRubric: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        cleared: true
+      }
+    }),
+    saveFileScores: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        rubricId: null,
+        selections: [],
+        updatedAt: new Date().toISOString()
+      }
+    }),
+    setLastUsed: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { rubricId: null, updatedAt: new Date().toISOString() }
+    }),
+    getMatrix: vi.fn(),
+    updateMatrix: vi.fn(),
+    createRubric: vi.fn(),
+    cloneRubric: vi.fn(),
+    deleteRubric: vi.fn()
+  };
+}
+
 describe('ChatInterface submit workflow', () => {
   it('submits comment mode as inline AddFeedbackRequest when selection exists', async () => {
     const { selectFolder, listFiles } = createWorkspaceMocks();
@@ -84,8 +177,9 @@ describe('ChatInterface submit workflow', () => {
       value: {
         workspace: { selectFolder, listFiles },
         assessment: { listFeedback, addFeedback },
-        rubric: {},
-        chat: { sendMessage }
+        rubric: createRubricMocks(),
+        chat: { sendMessage },
+        llmManager: createLlmManagerMocks()
       },
       configurable: true
     });
@@ -173,8 +267,9 @@ describe('ChatInterface submit workflow', () => {
       value: {
         workspace: { selectFolder, listFiles },
         assessment: { listFeedback, addFeedback },
-        rubric: {},
-        chat: { sendMessage }
+        rubric: createRubricMocks(),
+        chat: { sendMessage },
+        llmManager: createLlmManagerMocks()
       },
       configurable: true
     });
@@ -200,17 +295,109 @@ describe('ChatInterface submit workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send chat message' }));
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({
-        fileId: '/workspace/essays/draft.docx',
-        message: 'How should I sequence feedback?',
-        contextText: undefined
-      });
+      expect(sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fileId: '/workspace/essays/draft.docx',
+          message: 'How should I sequence feedback?',
+          contextText: undefined,
+          clientRequestId: expect.any(String)
+        })
+      );
     });
     expect(addFeedback).not.toHaveBeenCalled();
 
     await waitFor(() => {
       expect(screen.getByText('[teacher] How should I sequence feedback?')).toBeTruthy();
       expect(screen.getByText('[assistant] Assistant workflow reply.')).toBeTruthy();
+    });
+  });
+
+  it('updates assistant message from stream chunks before sendMessage resolves', async () => {
+    const { selectFolder, listFiles } = createWorkspaceMocks();
+    const listFeedback = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        feedback: []
+      }
+    });
+    const addFeedback = vi.fn();
+    let streamListener: ((event: unknown) => void) | undefined;
+    let resolveSend: ((value: unknown) => void) | undefined;
+    const sendMessage = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        })
+    );
+    const onStreamChunk = vi.fn().mockImplementation((listener: (event: unknown) => void) => {
+      streamListener = listener;
+      return () => {
+        streamListener = undefined;
+      };
+    });
+
+    Object.defineProperty(window, 'api', {
+      value: {
+        workspace: { selectFolder, listFiles },
+        assessment: { listFeedback, addFeedback },
+        rubric: createRubricMocks(),
+        chat: { sendMessage, onStreamChunk },
+        llmManager: createLlmManagerMocks()
+      },
+      configurable: true
+    });
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select Folder' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'draft.docx' })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'draft.docx' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open command menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Evaluate Thesis' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), {
+      target: { value: 'Please stream this response' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send chat message' }));
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+    const payload = sendMessage.mock.calls[0]?.[0] as { clientRequestId?: string } | undefined;
+    const clientRequestId = payload?.clientRequestId;
+    expect(clientRequestId).toBeTypeOf('string');
+    expect(onStreamChunk).toHaveBeenCalledTimes(1);
+
+    const currentStreamListener = streamListener;
+    if (typeof currentStreamListener === 'function') {
+      currentStreamListener({
+        requestId: 'req-1',
+        clientRequestId,
+        type: 'chunk',
+        seq: 2,
+        channel: 'content',
+        text: 'Streaming'
+      });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText('[assistant] Streaming')).toBeTruthy();
+    });
+
+    const currentResolveSend = resolveSend;
+    if (typeof currentResolveSend === 'function') {
+      currentResolveSend({
+        ok: true,
+        data: {
+          reply: 'Streaming complete.'
+        }
+      });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText('[assistant] Streaming complete.')).toBeTruthy();
     });
   });
 });

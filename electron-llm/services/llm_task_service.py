@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Generator, Sequence
 
-from nlp.llm.tasks.prompt_tester import run_parallel_prompt_tester
+from nlp.llm.llm_types import ChatStreamEvent
+from nlp.llm.tasks.prompt_tester import run_parallel_prompt_tester, run_stream_prompt_tester
 
 
 if TYPE_CHECKING:
@@ -39,4 +40,17 @@ class LlmTaskService:
                 text_tasks=text_tasks,
                 max_concurrency=max_concurrency,
             )
+        )
+
+    def prompt_tester_stream(
+        self,
+        *,
+        app_cfg: "AppConfig",
+        text: str,
+    ) -> Generator[ChatStreamEvent, None, str]:
+        llm_no_think = self.llm_service.with_mode("no_think")
+        return run_stream_prompt_tester(
+            llm_service=llm_no_think,
+            app_cfg=app_cfg,
+            text=text,
         )

@@ -11,7 +11,7 @@ import type {
   RequestLlmAssessmentRequest,
   SendFeedbackToLlmRequest
 } from '../shared/assessmentContracts';
-import type { SendChatMessageRequest } from '../shared/chatContracts';
+import type { ChatStreamChunkEvent, SendChatMessageRequest } from '../shared/chatContracts';
 import type {
   DeleteDownloadedModelRequest,
   DownloadModelRequest,
@@ -79,7 +79,19 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     },
     chat: {
       listMessages: (fileId?: string) => invokeApi('chat/listMessages', { fileId }),
-      sendMessage: (request: SendChatMessageRequest) => invokeApi('chat/sendMessage', request)
+      sendMessage: (request: SendChatMessageRequest) => invokeApi('chat/sendMessage', request),
+      onStreamChunk: (listener: (event: ChatStreamChunkEvent) => void) => {
+        const channel = 'chat/streamChunk';
+        const wrappedListener = (_event: IpcRendererEvent, payload: unknown) => {
+          listener(payload as ChatStreamChunkEvent);
+        };
+        ipcRenderer.on(channel, wrappedListener);
+        return () => {
+          if (typeof ipcRenderer.removeListener === 'function') {
+            ipcRenderer.removeListener(channel, wrappedListener);
+          }
+        };
+      }
     },
     llmManager: {
       listCatalogModels: () => invokeApi('llmManager/listCatalogModels'),
