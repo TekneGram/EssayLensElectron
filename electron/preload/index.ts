@@ -11,7 +11,14 @@ import type {
   RequestLlmAssessmentRequest,
   SendFeedbackToLlmRequest
 } from '../shared/assessmentContracts';
-import type { SendChatMessageRequest } from '../shared/chatContracts';
+import type { ChatStreamChunkEvent, SendChatMessageRequest } from '../shared/chatContracts';
+import type {
+  DeleteDownloadedModelRequest,
+  DownloadModelRequest,
+  DownloadProgressEvent,
+  SelectModelRequest,
+  UpdateSettingsRequest
+} from '../shared/llmManagerContracts';
 import type {
   ClearAppliedRubricRequest,
   CloneRubricRequest,
@@ -28,6 +35,7 @@ import type {
 type IpcRendererLike = {
   invoke<TResult = unknown>(channel: string, request?: unknown): Promise<TResult>;
   on(channel: string, listener: (event: IpcRendererEvent, ...args: unknown[]) => void): void;
+  removeListener?: (channel: string, listener: (event: IpcRendererEvent, ...args: unknown[]) => void) => void;
 };
 
 type ContextBridgeLike = {
@@ -71,7 +79,43 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     },
     chat: {
       listMessages: (fileId?: string) => invokeApi('chat/listMessages', { fileId }),
-      sendMessage: (request: SendChatMessageRequest) => invokeApi('chat/sendMessage', request)
+      sendMessage: (request: SendChatMessageRequest) => invokeApi('chat/sendMessage', request),
+      onStreamChunk: (listener: (event: ChatStreamChunkEvent) => void) => {
+        const channel = 'chat/streamChunk';
+        const wrappedListener = (_event: IpcRendererEvent, payload: unknown) => {
+          listener(payload as ChatStreamChunkEvent);
+        };
+        ipcRenderer.on(channel, wrappedListener);
+        return () => {
+          if (typeof ipcRenderer.removeListener === 'function') {
+            ipcRenderer.removeListener(channel, wrappedListener);
+          }
+        };
+      }
+    },
+    llmManager: {
+      listCatalogModels: () => invokeApi('llmManager/listCatalogModels'),
+      listDownloadedModels: () => invokeApi('llmManager/listDownloadedModels'),
+      getActiveModel: () => invokeApi('llmManager/getActiveModel'),
+      downloadModel: (request: DownloadModelRequest) => invokeApi('llmManager/downloadModel', request),
+      deleteDownloadedModel: (request: DeleteDownloadedModelRequest) =>
+        invokeApi('llmManager/deleteDownloadedModel', request),
+      onDownloadProgress: (listener: (event: DownloadProgressEvent) => void) => {
+        const channel = 'llmManager/downloadProgress';
+        const wrappedListener = (_event: IpcRendererEvent, payload: unknown) => {
+          listener(payload as DownloadProgressEvent);
+        };
+        ipcRenderer.on(channel, wrappedListener);
+        return () => {
+          if (typeof ipcRenderer.removeListener === 'function') {
+            ipcRenderer.removeListener(channel, wrappedListener);
+          }
+        };
+      },
+      selectModel: (request: SelectModelRequest) => invokeApi('llmManager/selectModel', request),
+      getSettings: () => invokeApi('llmManager/getSettings'),
+      updateSettings: (request: UpdateSettingsRequest) => invokeApi('llmManager/updateSettings', request),
+      resetSettingsToDefaults: () => invokeApi('llmManager/resetSettingsToDefaults')
     }
   };
 }

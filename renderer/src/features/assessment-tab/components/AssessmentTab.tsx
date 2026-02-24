@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import type { AppResult } from '../../../../../electron/shared/appResult';
-import type { SendChatMessageRequest, SendChatMessageResponse } from '../../../../../electron/shared/chatContracts';
+import type {
+  ChatStreamChunkEvent,
+  SendChatMessageRequest,
+  SendChatMessageResponse
+} from '../../../../../electron/shared/chatContracts';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
 import { useAddFeedbackMutation, useFeedbackListQuery, useGenerateFeedbackDocumentMutation } from '../hooks';
@@ -18,6 +22,7 @@ interface AssessmentTabProps {
 
 type ChatApi = {
   sendMessage: (request: SendChatMessageRequest) => Promise<AppResult<SendChatMessageResponse>>;
+  onStreamChunk?: (listener: (event: ChatStreamChunkEvent) => void) => () => void;
 };
 
 function getChatApi(): ChatApi {
@@ -52,6 +57,8 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
   const [chatMode, setChatMode] = useState<ChatMode>('comment');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [draftText, setDraftText] = useState('');
+  const streamMessageByClientRequestId = useRef(new Map<string, string>());
+  const streamSeqByClientRequestId = useRef(new Map<string, number>());
   const originalText =
     selectedFileType === 'docx' || selectedFileType === 'pdf'
       ? `OriginalTextView: ${selectedFile?.name ?? 'No file selected.'}`
@@ -113,49 +120,138 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
       return;
     }
 
+    const makeLocalId = (prefix: string): string => {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return `${prefix}-${crypto.randomUUID()}`;
+      }
+      return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    };
+
+    const clientRequestId = makeLocalId('chatreq');
+    const teacherMessageId = makeLocalId('teacher');
+    const assistantMessageId = makeLocalId('assistant');
+    const createdAt = new Date().toISOString();
+
+    streamMessageByClientRequestId.current.set(clientRequestId, assistantMessageId);
+    streamSeqByClientRequestId.current.set(clientRequestId, -1);
+
+    dispatch({
+      type: 'chat/addMessage',
+      payload: {
+        id: teacherMessageId,
+        role: 'teacher',
+        content: message,
+        relatedFileId: selectedFileId ?? undefined,
+        createdAt
+      }
+    });
+    dispatch({
+      type: 'chat/addMessage',
+      payload: {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: '',
+        relatedFileId: selectedFileId ?? undefined,
+        createdAt
+      }
+    });
     dispatch({ type: 'chat/setStatus', payload: 'sending' });
     dispatch({ type: 'chat/setError', payload: undefined });
+    setDraftText('');
+
     try {
       const chatApi = getChatApi();
       const result = await chatApi.sendMessage({
         fileId: selectedFileId ?? undefined,
         message,
-        contextText: pendingSelection?.exactQuote
+        contextText: pendingSelection?.exactQuote,
+        clientRequestId
       });
       if (!result.ok) {
         throw new Error(result.error.message || 'Unable to send chat message.');
       }
 
-      const createdAt = new Date().toISOString();
       dispatch({
-        type: 'chat/addMessage',
+        type: 'chat/updateMessageContent',
         payload: {
-          id: `teacher-${Date.now()}`,
-          role: 'teacher',
-          content: message,
-          relatedFileId: selectedFileId ?? undefined,
-          createdAt
-        }
-      });
-      dispatch({
-        type: 'chat/addMessage',
-        payload: {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
+          messageId: assistantMessageId,
           content: result.data.reply,
-          relatedFileId: selectedFileId ?? undefined,
-          createdAt
+          mode: 'replace'
         }
       });
-      dispatch({ type: 'chat/setStatus', payload: 'idle' });
-      setDraftText('');
+      streamMessageByClientRequestId.current.delete(clientRequestId);
+      streamSeqByClientRequestId.current.delete(clientRequestId);
+      if (streamMessageByClientRequestId.current.size === 0) {
+        dispatch({ type: 'chat/setStatus', payload: 'idle' });
+      }
     } catch (error) {
+      streamMessageByClientRequestId.current.delete(clientRequestId);
+      streamSeqByClientRequestId.current.delete(clientRequestId);
       const errorMessage = error instanceof Error ? error.message : 'Unable to send chat message.';
       dispatch({ type: 'chat/setStatus', payload: 'error' });
       dispatch({ type: 'chat/setError', payload: errorMessage });
       toast.error(errorMessage);
     }
   }, [addFeedback, chatMode, dispatch, draftText, pendingSelection, selectedFileId]);
+
+  useEffect(() => {
+    let chatApi: ChatApi;
+    try {
+      chatApi = getChatApi();
+    } catch {
+      return;
+    }
+    if (typeof chatApi.onStreamChunk !== 'function') {
+      return;
+    }
+
+    const unsubscribe = chatApi.onStreamChunk((event) => {
+      const clientRequestId = event.clientRequestId;
+      const assistantMessageId = streamMessageByClientRequestId.current.get(clientRequestId);
+      if (!assistantMessageId) {
+        return;
+      }
+
+      const lastSeq = streamSeqByClientRequestId.current.get(clientRequestId) ?? -1;
+      if (event.seq <= lastSeq) {
+        return;
+      }
+      streamSeqByClientRequestId.current.set(clientRequestId, event.seq);
+
+      if (event.type === 'chunk' && event.channel === 'content' && event.text) {
+        dispatch({
+          type: 'chat/updateMessageContent',
+          payload: {
+            messageId: assistantMessageId,
+            content: event.text,
+            mode: 'append'
+          }
+        });
+        return;
+      }
+
+      if (event.type === 'done') {
+        streamMessageByClientRequestId.current.delete(clientRequestId);
+        streamSeqByClientRequestId.current.delete(clientRequestId);
+        if (streamMessageByClientRequestId.current.size === 0) {
+          dispatch({ type: 'chat/setStatus', payload: 'idle' });
+        }
+        return;
+      }
+
+      if (event.type === 'error') {
+        streamMessageByClientRequestId.current.delete(clientRequestId);
+        streamSeqByClientRequestId.current.delete(clientRequestId);
+        const message = event.error?.message || 'Streaming chat request failed.';
+        dispatch({ type: 'chat/setStatus', payload: 'error' });
+        dispatch({ type: 'chat/setError', payload: message });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [dispatch]);
 
   const chatBindings = useMemo<AssessmentTabChatBindings>(
     () => ({

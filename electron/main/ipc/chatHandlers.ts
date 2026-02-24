@@ -1,8 +1,20 @@
+import fsPromises from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { appErr, appOk } from '../../shared/appResult';
-import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../../shared/chatContracts';
+import type {
+  ChatStreamChunkEvent,
+  ListMessagesResponse,
+  LlmNotReadyErrorDetails,
+  SendChatMessageRequest,
+  SendChatMessageResponse
+} from '../../shared/chatContracts';
 import { ChatRepository } from '../db/repositories/chatRepository';
+import { LlmSelectionRepository } from '../db/repositories/llmSelectionRepository';
+import { LlmSettingsRepository, type LlmRuntimeSettings } from '../db/repositories/llmSettingsRepository';
 import { LlmOrchestrator } from '../services/llmOrchestrator';
+import { resolveLlamaServerPath } from '../services/llmRuntimePaths';
+import { getLlmNotReadyDetails } from '../services/llmRuntimeReadiness';
 import type { IpcMainLike } from './types';
 
 export const CHAT_CHANNELS = {
@@ -10,15 +22,63 @@ export const CHAT_CHANNELS = {
   sendMessage: 'chat/sendMessage'
 } as const;
 
+export const CHAT_EVENTS = {
+  streamChunk: 'chat/streamChunk'
+} as const;
+
 interface ChatHandlerDeps {
   repository: ChatRepository;
   llmOrchestrator: LlmOrchestrator;
+  llmSettingsRepository?: LlmSettingsRepository;
+  llmSelectionRepository?: Pick<LlmSelectionRepository, 'getActiveModel' | 'resetSettingsToDefaults'>;
+  fileExists?: (targetPath: string) => Promise<boolean>;
+  isExecutable?: (targetPath: string) => Promise<boolean>;
+  resolveLlmServerPath?: () => string;
+}
+
+interface LlmChatPayload extends SendChatMessageRequest {
+  settings: LlmRuntimeSettings;
+}
+
+async function fileExists(targetPath: string): Promise<boolean> {
+  try {
+    await fsPromises.access(targetPath, fsConstants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isExecutable(targetPath: string): Promise<boolean> {
+  if (process.platform === 'win32') {
+    return true;
+  }
+  try {
+    await fsPromises.access(targetPath, fsConstants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveDefaultLlmServerPath(): string {
+  const runtimeMode = process.env.VITE_DEV_SERVER_URL || process.env.NODE_ENV === 'development' ? 'dev' : 'packaged';
+  return resolveLlamaServerPath({ mode: runtimeMode });
+}
+
+function canRecoverMissingServerPath(details: LlmNotReadyErrorDetails): boolean {
+  return details.issues.length === 1 && details.issues[0]?.code === 'MISSING_SERVER_PATH';
 }
 
 function getDefaultDeps(): ChatHandlerDeps {
   return {
     repository: new ChatRepository(),
-    llmOrchestrator: new LlmOrchestrator()
+    llmOrchestrator: new LlmOrchestrator(),
+    llmSettingsRepository: new LlmSettingsRepository(),
+    llmSelectionRepository: new LlmSelectionRepository(),
+    fileExists,
+    isExecutable,
+    resolveLlmServerPath: resolveDefaultLlmServerPath
   };
 }
 
@@ -39,7 +99,8 @@ function normalizeSendMessageRequest(request: unknown): SendChatMessageRequest |
   return {
     fileId: typeof candidate.fileId === 'string' ? candidate.fileId : undefined,
     contextText: typeof candidate.contextText === 'string' ? candidate.contextText : undefined,
-    message
+    message,
+    clientRequestId: typeof candidate.clientRequestId === 'string' ? candidate.clientRequestId : undefined
   };
 }
 
@@ -53,6 +114,19 @@ function getReplyText(data: unknown): string | null {
   }
   const reply = (data as Record<string, unknown>).reply;
   return typeof reply === 'string' && reply.trim().length > 0 ? reply : null;
+}
+
+function isEventWithSender(
+  event: unknown
+): event is { sender: { send: (channel: string, payload: unknown) => void } } {
+  if (typeof event !== 'object' || event === null) {
+    return false;
+  }
+  const sender = (event as { sender?: unknown }).sender;
+  if (typeof sender !== 'object' || sender === null) {
+    return false;
+  }
+  return typeof (sender as { send?: unknown }).send === 'function';
 }
 
 export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps = getDefaultDeps()): void {
@@ -74,7 +148,7 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
     }
   });
 
-  ipcMain.handle(CHAT_CHANNELS.sendMessage, async (_event, request) => {
+  ipcMain.handle(CHAT_CHANNELS.sendMessage, async (event, request) => {
     const normalizedRequest = normalizeSendMessageRequest(request);
     if (!normalizedRequest) {
       return appErr({
@@ -83,10 +157,95 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
       });
     }
 
-    const llmResult = await deps.llmOrchestrator.requestAction<
-      SendChatMessageRequest,
-      SendChatMessageResponse
-    >('llm.chat', normalizedRequest);
+    const llmSettingsRepository = deps.llmSettingsRepository ?? new LlmSettingsRepository();
+    let settings: LlmRuntimeSettings;
+    try {
+      settings = await llmSettingsRepository.getRuntimeSettings();
+    } catch (error) {
+      return appErr({
+        code: 'LLM_SETTINGS_LOAD_FAILED',
+        message: 'Could not load LLM runtime settings.',
+        details: error
+      });
+    }
+
+    const validateFileExists = deps.fileExists ?? fileExists;
+    const validateExecutable = deps.isExecutable ?? isExecutable;
+    let notReadyDetails = await getLlmNotReadyDetails(settings, {
+      fileExists: validateFileExists,
+      isExecutable: validateExecutable
+    });
+    if (notReadyDetails && canRecoverMissingServerPath(notReadyDetails)) {
+      const llmSelectionRepository = deps.llmSelectionRepository ?? new LlmSelectionRepository();
+      const activeModel = await llmSelectionRepository.getActiveModel();
+      if (activeModel) {
+        const llmServerPath = (deps.resolveLlmServerPath ?? resolveDefaultLlmServerPath)();
+        const reset = await llmSelectionRepository.resetSettingsToDefaults(llmServerPath);
+        if (reset?.settings) {
+          settings = reset.settings;
+          notReadyDetails = await getLlmNotReadyDetails(settings, {
+            fileExists: validateFileExists,
+            isExecutable: validateExecutable
+          });
+        }
+      }
+    }
+
+    if (notReadyDetails) {
+      const details: LlmNotReadyErrorDetails = notReadyDetails;
+      return appErr({
+        code: 'LLM_NOT_READY',
+        message: 'LLM runtime is not ready. Select a downloaded model and ensure llama-server is configured.',
+        details
+      });
+    }
+
+    const llmPayload: LlmChatPayload = {
+      ...normalizedRequest,
+      settings
+    };
+
+    const emitToRenderer = (payload: ChatStreamChunkEvent) => {
+      if (!isEventWithSender(event)) {
+        return;
+      }
+      event.sender.send(CHAT_EVENTS.streamChunk, payload);
+    };
+
+    const fallbackClientRequestId = makeMessageId();
+    const clientRequestId = normalizedRequest.clientRequestId ?? fallbackClientRequestId;
+    let llmResult;
+    if (typeof deps.llmOrchestrator.requestActionStream === 'function') {
+      llmResult = await deps.llmOrchestrator.requestActionStream<
+        LlmChatPayload,
+        SendChatMessageResponse
+      >('llm.chatStream', llmPayload, (streamEvent) => {
+        const mappedType =
+          streamEvent.type === 'stream_start'
+            ? 'start'
+            : streamEvent.type === 'stream_chunk'
+              ? 'chunk'
+              : streamEvent.type === 'stream_done'
+                ? 'done'
+                : 'error';
+        emitToRenderer({
+          requestId: streamEvent.requestId,
+          clientRequestId: streamEvent.data.clientRequestId ?? clientRequestId,
+          fileId: normalizedRequest.fileId,
+          type: mappedType,
+          seq: streamEvent.data.seq,
+          channel: streamEvent.data.channel,
+          text: streamEvent.data.text,
+          done: streamEvent.data.done,
+          error: streamEvent.data.error
+        });
+      });
+    } else {
+      llmResult = await deps.llmOrchestrator.requestAction<
+        LlmChatPayload,
+        SendChatMessageResponse
+      >('llm.chat', llmPayload);
+    }
     if (!llmResult.ok) {
       return appErr(llmResult.error);
     }

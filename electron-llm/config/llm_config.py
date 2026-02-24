@@ -14,8 +14,8 @@ class LlmConfig:
         llm_mmproj_path: str | Path | None = None,
     ) -> "LlmConfig":
         return LlmConfig(
-            llm_gguf_path=LlmConfig._norm_optional_path(LlmConfig.llm_gguf_path),
-            llm_mmproj_path=LlmConfig._norm_optional_path(LlmConfig.llm_mmproj_path)
+            llm_gguf_path=LlmConfig._norm_optional_path(llm_gguf_path),
+            llm_mmproj_path=LlmConfig._norm_optional_path(llm_mmproj_path)
         )
     
     def validate(self) -> None:

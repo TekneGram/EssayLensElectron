@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Generator, Sequence
 
-from nlp.llm.llm_types import ChatRequest
+from nlp.llm.llm_types import ChatRequest, ChatStreamEvent
 
 if TYPE_CHECKING:
-    from interfaces.config.app_config import AppConfigShape
     from services.llm_service import LlmService
+    from app.settings import AppConfig
 
 
 # --- RUBRIC DESCRIPTORS ONLY ----
@@ -65,29 +65,45 @@ SYSTEM_PROMPT_REASONABLE_WITH_QWEN_8B = (
 )
 
 SYSTEM_PROMPT = (
-    "Say hello for now."
+    "You are a nice teacher!"
 )
 
 
-def build_prompt_tester(text_tasks: Sequence[str]) -> list[ChatRequest]:
+def _build_chat_request(text: str, app_cfg: "AppConfig") -> ChatRequest:
+    _, _, llm_request = app_cfg.require_real_config()
+    return ChatRequest(
+        system=SYSTEM_PROMPT,
+        user=text,
+        max_tokens=llm_request.max_tokens,
+        temperature=llm_request.temperature,
+        top_p=llm_request.top_p,
+        top_k=llm_request.top_k,
+        repeat_penalty=llm_request.repeat_penalty,
+        seed=llm_request.seed,
+        stop=llm_request.stop,
+        response_format=llm_request.response_format,
+    )
+
+
+def build_prompt_tester(text_tasks: Sequence[str], app_cfg: "AppConfig") -> list[ChatRequest]:
     return [
-        ChatRequest(
-            system=SYSTEM_PROMPT,
-            user=text,
-            temperature=0.0,
-        )
+        _build_chat_request(text, app_cfg)
         for text in text_tasks
     ]
 
 
+def build_stream_tester(text: str, app_cfg: "AppConfig") -> ChatRequest:
+    return _build_chat_request(text, app_cfg)
+
+
 async def run_parallel_prompt_tester(
     llm_service: "LlmService",
-    app_cfg: "AppConfigShape",
+    app_cfg: "AppConfig",
     text_tasks: Sequence[str],
     max_concurrency: int | None = None,
 ) -> dict[str, Any]:
-    requests_ = build_prompt_tester(text_tasks)
-    concurrency = max_concurrency or app_cfg.llm_server.llama_n_parallel
+    requests_ = build_prompt_tester(text_tasks, app_cfg)
+    concurrency = max_concurrency or app_cfg.llm_server.llm_n_parallel
 
     started = time.perf_counter()
     outputs = await llm_service.chat_many(
@@ -108,3 +124,33 @@ async def run_parallel_prompt_tester(
         "elapsed_s": elapsed_s,
         "outputs": outputs,  # list[dict[str, Any] | Exception]
     }
+
+
+def run_stream_prompt_tester(
+    llm_service: "LlmService",
+    app_cfg: "AppConfig",
+    text: str,
+) -> Generator[ChatStreamEvent, None, str]:
+    request = build_stream_tester(text, app_cfg)
+    events: list[ChatStreamEvent] = []
+
+    for event in llm_service.chat_stream(
+        system=request.system,
+        user=request.user,
+        max_tokens=request.max_tokens,
+        temperature=request.temperature,
+        top_p=request.top_p,
+        top_k=request.top_k,
+        repeat_penalty=request.repeat_penalty,
+        seed=request.seed,
+        stop=request.stop,
+        response_format=request.response_format,
+    ):
+        events.append(event)
+        yield event
+
+    response = llm_service.client.aggregate_stream_events(events)
+    reply = response.content.strip() if isinstance(response.content, str) else ""
+    if not reply:
+        raise RuntimeError("LLM request failed: stream did not return textual content.")
+    return reply

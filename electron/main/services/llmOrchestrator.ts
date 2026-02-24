@@ -1,9 +1,15 @@
-import type { LlmAction, PythonRequest, PythonResponse } from '../../shared/llmContracts';
+import type {
+  LlmAction,
+  PythonRequest,
+  PythonResponse,
+  PythonStreamEventEnvelope
+} from '../../shared/llmContracts';
 import { PythonBridgeError, PythonWorkerClient, type PythonBridgeErrorCode } from './pythonWorkerClient';
 
 const SUPPORTED_ACTIONS = new Set<LlmAction>([
   'llm.assessEssay',
   'llm.chat',
+  'llm.chatStream',
   'llm.generateFeedbackSummary'
 ]);
 
@@ -21,7 +27,10 @@ export interface LlmFailure {
 export type LlmResponse<TData = unknown> = Exclude<PythonResponse<TData>, { ok: false }> | LlmFailure;
 
 interface PythonWorkerClientLike {
-  request(request: PythonRequest<unknown>, options?: { timeoutMs?: number }): Promise<PythonResponse<unknown>>;
+  request(
+    request: PythonRequest<unknown>,
+    options?: { timeoutMs?: number; onStreamEvent?: (event: PythonStreamEventEnvelope) => void }
+  ): Promise<PythonResponse<unknown>>;
   shutdown?(): void;
 }
 
@@ -44,7 +53,7 @@ function getDefaultDeps(): LlmOrchestratorDeps {
     workerClient: new PythonWorkerClient(),
     requestIdFactory: createRequestId,
     now: () => new Date().toISOString(),
-    timeoutMs: 60_000
+    timeoutMs: 180_000
   };
 }
 
@@ -96,10 +105,27 @@ export class LlmOrchestrator {
       payload,
       timestamp: this.deps.now()
     };
-    return this.request<TPayload, TResponse>(request);
+    return this.request<TPayload, TResponse>(request, undefined);
   }
 
-  async request<TPayload, TResponse>(request: PythonRequest<TPayload>): Promise<LlmResponse<TResponse>> {
+  async requestActionStream<TPayload, TResponse>(
+    action: LlmAction,
+    payload: TPayload,
+    onStreamEvent: (event: PythonStreamEventEnvelope) => void
+  ): Promise<LlmResponse<TResponse>> {
+    const request: PythonRequest<TPayload> = {
+      requestId: this.deps.requestIdFactory(),
+      action,
+      payload,
+      timestamp: this.deps.now()
+    };
+    return this.request<TPayload, TResponse>(request, onStreamEvent);
+  }
+
+  async request<TPayload, TResponse>(
+    request: PythonRequest<TPayload>,
+    onStreamEvent?: (event: PythonStreamEventEnvelope) => void
+  ): Promise<LlmResponse<TResponse>> {
     if (!SUPPORTED_ACTIONS.has(request.action)) {
       return createFailure(
         request.requestId,
@@ -110,7 +136,8 @@ export class LlmOrchestrator {
 
     try {
       const response = await this.deps.workerClient.request(request as PythonRequest<unknown>, {
-        timeoutMs: this.deps.timeoutMs
+        timeoutMs: this.deps.timeoutMs,
+        onStreamEvent
       });
 
       if (response.requestId !== request.requestId) {
@@ -149,4 +176,3 @@ export class LlmOrchestrator {
     this.deps.workerClient.shutdown?.();
   }
 }
-

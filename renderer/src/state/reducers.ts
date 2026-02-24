@@ -64,6 +64,22 @@ export function chatReducer(state: ChatState = initialChatState, action: AppActi
         ...state,
         messages: [...state.messages, action.payload]
       };
+    case 'chat/updateMessageContent':
+      return {
+        ...state,
+        messages: state.messages.map((message) => {
+          if (message.id !== action.payload.messageId) {
+            return message;
+          }
+          return {
+            ...message,
+            content:
+              action.payload.mode === 'append'
+                ? `${message.content}${action.payload.content}`
+                : action.payload.content
+          };
+        })
+      };
     case 'chat/setDraft':
       return {
         ...state,

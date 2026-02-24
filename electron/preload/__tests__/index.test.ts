@@ -4,9 +4,16 @@ import { createPreloadApi, registerPreloadApi } from '../index';
 describe('preload api', () => {
   it('exposes typed api surface to window', async () => {
     const invoke = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const listeners = new Map<string, (event: unknown, ...args: unknown[]) => void>();
+    const on = vi.fn((channel: string, listener: (event: unknown, ...args: unknown[]) => void) => {
+      listeners.set(channel, listener);
+    });
+    const removeListener = vi.fn((channel: string) => {
+      listeners.delete(channel);
+    });
     const exposeInMainWorld = vi.fn();
 
-    registerPreloadApi({ exposeInMainWorld }, { invoke, on: vi.fn() });
+    registerPreloadApi({ exposeInMainWorld }, { invoke, on, removeListener });
 
     expect(exposeInMainWorld).toHaveBeenCalledTimes(1);
     expect(exposeInMainWorld.mock.calls[0][0]).toBe('api');
@@ -16,6 +23,7 @@ describe('preload api', () => {
     expect(api.assessment).toBeDefined();
     expect(api.rubric).toBeDefined();
     expect(api.chat).toBeDefined();
+    expect(api.llmManager).toBeDefined();
 
     await api.workspace.selectFolder();
     await api.assessment.extractDocument({ fileId: 'file-1' });
@@ -38,6 +46,33 @@ describe('preload api', () => {
     await api.rubric.getGradingContext({ fileId: 'file-1' });
     await api.rubric.setLastUsed({ rubricId: 'rubric-1' });
     await api.chat.sendMessage({ message: 'hello' });
+    const streamListener = vi.fn();
+    const unsubscribeStream = api.chat.onStreamChunk(streamListener);
+    await api.llmManager.listCatalogModels();
+    await api.llmManager.listDownloadedModels();
+    await api.llmManager.getActiveModel();
+    await api.llmManager.downloadModel({ key: 'qwen3_8b_q8' });
+    await api.llmManager.deleteDownloadedModel({ key: 'qwen3_8b_q8', deleteFiles: true });
+    await api.llmManager.selectModel({ key: 'qwen3_4b_q8' });
+    await api.llmManager.getSettings();
+    await api.llmManager.updateSettings({ settings: { llm_n_ctx: 4096, temperature: 0.2 } });
+    await api.llmManager.resetSettingsToDefaults();
+    const progressListener = vi.fn();
+    const unsubscribe = api.llmManager.onDownloadProgress(progressListener);
+    listeners.get('llmManager/downloadProgress')?.({}, { key: 'qwen3_8b_q8', phase: 'downloading' });
+    listeners.get('chat/streamChunk')?.(
+      {},
+      {
+        requestId: 'req-1',
+        clientRequestId: 'client-1',
+        type: 'chunk',
+        seq: 2,
+        channel: 'content',
+        text: 'hello'
+      }
+    );
+    unsubscribe();
+    unsubscribeStream();
 
     expect(invoke).toHaveBeenCalledWith('workspace/selectFolder', undefined);
     expect(invoke).toHaveBeenCalledWith('assessment/extractDocument', { fileId: 'file-1' });
@@ -63,5 +98,29 @@ describe('preload api', () => {
     expect(invoke).toHaveBeenCalledWith('rubric/getGradingContext', { fileId: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('rubric/setLastUsed', { rubricId: 'rubric-1' });
     expect(invoke).toHaveBeenCalledWith('chat/sendMessage', { message: 'hello' });
+    expect(invoke).toHaveBeenCalledWith('llmManager/listCatalogModels', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/listDownloadedModels', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/getActiveModel', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/downloadModel', { key: 'qwen3_8b_q8' });
+    expect(invoke).toHaveBeenCalledWith('llmManager/deleteDownloadedModel', { key: 'qwen3_8b_q8', deleteFiles: true });
+    expect(invoke).toHaveBeenCalledWith('llmManager/selectModel', { key: 'qwen3_4b_q8' });
+    expect(invoke).toHaveBeenCalledWith('llmManager/getSettings', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmManager/updateSettings', {
+      settings: { llm_n_ctx: 4096, temperature: 0.2 }
+    });
+    expect(invoke).toHaveBeenCalledWith('llmManager/resetSettingsToDefaults', undefined);
+    expect(progressListener).toHaveBeenCalledWith({ key: 'qwen3_8b_q8', phase: 'downloading' });
+    expect(streamListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: 'req-1',
+        clientRequestId: 'client-1',
+        type: 'chunk',
+        text: 'hello'
+      })
+    );
+    expect(on).toHaveBeenCalledWith('chat/streamChunk', expect.any(Function));
+    expect(removeListener).toHaveBeenCalledWith('chat/streamChunk', expect.any(Function));
+    expect(on).toHaveBeenCalledWith('llmManager/downloadProgress', expect.any(Function));
+    expect(removeListener).toHaveBeenCalledWith('llmManager/downloadProgress', expect.any(Function));
   });
 });

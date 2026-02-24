@@ -173,15 +173,15 @@ class LlmService:
         for event in self.chat_stream(system=system, user=user, **kwargs):
             state.add(event)
             if event.channel == "content" and event.text:
-                sys.stdout.write(event.text)
-                sys.stdout.flush()
+                sys.stderr.write(event.text)
+                sys.stderr.flush()
             elif event.channel == "reasoning" and event.text:
                 if not showed_reasoning_prefix:
-                    sys.stdout.write(show_reasoning_prefix)
+                    sys.stderr.write(show_reasoning_prefix)
                     showed_reasoning_prefix = True
-                sys.stdout.write(event.text)
-                sys.stdout.flush()
+                sys.stderr.write(event.text)
+                sys.stderr.flush()
 
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+        sys.stderr.write("\n")
+        sys.stderr.flush()
         return state.to_response()

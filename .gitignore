@@ -5,6 +5,8 @@ dist-electron/
 renderer/dist/
 dist/
 tutorial/
+build/
+*.spec
 
 # Test output
 coverage/
@@ -39,3 +41,8 @@ Thumbs.db
 electron-llm/third_party
 **/__pycache__/
 *.py[cod]
+.venv-pyinstaller/
+
+# PyInstaller packaged worker artifacts
+vendor/python-worker/**
+!vendor/python-worker/README.md

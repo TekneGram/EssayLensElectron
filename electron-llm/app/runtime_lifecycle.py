@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import atexit
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from app.settings import AppConfig
 
 
 @dataclass
@@ -15,6 +18,8 @@ class RuntimeLifecycle:
     """
 
     _registered_ids: set[int] = field(default_factory=set)
+    _cached_runtime_key: tuple[Any, ...] | None = None
+    _cached_runtime: dict[str, Any] | None = None
 
     def register_process(self, proc: Any) -> None:
         if proc is None:
@@ -29,6 +34,33 @@ class RuntimeLifecycle:
 
         atexit.register(_shutdown)
         self._registered_ids.add(key)
+
+    def get_or_create_llm_runtime(
+        self,
+        app_cfg: "AppConfig",
+        builder: Callable[["AppConfig"], dict[str, Any]],
+    ) -> dict[str, Any]:
+        runtime_key = app_cfg.runtime_identity()
+        if self._cached_runtime is not None and self._cached_runtime_key == runtime_key:
+            return self._cached_runtime
+
+        self._teardown_cached_runtime()
+        runtime = builder(app_cfg)
+        self.register_process(runtime.get("server_proc"))
+        self._cached_runtime_key = runtime_key
+        self._cached_runtime = runtime
+        return runtime
+
+    def shutdown(self) -> None:
+        self._teardown_cached_runtime()
+
+    def _teardown_cached_runtime(self) -> None:
+        if self._cached_runtime is None:
+            self._cached_runtime_key = None
+            return
+        self._safe_stop(self._cached_runtime.get("server_proc"))
+        self._cached_runtime = None
+        self._cached_runtime_key = None
 
     @staticmethod
     def _safe_stop(proc: Any) -> None:

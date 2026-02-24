@@ -19,7 +19,28 @@ import type {
   SendFeedbackToLlmRequest,
   SendFeedbackToLlmResponse
 } from '../shared/assessmentContracts';
-import type { ListMessagesResponse, SendChatMessageRequest, SendChatMessageResponse } from '../shared/chatContracts';
+import type {
+  ChatStreamChunkEvent,
+  ListMessagesResponse,
+  SendChatMessageRequest,
+  SendChatMessageResponse
+} from '../shared/chatContracts';
+import type {
+  DeleteDownloadedModelRequest,
+  DeleteDownloadedModelResponse,
+  DownloadModelRequest,
+  DownloadModelResponse,
+  DownloadProgressEvent,
+  GetActiveModelResponse,
+  GetSettingsResponse,
+  ListCatalogModelsResponse,
+  ListDownloadedModelsResponse,
+  ResetSettingsToDefaultsResponse,
+  SelectModelRequest,
+  SelectModelResponse,
+  UpdateSettingsRequest,
+  UpdateSettingsResponse
+} from '../shared/llmManagerContracts';
 import type {
   ClearAppliedRubricRequest,
   ClearAppliedRubricResponse,
@@ -83,6 +104,19 @@ export interface EssayLensApi {
   chat: {
     listMessages(fileId?: string): Promise<ApiResult<ListMessagesResponse>>;
     sendMessage(request: SendChatMessageRequest): Promise<ApiResult<SendChatMessageResponse>>;
+    onStreamChunk(listener: (event: ChatStreamChunkEvent) => void): () => void;
+  };
+  llmManager: {
+    listCatalogModels(): Promise<ApiResult<ListCatalogModelsResponse>>;
+    listDownloadedModels(): Promise<ApiResult<ListDownloadedModelsResponse>>;
+    getActiveModel(): Promise<ApiResult<GetActiveModelResponse>>;
+    downloadModel(request: DownloadModelRequest): Promise<ApiResult<DownloadModelResponse>>;
+    deleteDownloadedModel(request: DeleteDownloadedModelRequest): Promise<ApiResult<DeleteDownloadedModelResponse>>;
+    onDownloadProgress(listener: (event: DownloadProgressEvent) => void): () => void;
+    selectModel(request: SelectModelRequest): Promise<ApiResult<SelectModelResponse>>;
+    getSettings(): Promise<ApiResult<GetSettingsResponse>>;
+    updateSettings(request: UpdateSettingsRequest): Promise<ApiResult<UpdateSettingsResponse>>;
+    resetSettingsToDefaults(): Promise<ApiResult<ResetSettingsToDefaultsResponse>>;
   };
 }
 
