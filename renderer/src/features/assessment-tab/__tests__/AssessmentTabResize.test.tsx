@@ -4,6 +4,28 @@ import { App } from '../../../App';
 import { AppProviders } from '../../../app/AppProviders';
 import { createAppQueryClient } from '../../../app/queryClient';
 
+function createLlmManagerApiMock() {
+  return {
+    listCatalogModels: vi.fn().mockResolvedValue({ ok: true, data: { models: [] } }),
+    listDownloadedModels: vi.fn().mockResolvedValue({ ok: true, data: { models: [] } }),
+    getActiveModel: vi.fn().mockResolvedValue({ ok: true, data: { model: null } }),
+    selectModel: vi.fn().mockResolvedValue({ ok: true, data: { model: null } }),
+    getSettings: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { settings: { llm_n_ctx: 4096, llm_n_predict: 1024, llm_top_k: 40, llm_top_p: 0.95, temperature: 0.2 } }
+    }),
+    updateSettings: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { settings: { llm_n_ctx: 4096, llm_n_predict: 1024, llm_top_k: 40, llm_top_p: 0.95, temperature: 0.2 } }
+    }),
+    resetSettingsToDefaults: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { settings: { llm_n_ctx: 4096, llm_n_predict: 1024, llm_top_k: 40, llm_top_p: 0.95, temperature: 0.2 } }
+    }),
+    onDownloadProgress: vi.fn().mockReturnValue(() => {})
+  };
+}
+
 function setupApi() {
   const selectFolder = vi.fn().mockResolvedValue({
     ok: true,
@@ -61,6 +83,7 @@ function setupApi() {
     value: {
       workspace: { selectFolder, listFiles },
       assessment: { listFeedback, addFeedback },
+      llmManager: createLlmManagerApiMock(),
       rubric: {},
       chat: {}
     },

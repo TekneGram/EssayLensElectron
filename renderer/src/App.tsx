@@ -6,7 +6,7 @@ import type { ChatInterfaceBindings } from './features/chat-interface';
 import { ChatCollapsedRail, ChatView, collapseChatPanel, expandChatPanel, selectIsChatCollapsed } from './features/chat-view';
 import { FileControlContainer } from './features/workspace/FileControlContainer';
 import { LlmManager } from './features/llm-manager/LlmManager';
-import { RubricTab } from './features/rubric-tab/components/RubricTab';
+import { RubricTab } from './features/rubric-tab';
 import { selectActiveTopTab, selectSelectedFileType, useAppDispatch, useAppState } from './state';
 
 export function App() {

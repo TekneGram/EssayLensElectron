@@ -1,6 +1,6 @@
 import type { PendingSelection } from '../../../types';
 import { clipContext, normalizeWhitespace } from '../domain/textView.logic';
-import { findParagraph, getParagraphCharOffset } from '../infrastructure/windowSelection';
+import { findParagraph, getParagraphCharOffset } from '../adapters/windowSelection';
 
 export function toFallbackPendingSelection(args: { range: Range; text: string }): PendingSelection | null {
   const exactQuote = normalizeWhitespace(args.range.toString());

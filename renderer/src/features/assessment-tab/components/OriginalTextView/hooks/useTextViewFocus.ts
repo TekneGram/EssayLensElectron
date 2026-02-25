@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
 import type { PendingSelection } from '../../../types';
-import { addRangeToWindowSelection, clearWindowSelection } from '../infrastructure/windowSelection';
-import { buildRangeFromAnchors, type RenderBridge } from '../infrastructure/renderBridge';
+import { addRangeToWindowSelection, buildRangeFromAnchors, clearWindowSelection, type RenderBridge } from '../adapters';
 import type { LoadedTextViewDocument } from './useTextViewDocument';
 
 interface UseTextViewFocusArgs {

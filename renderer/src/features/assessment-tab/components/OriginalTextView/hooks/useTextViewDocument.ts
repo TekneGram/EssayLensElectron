@@ -1,18 +1,8 @@
 import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
-import { renderAsync } from 'docx-preview';
-import { extractDocument } from '../../../hooks/feedbackApi';
-import { buildTextMapFromDocx } from '../infrastructure/docxTextMap';
-import { buildRenderBridge, type RenderBridge } from '../infrastructure/renderBridge';
-import type { WordTextMap } from '../infrastructure/textMapTypes';
-
-export interface LoadedTextViewDocument {
-  fileId: string;
-  fileName: string;
-  buffer: ArrayBuffer;
-  textMap: WordTextMap;
-}
-
-export type TextViewStatusKind = 'idle' | 'loading' | 'loaded' | 'unsupported' | 'error';
+import { renderDocxIntoContainer } from '../adapters/docxRenderer';
+import { buildRenderBridge, type RenderBridge } from '../adapters/renderBridge';
+import { loadTextViewDocument, type LoadedTextViewDocument, type TextViewStatusKind } from '../application/textViewDocument.workflows';
+export type { LoadedTextViewDocument, TextViewStatusKind } from '../application/textViewDocument.workflows';
 
 interface UseTextViewDocumentArgs {
   selectedFileId: string | null;
@@ -26,15 +16,6 @@ interface UseTextViewDocumentResult {
   statusMessage: string;
   statusKind: TextViewStatusKind;
   isLoading: boolean;
-}
-
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
 }
 
 export function useTextViewDocument({
@@ -77,39 +58,16 @@ export function useTextViewDocument({
       setStatusKind('loading');
 
       try {
-        const response = await extractDocument(selectedFileId);
+        const result = await loadTextViewDocument(selectedFileId);
         if (requestId !== requestIdRef.current) {
           return;
         }
-
-        if (response.format !== 'docx' || !response.dataBase64) {
-          setDocument(null);
-          bridgeRef.current = null;
-          setStatusMessage('This view currently supports .docx files only.');
-          setStatusKind('unsupported');
-          if (containerRef.current) {
-            containerRef.current.innerHTML = '';
-          }
-          return;
+        setDocument(result.document);
+        setStatusKind(result.statusKind);
+        setStatusMessage(result.statusMessage);
+        if (!result.document && containerRef.current) {
+          containerRef.current.innerHTML = '';
         }
-
-        const buffer = base64ToArrayBuffer(response.dataBase64);
-        const textMap = await buildTextMapFromDocx(buffer);
-
-        if (requestId !== requestIdRef.current) {
-          return;
-        }
-
-        const nextDocument: LoadedTextViewDocument = {
-          fileId: selectedFileId,
-          fileName: response.fileName ?? selectedFileId.split(/[\\/]/).pop() ?? selectedFileId,
-          buffer,
-          textMap
-        };
-
-        setDocument(nextDocument);
-        setStatusMessage(`Loaded ${nextDocument.fileName}. Select text to add comments.`);
-        setStatusKind('loaded');
       } catch {
         if (requestId !== requestIdRef.current) {
           return;
@@ -141,13 +99,7 @@ export function useTextViewDocument({
       if (!containerRef.current) {
         return;
       }
-
-      containerRef.current.innerHTML = '';
-      await renderAsync(document.buffer, containerRef.current, undefined, {
-        className: 'docx',
-        ignoreWidth: false,
-        ignoreHeight: false
-      });
+      await renderDocxIntoContainer(document.buffer, containerRef.current);
 
       if (!containerRef.current) {
         return;

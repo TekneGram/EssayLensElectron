@@ -4,7 +4,7 @@ import type {
   NormalizedRubric,
   RubricSourceData,
   ScoreId
-} from './types';
+} from './rubricModel';
 
 function createId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

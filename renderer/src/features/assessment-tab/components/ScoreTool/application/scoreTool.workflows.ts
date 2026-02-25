@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { Dispatch } from 'react';
-import type { RubricSourceData } from '../../../../rubric-tab/services/types';
+import type { RubricSourceData } from '../../../../rubric-tab/domain';
 import { rubricQueryKeys } from '../../../../rubric-tab/hooks';
 import type { AppAction } from '../../../../../state/actions';
 import { createCellKey } from '../infrastructure/scoreTool.api';

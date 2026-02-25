@@ -15,10 +15,11 @@ import type {
   RubricScoreDto,
   SetLastUsedRubricRequest,
   SetLastUsedRubricResponse,
+  UpdateRubricOperation,
   UpdateRubricMatrixRequest,
   UpdateRubricMatrixResponse
 } from '../../../../../electron/shared/rubricContracts';
-import type { RubricSourceData } from './types';
+import type { RubricCommand, RubricSourceData } from '../domain';
 
 type RubricApi = {
   listRubrics: () => Promise<AppResult<ListRubricsResponse>>;
@@ -49,6 +50,10 @@ function getPreloadRubricApi(): Partial<RubricApi> {
     throw new Error('window.api.rubric is not available.');
   }
   return rubricApi;
+}
+
+function toUpdateRubricOperation(operation: RubricCommand): UpdateRubricOperation {
+  return operation;
 }
 
 export async function listRubrics(): Promise<ListRubricsResponse> {
@@ -164,12 +169,16 @@ export async function getRubricMatrix(rubricId: string): Promise<GetRubricMatrix
   throw toError(result.error);
 }
 
-export async function updateRubricMatrix(request: UpdateRubricMatrixRequest): Promise<UpdateRubricMatrixResponse> {
+export async function updateRubricMatrix(request: { rubricId: string; operation: RubricCommand }): Promise<UpdateRubricMatrixResponse> {
   const api = getPreloadRubricApi();
   if (typeof api.updateMatrix !== 'function') {
     throw new Error('window.api.rubric.updateMatrix is not available.');
   }
-  const result = await api.updateMatrix(request);
+  const ipcRequest: UpdateRubricMatrixRequest = {
+    rubricId: request.rubricId,
+    operation: toUpdateRubricOperation(request.operation)
+  };
+  const result = await api.updateMatrix(ipcRequest);
   if (result.ok) {
     return result.data;
   }

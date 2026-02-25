@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getRubricMatrix, matrixToRubricSourceData } from '../services/rubricApi';
+import { getRubricMatrix, matrixToRubricSourceData } from '../infrastructure';
 import { rubricQueryKeys } from './queryKeys';
 
 export function useRubricDraftQuery(rubricId: string | null) {

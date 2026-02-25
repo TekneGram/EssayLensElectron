@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { createCellKey } from '../services/normalize';
-import type { NormalizedRubric, RubricDisplayMode, RubricInteractionMode } from '../services/types';
+import { createCellKey } from '../domain';
+import type { NormalizedRubric, RubricDisplayMode, RubricInteractionMode } from '../domain';
 
 interface RubricTableProps {
   state: NormalizedRubric;

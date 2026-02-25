@@ -1,4 +1,4 @@
-import type { RubricSourceData } from '../../../../rubric-tab/services/types';
+import type { RubricSourceData } from '../../../../rubric-tab/domain';
 
 export function normalizeCellKeyList(keys: string[]): string {
   return [...keys].sort().join('||');

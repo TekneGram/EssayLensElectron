@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { useAppDispatch } from '../../../state';
-import { listRubrics } from '../services/rubricApi';
+import { listRubrics } from '../infrastructure';
 import { rubricQueryKeys } from './queryKeys';
 
 export function useRubricListQuery() {

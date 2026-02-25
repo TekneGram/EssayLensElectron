@@ -5,7 +5,7 @@ import { PendingCommentBanner } from './components/PendingCommentBanner';
 import { TextViewCanvas } from './components/TextViewCanvas';
 import { TextViewToolbar } from './components/TextViewToolbar';
 import { buildPendingQuotePreview } from './domain/textView.logic';
-import { clearWindowSelection, getActiveWindowSelection } from './infrastructure/windowSelection';
+import { clearWindowSelection, getActiveWindowSelection } from './adapters/windowSelection';
 import { useTextViewDocxLayout } from './hooks/useTextViewDocxLayout';
 import { useTextViewDocument } from './hooks/useTextViewDocument';
 import { useTextViewFocus } from './hooks/useTextViewFocus';

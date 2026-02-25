@@ -1,19 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { UpdateRubricOperation } from '../../../../../electron/shared/rubricContracts';
+import type { RubricCommand } from '../domain';
 import {
   cloneRubric as cloneRubricRequest,
   createRubric as createRubricRequest,
   deleteRubric as deleteRubricRequest,
   setLastUsedRubric,
   updateRubricMatrix
-} from '../services/rubricApi';
+} from '../infrastructure';
 import { rubricQueryKeys } from './queryKeys';
 
 export function useRubricMutations(rubricId: string | null) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (operation: UpdateRubricOperation) => {
+    mutationFn: async (operation: RubricCommand) => {
       if (!rubricId) {
         throw new Error('Select a rubric before updating it.');
       }

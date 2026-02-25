@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
-import { createCellKey, createEntityId, normalizeRubric } from '../services/normalize';
-import type { CategoryId, NormalizedRubric, RubricSourceData, ScoreId } from '../services/types';
+import { createCellKey, createEntityId, normalizeRubric } from '../domain';
+import type { CategoryId, NormalizedRubric, RubricSourceData, ScoreId } from '../domain';
 
 type RubricAction =
   | { type: 'HYDRATE'; payload: RubricSourceData | NormalizedRubric }

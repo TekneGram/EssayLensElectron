@@ -2,8 +2,7 @@ import { useCallback } from 'react';
 import type { MutableRefObject } from 'react';
 import type { PendingSelection } from '../../../types';
 import type { LoadedTextViewDocument } from './useTextViewDocument';
-import { getActiveWindowSelection } from '../infrastructure/windowSelection';
-import { selectionToAnchors, type RenderBridge } from '../infrastructure/renderBridge';
+import { getActiveWindowSelection, selectionToAnchors, type RenderBridge } from '../adapters';
 
 interface UseTextViewSelectionArgs {
   document: LoadedTextViewDocument | null;

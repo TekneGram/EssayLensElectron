@@ -3,3 +3,4 @@ export { useRubricDraftQuery } from './useRubricDraftQuery';
 export { useRubricListQuery } from './useRubricListQuery';
 export { useRubricMutations } from './useRubricMutations';
 export { useRubricState } from './useRubricState';
+export { useRubricTabController } from './useRubricTabController';

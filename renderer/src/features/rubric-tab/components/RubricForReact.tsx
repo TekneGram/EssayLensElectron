@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createCellKey } from '../services/normalize';
+import { createCellKey } from '../domain';
 import { RubricTable } from './RubricTable';
 import { RubricToolbar } from './RubricToolbar';
 import { useRubricState } from '../hooks/useRubricState';
-import type { RubricForReactProps } from '../services/types';
+import type { RubricForReactProps } from '../domain';
 import '../styles/rubric.css';
 
 export function RubricForReact({
