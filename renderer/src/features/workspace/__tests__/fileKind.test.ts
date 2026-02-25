@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fileKindFromExtension } from '../fileKind';
+import { fileKindFromExtension } from '../domain/fileKind';
 
 describe('fileKindFromExtension', () => {
   it('normalizes uppercase and leading dot extensions', () => {

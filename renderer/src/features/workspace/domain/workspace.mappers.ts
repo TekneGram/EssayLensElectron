@@ -1,5 +1,6 @@
 import type { SelectFolderResponse, WorkspaceFileDto } from '../../../../../electron/shared/workspaceContracts';
-import { fileKindFromExtension, type WorkspaceFile, type WorkspaceFolder } from '../../../types';
+import { fileKindFromExtension } from './fileKind';
+import type { WorkspaceFile, WorkspaceFolder } from './workspace.types';
 
 export function toWorkspaceFolder(folder: SelectFolderResponse['folder']): WorkspaceFolder | null {
   if (!folder) {

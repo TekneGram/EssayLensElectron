@@ -1,179 +1,224 @@
-# Vertical Slice: Folder Selection (End to End)
+# Vertical Slice: Folder Selection (Refactored Workspace Feature)
 
-This slice covers the flow when a teacher selects a workspace folder and the app indexes files for display.
+This document tracks the current end-to-end flow for folder selection in the refactored workspace feature. It is written for code auditing: each step maps to concrete files and layer boundaries.
 
-## 1) User input/action
+## Scope
 
-- User clicks the folder-select control in the File Control area.
-- UI entry point: `LoaderBar` select-folder action wired through `FileControl`.
+This slice covers:
+1. Teacher selects a workspace folder.
+2. App scans files and persists folder/file metadata.
+3. Renderer loads files for the selected folder.
+4. Workspace UI updates to show files.
 
-## 2) React components where actions/inputs occur + related functions/types
+This slice does **not** call Python/LLM.
 
-- `renderer/src/features/file-control/FileControlContainer.tsx`
-  - Uses `useFileControl()` and passes `onSelectFolder={() => void pickFolder()}`.
+## Layer Map (Renderer Feature)
 
-- `renderer/src/features/file-control/components/FileControl.tsx`
-  - Receives `onSelectFolder` prop and passes it to UI controls.
+### Components layer
+- `renderer/src/features/workspace/FileControlContainer.tsx`
+- `renderer/src/features/workspace/components/FileControl.tsx`
+- `renderer/src/features/workspace/components/LoaderBar.tsx`
+- `renderer/src/features/workspace/components/FileDisplayBar.tsx`
 
-- `renderer/src/features/layout/components/LoaderBar.tsx`
-  - User clicks the folder button that triggers `onSelectFolder`.
+Responsibilities:
+- Capture teacher click (`LoaderBar` button).
+- Render file list and selected file state.
+- Delegate all logic to hooks.
 
-- Related renderer/shared types:
-  - `WorkspaceFolder`, `WorkspaceFile`: `renderer/src/types/models.ts`
-  - `SelectFolderResponse`, `ListFilesResponse`, `WorkspaceFileDto`: `electron/shared/workspaceContracts.ts`
-  - `AppResult`: `electron/shared/appResult.ts`
+### Hooks layer
+- `renderer/src/features/workspace/hooks/useFileControl.ts`
+- `renderer/src/features/workspace/hooks/useSelectFolder.ts`
 
-## 3) Related hooks, reducers, and services (with filenames)
+Responsibilities:
+- Bridge UI events to mutation workflow.
+- Dispatch workspace and chat actions.
+- Handle loading/error state transitions and toast errors.
 
-- Hook:
-  - `renderer/src/features/file-control/hooks/useFileControl.ts`
-  - `pickFolder()` triggers a TanStack mutation that:
-    - calls `window.api.workspace.selectFolder()`
-    - then calls `window.api.workspace.listFiles(folder.id)`
-    - dispatches workspace state updates
+### Application layer
+- `renderer/src/features/workspace/application/workspace.service.ts`
 
-- Reducers/actions updated:
-  - Reducer: `renderer/src/state/reducers.ts` (`workspaceReducer`)
-  - Actions dispatched from `useFileControl`:
-    - `workspace/setStatus`
-    - `workspace/setError`
-    - `workspace/setFolder`
-    - `workspace/setSelectedFile`
-    - `workspace/setFiles`
+Responsibilities:
+- Orchestrate use case: `selectFolder` then `listFiles`.
+- Convert API result failures into thrown errors for hook-level handling.
+- Handle cancel case (`folder: null`) without error.
 
-- Main-process services/repos used by handlers:
-  - File scan service: `electron/main/services/fileScanner.ts`
-  - Workspace repository: `electron/main/db/repositories/workspaceRepository.ts`
+### Domain layer
+- `renderer/src/features/workspace/domain/workspace.types.ts`
+- `renderer/src/features/workspace/domain/fileKind.ts`
+- `renderer/src/features/workspace/domain/workspace.mappers.ts`
+- `renderer/src/features/workspace/domain/workspace.commands.ts`
 
-## 4) TanStack queries and mutations called (with filenames)
+Responsibilities:
+- Own workspace types (`WorkspaceFolder`, `WorkspaceFile`, `WorkspaceState`, etc.).
+- Normalize file kind values (`fileKindFromExtension`).
+- Map shared IPC DTOs -> workspace domain models.
 
-- Mutation called:
-  - `useMutation(...)` in `renderer/src/features/file-control/hooks/useFileControl.ts`
+### Infrastructure layer (renderer boundary)
+- `renderer/src/features/workspace/infrastructure/workspace.api.ts`
+- `electron/preload/index.ts`
+- `electron/shared/workspaceContracts.ts`
+- `electron/shared/appResult.ts`
 
-- Query usage in this slice:
-  - No `useQuery` is used for folder selection itself.
-  - Flow is mutation-driven and writes results into reducer state.
+Responsibilities:
+- Typed boundary for `window.api.workspace`.
+- IPC invocation for `workspace/selectFolder`, `workspace/listFiles`, `workspace/getCurrentFolder`.
+- Shared contracts and success/failure envelope.
 
-## 5) IPC handlers called + related types
+### State layer
+- Feature-owned state:
+  - `renderer/src/features/workspace/state/workspace.actions.ts`
+  - `renderer/src/features/workspace/state/workspace.reducer.ts`
+- Root composition:
+  - `renderer/src/state/reducers.ts`
+  - `renderer/src/state/initialState.ts`
 
-- `workspace/selectFolder`
-  - Handler: `electron/main/ipc/workspaceHandlers.ts` (`registerWorkspaceHandlers`)
-  - Returns `AppResult<SelectFolderResponse>`
+Responsibilities:
+- Own workspace actions/reducer/initial state in feature.
+- Compose workspace reducer into root app reducer.
 
-- `workspace/listFiles`
-  - Handler: `electron/main/ipc/workspaceHandlers.ts`
-  - Request type: `ListFilesRequest`
-  - Returns `AppResult<ListFilesResponse>`
+## Electron Backend Flow (Persistence + IPC)
 
-- Contract files:
-  - `electron/shared/workspaceContracts.ts`
-  - `electron/shared/appResult.ts`
+### IPC handlers
+- `electron/main/ipc/workspaceHandlers.ts`
 
-## 6) Electron services called + related types
+Behavior:
+1. `workspace/selectFolder`
+- Opens native directory picker.
+- On cancel: returns `{ ok: true, data: { folder: null } }`.
+- On selection:
+  - persists/updates folder in `filepath` table,
+  - scans files recursively (depth 2),
+  - upserts file rows in `filename` (+ `entities` for new files).
 
-- Called by `workspace/selectFolder` handler:
-  - `dialog.showOpenDialog(...)` (Electron dialog boundary)
-  - `scanFilesInWorkspace(folder.path)` from `electron/main/services/fileScanner.ts`
-    - Type: `ScannedFile`
-  - `WorkspaceRepository.setCurrentFolder(...)`
-  - `WorkspaceRepository.upsertFiles(...)`
+2. `workspace/listFiles`
+- Validates `folderId`.
+- Reads persisted file rows for folder.
+- Returns DTOs for renderer mapping.
 
-- Called by `workspace/listFiles` handler:
-  - `WorkspaceRepository.listFiles(folderId)`
+### Services
+- `electron/main/services/fileScanner.ts`
 
-- Supporting conversion in handler:
-  - `toWorkspaceFileDtos(...)`
-  - file kind inference via `fileKindFromPath(...)`
+Behavior:
+- Recursively scans up to 2 levels.
+- Returns discovered files with path/name/extension.
 
-## 7) Python functions called
+### Repository + DB
+- `electron/main/db/repositories/workspaceRepository.ts`
+- `electron/main/db/repositories/sqlHelpers.ts`
+- Tables involved: `filepath`, `filename`, `entities`
 
-- None for folder selection.
-- No call to `LlmOrchestrator` or Python worker in this slice.
-
-## 8) Database queries made
-
-From `electron/main/db/repositories/workspaceRepository.ts`:
-
+Key queries/operations:
 - `setCurrentFolder(folderPath)`
-  - `SELECT uuid, path, created_at FROM filepath WHERE path = ? LIMIT 1;`
-  - If exists: `UPDATE filepath SET created_at = ? WHERE uuid = ?;`
-  - Else: `INSERT INTO filepath (uuid, path, created_at) VALUES (?, ?, ?);`
-
-- `upsertFiles(folderId, files)`
-  - Validates folder:
-    - `SELECT uuid, path, created_at FROM filepath WHERE uuid = ? LIMIT 1;`
-  - Touch folder timestamp:
-    - `UPDATE filepath SET created_at = ? WHERE uuid = ?;`
-  - For each file:
-    - find existing filename row in folder/append-path/name tuple
-    - if new file, ensure entity via helper (`entities` table)
-    - `INSERT INTO filename (...) ... ON CONFLICT(entity_uuid) DO UPDATE ...`
-  - Transaction wrapped with `BEGIN/COMMIT/ROLLBACK`.
-
+  - `SELECT filepath by path`
+  - `UPDATE filepath.created_at` if exists, else `INSERT filepath`
+- `upsertFiles(folderId, files)` in transaction
+  - validate folder exists
+  - update folder timestamp
+  - per file: find existing filename row by `(filepath_uuid, append_path, file_name)`
+  - create `entities` row for new file via `ensureEntity`
+  - `INSERT ... ON CONFLICT(entity_uuid) DO UPDATE` into `filename`
 - `listFiles(folderId)`
-  - folder lookup:
-    - `SELECT uuid, path, created_at FROM filepath WHERE uuid = ? LIMIT 1;`
-  - file rows:
-    - `SELECT entity_uuid, filepath_uuid, append_path, file_name FROM filename WHERE filepath_uuid = ? ORDER BY ...;`
+  - lookup folder path
+  - select filename rows by folder
+  - resolve full path and infer kind from filename extension
 
-- Entity helper boundary used during file upsert:
-  - `ensureEntity(...)` in `electron/main/db/repositories/sqlHelpers.ts`
-  - SQL: `INSERT INTO entities (uuid, type, created_at) ... ON CONFLICT(uuid) DO NOTHING;`
-
-## Data flow summary
-
-1. User clicks folder select in renderer.
-2. Renderer mutation calls `workspace/selectFolder` via preload.
-3. Main opens folder picker, persists folder, scans files recursively (depth 2), upserts indexed file rows.
-4. Renderer then calls `workspace/listFiles` via preload.
-5. Main returns indexed file DTOs from SQLite-backed repository.
-6. Renderer updates workspace reducer state with folder and files; FileDisplayBar can render indexed file names.
-
-## Mermaid Workflow Diagram
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant T as Teacher
-  participant UI as Renderer UI (LoaderBar/FileControl)
-  participant HK as useFileControl mutation
-  participant PL as Preload window.api.workspace
-  participant IPC as Main IPC workspaceHandlers
-  participant D as Electron Dialog
-  participant FS as fileScanner service
-  participant WR as WorkspaceRepository
-  participant DB as SQLite
+  participant Teacher as Teacher
+  participant Comp as Components (LoaderBar/FileControlContainer)
+  participant Hook as Hooks (useFileControl/useSelectFolder)
+  participant App as Application (selectWorkspaceFolder)
+  participant RInfra as Renderer Infrastructure (workspace.api)
+  participant Preload as Preload (window.api.workspace)
+  participant IPC as Main IPC (workspaceHandlers)
+  participant Scan as Service (fileScanner)
+  participant Repo as Repository (WorkspaceRepository)
+  participant DB as SQLite (filepath/filename/entities)
+  participant State as Workspace State Reducer
+  participant UI as FileDisplayBar UI
 
-  T->>UI: Click "Select Folder"
-  UI->>HK: onSelectFolder -> pickFolder()
-  HK->>PL: workspace.selectFolder()
-  PL->>IPC: invoke workspace/selectFolder
-  IPC->>D: showOpenDialog(openDirectory)
-  D-->>IPC: selected folder path
+  Teacher->>Comp: Click "Select Folder"
+  Comp->>Hook: pickFolder()
+  Hook->>State: dispatch workspace/setStatus('loading')
+  Hook->>App: selectWorkspaceFolder(api)
+  App->>RInfra: api.selectFolder()
+  RInfra->>Preload: window.api.workspace.selectFolder()
+  Preload->>IPC: invoke('workspace/selectFolder')
 
-  IPC->>WR: setCurrentFolder(path)
-  WR->>DB: upsert/select filepath row
-  DB-->>WR: folder record
-  WR-->>IPC: folder dto
+  IPC->>IPC: dialog.showOpenDialog(openDirectory)
+  alt user cancels
+    IPC-->>Preload: AppResult ok + folder:null
+    Preload-->>RInfra: folder:null
+    RInfra-->>App: folder:null
+    App-->>Hook: { folder:null, files:[] }
+    Hook->>State: setFolder(null), setFiles([]), setSelectedFile(null), setStatus('idle')
+    State-->>UI: render "No files selected"
+  else folder selected
+    IPC->>Repo: setCurrentFolder(path)
+    Repo->>DB: upsert/select filepath
+    DB-->>Repo: folder row
+    Repo-->>IPC: folder dto
 
-  IPC->>FS: scanFilesInWorkspace(folderPath)
-  FS-->>IPC: scanned files (depth 2)
-  IPC->>WR: upsertFiles(folderId, scannedFiles)
-  WR->>DB: upsert entities + filename rows (transaction)
-  DB-->>WR: persisted file rows
-  WR-->>IPC: file list persisted
-  IPC-->>PL: AppResult<SelectFolderResponse>
-  PL-->>HK: folder result
+    IPC->>Scan: scanFilesInWorkspace(path)
+    Scan-->>IPC: scanned files
+    IPC->>Repo: upsertFiles(folderId, files)
+    Repo->>DB: tx upsert entities + filename
+    DB-->>Repo: committed
+    Repo-->>IPC: persisted
 
-  HK->>PL: workspace.listFiles(folderId)
-  PL->>IPC: invoke workspace/listFiles
-  IPC->>WR: listFiles(folderId)
-  WR->>DB: select filename rows by filepath_uuid
-  DB-->>WR: file rows
-  WR-->>IPC: workspace file dtos
-  IPC-->>PL: AppResult<ListFilesResponse>
-  PL-->>HK: files result
+    IPC-->>Preload: AppResult ok + folder
+    Preload-->>RInfra: folder
+    RInfra-->>App: folder
 
-  HK->>UI: dispatch workspace reducer updates
-  UI-->>T: File list displayed in FileDisplayBar
+    App->>RInfra: api.listFiles(folder.id)
+    RInfra->>Preload: window.api.workspace.listFiles(folderId)
+    Preload->>IPC: invoke('workspace/listFiles')
+    IPC->>Repo: listFiles(folderId)
+    Repo->>DB: select filename rows
+    DB-->>Repo: rows
+    Repo-->>IPC: file dtos
+    IPC-->>Preload: AppResult ok + files
+    Preload-->>RInfra: files
+    RInfra-->>App: files
+    App-->>Hook: { folder, files }
+
+    Hook->>State: setFolder, setFiles, setSelectedFile(null), setStatus('idle')
+    State-->>UI: FileDisplayBar renders file names
+  end
 ```
+
+## Audit Checklist
+
+1. UI-to-hook boundary
+- `LoaderBar` must only receive `onSelectFolder` and `isLoading`.
+- No IPC calls in components.
+
+2. Hook-to-application boundary
+- `useSelectFolder` should call only `selectWorkspaceFolder(api)` for orchestration.
+- State transitions: `loading -> idle|error`.
+
+3. Application-to-infrastructure boundary
+- `workspace.service.ts` should not touch `window` directly.
+- It should depend on `WorkspaceApi` interface only.
+
+4. Domain purity
+- DTO mapping should stay in `workspace.mappers.ts`.
+- File kind logic should stay in `domain/fileKind.ts`.
+
+5. State ownership
+- Workspace actions/reducer/initial state must remain feature-owned under `features/workspace/state`.
+- Root reducer should only compose workspace reducer.
+
+6. IPC + persistence
+- `workspace/selectFolder` must persist folder and scan/upsert files.
+- `workspace/listFiles` must read persisted rows, not re-scan disk.
+
+7. Cancel behavior
+- Folder dialog cancel should return success with `folder: null` and keep UI non-error.
+
+8. No Python dependency
+- This slice should not call `LlmOrchestrator` or Python worker.
+

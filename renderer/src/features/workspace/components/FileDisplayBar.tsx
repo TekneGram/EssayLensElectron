@@ -1,4 +1,4 @@
-import type { WorkspaceFile } from '../../../types';
+import type { WorkspaceFile } from '../domain/workspace.types';
 
 interface FileDisplayBarProps {
   files: WorkspaceFile[];

@@ -1,15 +1,5 @@
-import type { AppState, ChatState, FeedbackState, RubricState, UiState, WorkspaceState } from './types';
-
-export const initialWorkspaceState: WorkspaceState = {
-  currentFolder: null,
-  files: [],
-  status: 'idle',
-  selectedFile: {
-    fileId: null,
-    status: 'idle'
-  },
-  documentTextByFileId: {}
-};
+import type { AppState, ChatState, FeedbackState, RubricState, UiState } from './types';
+import { initialWorkspaceState } from '../features/workspace/state/workspace.reducer';
 
 export const initialChatState: ChatState = {
   messages: [],
@@ -48,3 +38,5 @@ export const initialAppState: AppState = {
   rubric: initialRubricState,
   ui: initialUiState
 };
+
+export { initialWorkspaceState };

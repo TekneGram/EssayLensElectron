@@ -6,14 +6,6 @@ import type {
   RequestLlmAssessmentRequest
 } from '../../../electron/shared/assessmentContracts';
 
-export interface SelectFolderCommand {
-  path: string;
-}
-
-export interface SelectFileCommand {
-  fileId: EntityId;
-}
-
 export type AddInlineFeedbackCommand = AddInlineFeedbackRequest;
 export type AddBlockFeedbackCommand = AddBlockFeedbackRequest;
 export type AddFeedbackCommand = AddFeedbackRequest;

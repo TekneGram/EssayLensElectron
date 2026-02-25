@@ -1,5 +1,5 @@
 import type { AppState, SelectedFileType } from './types';
-import { isImageFileKind } from '../types';
+import { isImageFileKind } from '../features/workspace/domain/fileKind';
 
 export function selectActiveTopTab(state: AppState) {
   return state.ui.activeTopTab;

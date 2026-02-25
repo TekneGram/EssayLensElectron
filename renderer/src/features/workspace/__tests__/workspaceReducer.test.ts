@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { initialWorkspaceState } from '../initialState';
-import { workspaceReducer } from '../reducers';
-import type { WorkspaceState } from '../types';
+import type { WorkspaceState } from '../domain/workspace.types';
+import { initialWorkspaceState, workspaceReducer } from '../state/workspace.reducer';
 
 describe('workspaceReducer', () => {
   it('sets current folder', () => {

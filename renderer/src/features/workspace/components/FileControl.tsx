@@ -1,6 +1,6 @@
-import { FileDisplayBar } from '../../layout/components/FileDisplayBar';
-import { LoaderBar } from '../../layout/components/LoaderBar';
-import type { WorkspaceFile } from '../../../types';
+import { FileDisplayBar } from './FileDisplayBar';
+import { LoaderBar } from './LoaderBar';
+import type { WorkspaceFile } from '../domain/workspace.types';
 
 interface FileControlProps {
   files: WorkspaceFile[];

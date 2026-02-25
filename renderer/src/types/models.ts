@@ -1,40 +1,10 @@
-import type { ChatRole, CommentKind, EntityId, FileKind, ISODateString } from './primitives';
+import type { ChatRole, EntityId, ISODateString } from './primitives';
 import type {
   BlockFeedbackDto,
   FeedbackAnchorDto,
   FeedbackDto,
   InlineFeedbackDto
 } from '../../../electron/shared/assessmentContracts';
-
-export interface WorkspaceFolder {
-  id: EntityId;
-  path: string;
-  name: string;
-  selectedAt?: ISODateString;
-}
-
-export interface WorkspaceFile {
-  id: EntityId;
-  folderId: EntityId;
-  name: string;
-  path: string;
-  kind: FileKind;
-  imagePath?: string;
-  createdAt?: ISODateString;
-  updatedAt?: ISODateString;
-}
-
-export interface SelectedFileState {
-  fileId: EntityId | null;
-  status: 'idle' | 'loading' | 'ready' | 'error';
-  error?: string;
-}
-
-export interface DocumentTextModel {
-  fileId: EntityId;
-  text: string;
-  extractedAt?: ISODateString;
-}
 
 export interface ChatMessage {
   id: EntityId;

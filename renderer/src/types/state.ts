@@ -1,24 +1,12 @@
 import type { AssessmentTopTab, CommentsTab, EntityId, Theme } from './primitives';
 import type {
   ChatDataArray,
-  DocumentTextModel,
   FeedbackItem,
   RubricGradingSelection,
   RubricMatrix,
-  RubricSummary,
-  SelectedFileState,
-  WorkspaceFile,
-  WorkspaceFolder
+  RubricSummary
 } from './models';
-
-export interface WorkspaceState {
-  currentFolder: WorkspaceFolder | null;
-  files: WorkspaceFile[];
-  status: 'idle' | 'loading' | 'error';
-  error?: string;
-  selectedFile: SelectedFileState;
-  documentTextByFileId: Record<string, DocumentTextModel | undefined>;
-}
+import type { WorkspaceState } from '../features/workspace/domain/workspace.types';
 
 export interface ChatState {
   messages: ChatDataArray;
@@ -62,3 +50,5 @@ export interface AppState {
 }
 
 export type SelectedFileType = 'image' | 'docx' | 'pdf' | 'other' | null;
+
+export type { WorkspaceState };

@@ -1,6 +1,7 @@
 import type { AppAction } from './actions';
-import { initialAppState, initialChatState, initialFeedbackState, initialRubricState, initialUiState, initialWorkspaceState } from './initialState';
-import type { AppState, ChatState, FeedbackState, RubricState, UiState, WorkspaceState } from './types';
+import { initialAppState, initialChatState, initialFeedbackState, initialRubricState, initialUiState } from './initialState';
+import type { AppState, ChatState, FeedbackState, RubricState, UiState } from './types';
+import { workspaceReducer } from '../features/workspace/state/workspace.reducer';
 
 const ASSESSMENT_SPLIT_MIN = 0.35;
 const ASSESSMENT_SPLIT_MAX = 0.8;
@@ -10,46 +11,6 @@ function clampAssessmentSplitRatio(value: number): number {
     return initialUiState.assessmentSplitRatio;
   }
   return Math.min(ASSESSMENT_SPLIT_MAX, Math.max(ASSESSMENT_SPLIT_MIN, value));
-}
-
-export function workspaceReducer(state: WorkspaceState = initialWorkspaceState, action: AppAction): WorkspaceState {
-  switch (action.type) {
-    case 'workspace/setFolder':
-      return {
-        ...state,
-        currentFolder: action.payload
-      };
-    case 'workspace/setFiles':
-      return {
-        ...state,
-        files: action.payload
-      };
-    case 'workspace/setStatus':
-      return {
-        ...state,
-        status: action.payload
-      };
-    case 'workspace/setError':
-      return {
-        ...state,
-        error: action.payload
-      };
-    case 'workspace/setSelectedFile':
-      return {
-        ...state,
-        selectedFile: action.payload
-      };
-    case 'workspace/setDocumentText':
-      return {
-        ...state,
-        documentTextByFileId: {
-          ...state.documentTextByFileId,
-          [action.payload.fileId]: action.payload
-        }
-      };
-    default:
-      return state;
-  }
 }
 
 export function chatReducer(state: ChatState = initialChatState, action: AppAction): ChatState {
@@ -249,3 +210,5 @@ export function appReducer(state: AppState = initialAppState, action: AppAction)
     ui: uiReducer(state.ui, action)
   };
 }
+
+export { workspaceReducer };

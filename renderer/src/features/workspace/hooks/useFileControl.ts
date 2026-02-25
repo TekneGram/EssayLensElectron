@@ -1,6 +1,6 @@
 import { useAppDispatch, useAppState } from '../../../state';
-import type { WorkspaceFile } from '../../../types';
-import { useSelectFolderMutation } from './workspace.mutations';
+import type { WorkspaceFile } from '../domain/workspace.types';
+import { useSelectFolder } from './useSelectFolder';
 
 interface UseFileControlResult {
   files: WorkspaceFile[];
@@ -13,14 +13,18 @@ interface UseFileControlResult {
 export function useFileControl(): UseFileControlResult {
   const dispatch = useAppDispatch();
   const state = useAppState();
-  const selectFolderMutation = useSelectFolderMutation(dispatch);
+  const selectFolderMutation = useSelectFolder(dispatch);
 
   return {
     files: state.workspace.files,
     selectedFileId: state.workspace.selectedFile.fileId,
     isLoading: selectFolderMutation.isPending || state.workspace.status === 'loading',
     pickFolder: async () => {
-      await selectFolderMutation.mutateAsync();
+      try {
+        await selectFolderMutation.mutateAsync();
+      } catch {
+        // The mutation handles state + toast updates in onError.
+      }
     },
     selectFile: (file) => {
       dispatch({ type: 'workspace/setSelectedFile', payload: { fileId: file.id, status: 'ready' } });

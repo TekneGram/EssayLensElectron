@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AssessmentWindow } from './features/assessment-window/components/AssessmentWindow';
 import { AssessmentTab } from './features/assessment-tab/components/AssessmentTab';
 import type { AssessmentTabChatBindings } from './features/assessment-tab/types';
-import { FileControlContainer } from './features/file-control/FileControlContainer';
+import { FileControlContainer } from './features/workspace/FileControlContainer';
 import { ChatCollapsedRail } from './features/layout/components/ChatCollapsedRail';
 import { ChatInterface } from './features/layout/components/ChatInterface';
 import { ChatView } from './features/layout/components/ChatView';
