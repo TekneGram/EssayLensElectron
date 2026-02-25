@@ -1,4 +1,4 @@
-import type { ChatMode } from '../../../assessment-tab/types';
+import type { ChatMode } from '../../domain';
 
 interface ChatToggleProps {
   chatMode?: ChatMode;

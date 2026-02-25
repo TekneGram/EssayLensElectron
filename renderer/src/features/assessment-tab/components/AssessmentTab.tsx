@@ -6,11 +6,12 @@ import type {
   SendChatMessageRequest,
   SendChatMessageResponse
 } from '../../../../../electron/shared/chatContracts';
+import type { ActiveCommand, ChatMode, PendingSelection } from '../../chat-interface/domain';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
 import { useAddFeedbackMutation, useFeedbackListQuery, useGenerateFeedbackDocumentMutation } from '../hooks';
 import { applyFeedback, deleteFeedback, editFeedback, sendFeedbackToLlm } from '../hooks/feedbackApi';
-import type { ActiveCommand, AssessmentTabChatBindings, ChatMode, PendingSelection } from '../types';
+import type { AssessmentTabChatBindings } from '../types';
 import { CommentsView } from './CommentsView';
 import { ImageView } from './ImageView';
 import { OriginalTextView } from './OriginalTextView';

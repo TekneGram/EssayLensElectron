@@ -1,11 +1,11 @@
-import type { ChatInterfaceProps as AssessmentChatInterfaceProps } from '../../../assessment-tab/types';
+import type { ChatInterfaceBindings } from '../../domain';
 import { ChatInput } from './ChatInput';
 import { ChatToggle } from './ChatToggle';
 import { CommandDisplay } from './CommandDisplay';
 import { CommandDropdown } from './CommandDropdown';
 import { HighlightedTextDisplay } from './HighlightedTextDisplay';
 
-interface ChatInterfaceProps extends Partial<AssessmentChatInterfaceProps> {
+interface ChatInterfaceProps extends Partial<ChatInterfaceBindings> {
   onChatIntent: () => void;
 }
 

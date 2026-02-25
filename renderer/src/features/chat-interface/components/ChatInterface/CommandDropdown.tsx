@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ActiveCommand } from '../../../assessment-tab/types';
+import type { ActiveCommand } from '../../domain';
 
 interface CommandDropdownProps {
   activeCommand?: ActiveCommand | null;

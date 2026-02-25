@@ -1,8 +1,8 @@
-export { ChatInterface } from './components/ChatInterface';
 export type {
   ActiveCommand,
   ChatInterfaceBindings,
   ChatMode,
   CommandId,
   PendingSelection
-} from './domain';
+} from './chatInterface.types';
+

@@ -1,4 +1,4 @@
-import type { PendingSelection } from '../../../assessment-tab/types';
+import type { PendingSelection } from '../../domain';
 
 interface HighlightedTextDisplayProps {
   pendingSelection?: PendingSelection | null;

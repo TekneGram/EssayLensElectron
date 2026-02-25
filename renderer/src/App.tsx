@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { AssessmentWindow } from './features/assessment-window/components/AssessmentWindow';
 import { AssessmentTab } from './features/assessment-tab/components/AssessmentTab';
-import type { AssessmentTabChatBindings } from './features/assessment-tab/types';
 import { ChatInterface } from './features/chat-interface';
+import type { ChatInterfaceBindings } from './features/chat-interface';
 import { ChatCollapsedRail, ChatView } from './features/chat-view';
 import { FileControlContainer } from './features/workspace/FileControlContainer';
 import { LlmManager } from './features/llm-manager/LlmManager';
@@ -12,7 +12,7 @@ import { selectActiveTopTab, selectIsChatCollapsed, selectSelectedFileType, useA
 export function App() {
   const state = useAppState();
   const dispatch = useAppDispatch();
-  const [assessmentChatBindings, setAssessmentChatBindings] = useState<AssessmentTabChatBindings | null>(null);
+  const [assessmentChatBindings, setAssessmentChatBindings] = useState<ChatInterfaceBindings | null>(null);
   const activeTopTab = selectActiveTopTab(state);
   const selectedFileType = selectSelectedFileType(state);
   const isChatCollapsed = selectIsChatCollapsed(state);

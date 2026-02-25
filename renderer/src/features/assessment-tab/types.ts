@@ -1,22 +1,12 @@
-import type { FeedbackAnchor, FeedbackItem } from '../../types';
+import type {
+  ActiveCommand,
+  ChatInterfaceBindings,
+  ChatMode,
+  CommandId,
+  PendingSelection
+} from '../chat-interface/domain';
+import type { FeedbackItem } from '../../types';
 import type { EntityId } from '../../types/primitives';
-
-export type ChatMode = 'comment' | 'chat';
-export type CommandId = string;
-
-export interface PendingSelection {
-  exactQuote: string;
-  prefixText: string;
-  suffixText: string;
-  startAnchor: FeedbackAnchor;
-  endAnchor: FeedbackAnchor;
-}
-
-export interface ActiveCommand {
-  id: CommandId;
-  label: string;
-  source: 'chat-dropdown';
-}
 
 export interface OriginalTextViewProps {
   selectedFileId: EntityId | null;
@@ -72,16 +62,5 @@ export interface CommentToolsProps {
   onApplyComment: (commentId: string, applied: boolean) => void;
 }
 
-export interface ChatInterfaceProps {
-  activeCommand: ActiveCommand | null;
-  pendingSelection: PendingSelection | null;
-  chatMode: ChatMode;
-  isModeLockedToChat: boolean;
-  draftText: string;
-  onDraftChange: (text: string) => void;
-  onSubmit: () => void;
-  onModeChange: (mode: ChatMode) => void;
-  onCommandSelected: (command: ActiveCommand | null) => void;
-}
-
-export type AssessmentTabChatBindings = ChatInterfaceProps;
+export type AssessmentTabChatBindings = ChatInterfaceBindings;
+export type { ActiveCommand, ChatMode, CommandId, PendingSelection };
