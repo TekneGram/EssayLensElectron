@@ -1,4 +1,4 @@
-import type { ActiveCommand } from '../../domain';
+import type { ActiveCommand } from '../domain';
 
 interface CommandDisplayProps {
   activeCommand?: ActiveCommand | null;

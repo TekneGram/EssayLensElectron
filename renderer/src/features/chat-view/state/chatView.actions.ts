@@ -1,6 +1,4 @@
-import type { AppAction } from '../../../state';
-
-type SetChatCollapsedAction = Extract<AppAction, { type: 'ui/setChatCollapsed' }>;
+type SetChatCollapsedAction = { type: 'ui/setChatCollapsed'; payload: boolean };
 
 export function setChatCollapsed(payload: boolean): SetChatCollapsedAction {
   return { type: 'ui/setChatCollapsed', payload };
@@ -15,4 +13,3 @@ export function expandChatPanel(): SetChatCollapsedAction {
 }
 
 export type ChatViewAction = SetChatCollapsedAction;
-

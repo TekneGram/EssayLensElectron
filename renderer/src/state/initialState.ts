@@ -1,11 +1,6 @@
-import type { AppState, ChatState, FeedbackState, RubricState, UiState } from './types';
+import { initialChatState } from '../features/chat-interface/state/chatInterface.initialState';
+import type { AppState, FeedbackState, RubricState, UiState } from './types';
 import { initialWorkspaceState } from '../features/workspace/state/workspace.reducer';
-
-export const initialChatState: ChatState = {
-  messages: [],
-  draft: '',
-  status: 'idle'
-};
 
 export const initialFeedbackState: FeedbackState = {
   byFileId: {},
@@ -39,4 +34,5 @@ export const initialAppState: AppState = {
   ui: initialUiState
 };
 
+export { initialChatState };
 export { initialWorkspaceState };

@@ -1,10 +1,19 @@
-import type { AppAction, ChatMessage, ChatState } from '../../../state';
+import type { ChatMessage } from '../../../types/models';
+import type { ChatState } from '../../../types/state';
 
-type AddMessageAction = Extract<AppAction, { type: 'chat/addMessage' }>;
-type UpdateMessageContentAction = Extract<AppAction, { type: 'chat/updateMessageContent' }>;
-type SetDraftAction = Extract<AppAction, { type: 'chat/setDraft' }>;
-type SetStatusAction = Extract<AppAction, { type: 'chat/setStatus' }>;
-type SetErrorAction = Extract<AppAction, { type: 'chat/setError' }>;
+type SetMessagesAction = { type: 'chat/setMessages'; payload: ChatMessage[] };
+type AddMessageAction = { type: 'chat/addMessage'; payload: ChatMessage };
+type UpdateMessageContentAction = {
+  type: 'chat/updateMessageContent';
+  payload: { messageId: string; content: string; mode: 'append' | 'replace' };
+};
+type SetDraftAction = { type: 'chat/setDraft'; payload: string };
+type SetStatusAction = { type: 'chat/setStatus'; payload: ChatState['status'] };
+type SetErrorAction = { type: 'chat/setError'; payload?: string };
+
+export function setChatMessages(payload: ChatMessage[]): SetMessagesAction {
+  return { type: 'chat/setMessages', payload };
+}
 
 export function addChatMessage(payload: ChatMessage): AddMessageAction {
   return { type: 'chat/addMessage', payload };
@@ -27,9 +36,9 @@ export function setChatError(payload?: string): SetErrorAction {
 }
 
 export type ChatInterfaceAction =
+  | SetMessagesAction
   | AddMessageAction
   | UpdateMessageContentAction
   | SetDraftAction
   | SetStatusAction
   | SetErrorAction;
-

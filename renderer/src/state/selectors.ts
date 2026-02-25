@@ -1,4 +1,5 @@
 import type { AppState, SelectedFileType } from './types';
+import { selectIsChatCollapsed as selectIsChatCollapsedFromChatView } from '../features/chat-view/state';
 import { isImageFileKind } from '../features/workspace/domain/fileKind';
 
 export function selectActiveTopTab(state: AppState) {
@@ -10,7 +11,7 @@ export function selectActiveCommentsTab(state: AppState) {
 }
 
 export function selectIsChatCollapsed(state: AppState) {
-  return state.ui.isChatCollapsed;
+  return selectIsChatCollapsedFromChatView(state);
 }
 
 export function selectAssessmentSplitRatio(state: AppState) {

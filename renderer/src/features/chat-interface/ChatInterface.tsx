@@ -1,9 +1,10 @@
-import type { ChatInterfaceBindings } from '../../domain';
-import { ChatInput } from './ChatInput';
-import { ChatToggle } from './ChatToggle';
-import { CommandDisplay } from './CommandDisplay';
-import { CommandDropdown } from './CommandDropdown';
-import { HighlightedTextDisplay } from './HighlightedTextDisplay';
+import { executeChatInterfaceSubmit } from './application/chatIntent.service';
+import type { ChatInterfaceBindings } from './domain';
+import { ChatInput } from './components/ChatInput';
+import { ChatToggle } from './components/ChatToggle';
+import { CommandDisplay } from './components/CommandDisplay';
+import { CommandDropdown } from './components/CommandDropdown';
+import { HighlightedTextDisplay } from './components/HighlightedTextDisplay';
 
 interface ChatInterfaceProps extends Partial<ChatInterfaceBindings> {
   onChatIntent: () => void;
@@ -24,10 +25,7 @@ export function ChatInterface({
   const submitAriaLabel = chatMode === 'comment' ? 'Send comment' : 'Send chat message';
   const hasActiveCommand = Boolean(activeCommand?.id);
   const handleSubmit = () => {
-    if (chatMode === 'chat') {
-      onChatIntent();
-    }
-    void onSubmit?.();
+    void executeChatInterfaceSubmit({ chatMode, onChatIntent, onSubmit });
   };
 
   return (

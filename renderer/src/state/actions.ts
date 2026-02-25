@@ -1,7 +1,5 @@
 import type {
   AssessmentTopTab,
-  ChatMessage,
-  ChatState,
   CommentsTab,
   EntityId,
   FeedbackItem,
@@ -12,14 +10,9 @@ import type {
   Theme,
   WorkspaceAction
 } from './types';
+import type { ChatInterfaceAction } from '../features/chat-interface/state/chatInterface.actions';
 
-export type ChatAction =
-  | { type: 'chat/setMessages'; payload: ChatMessage[] }
-  | { type: 'chat/addMessage'; payload: ChatMessage }
-  | { type: 'chat/updateMessageContent'; payload: { messageId: string; content: string; mode: 'append' | 'replace' } }
-  | { type: 'chat/setDraft'; payload: string }
-  | { type: 'chat/setStatus'; payload: ChatState['status'] }
-  | { type: 'chat/setError'; payload?: string };
+export type ChatAction = ChatInterfaceAction;
 
 export type FeedbackAction =
   | { type: 'feedback/setForFile'; payload: { fileId: EntityId; items: FeedbackItem[] } }

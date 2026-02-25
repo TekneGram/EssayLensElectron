@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ChatInterface } from '../components/ChatInterface';
+import { ChatInterface } from '../ChatInterface';
 
 describe('ChatInterface toggle lock rules', () => {
   it('opens command menu from + trigger and selects a command', () => {
@@ -9,11 +9,11 @@ describe('ChatInterface toggle lock rules', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open command menu' }));
     expect(screen.getByRole('menu').classList.contains('chat-command-menu')).toBe(true);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Evaluate Thesis' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Overview Comments' }));
 
     expect(onCommandSelected).toHaveBeenCalledWith({
-      id: 'evaluate-thesis',
-      label: 'Evaluate Thesis',
+      id: 'evaluate-simple',
+      label: 'Overview Comments',
       source: 'chat-dropdown'
     });
   });

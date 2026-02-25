@@ -1,13 +1,13 @@
-import { useAppState } from '../../../state';
-import { selectChatMessages } from '../state';
+import { toChatViewMessageItems } from '../application/chatView.service';
+import { useChatViewState } from '../infrastructure/chatViewState.adapter';
 
 interface ChatViewProps {
   onCollapse: () => void;
 }
 
 export function ChatView({ onCollapse }: ChatViewProps) {
-  const state = useAppState();
-  const messages = selectChatMessages(state);
+  const { messages } = useChatViewState();
+  const items = toChatViewMessageItems(messages);
 
   return (
     <section className="chat-view pane chat" data-testid="chat-view" aria-label="Chat view">
@@ -17,11 +17,11 @@ export function ChatView({ onCollapse }: ChatViewProps) {
           ‹
         </button>
       </div>
-      {messages.length > 0 ? (
+      {items.length > 0 ? (
         <ul className="chat-log">
-          {messages.map((message) => (
-            <li key={message.id} className={`msg ${message.role}`}>
-              [{message.role}] {message.content}
+          {items.map((item) => (
+            <li key={item.id} className={`msg ${item.roleClassName}`}>
+              {item.text}
             </li>
           ))}
         </ul>

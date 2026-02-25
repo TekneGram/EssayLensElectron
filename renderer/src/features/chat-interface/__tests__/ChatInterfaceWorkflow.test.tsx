@@ -283,10 +283,10 @@ describe('ChatInterface submit workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'draft.docx' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Open command menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Evaluate Thesis' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Overview Comments' }));
 
     await waitFor(() => {
-      expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('chat:true:evaluate-thesis');
+      expect(screen.getByTestId('assessment-chat-interface-stub').textContent).toBe('chat:true:evaluate-simple');
     });
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), {
@@ -356,7 +356,7 @@ describe('ChatInterface submit workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'draft.docx' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Open command menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Evaluate Thesis' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Overview Comments' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), {
       target: { value: 'Please stream this response' }
     });

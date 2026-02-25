@@ -1,6 +1,7 @@
 import type { AppAction } from './actions';
-import { initialAppState, initialChatState, initialFeedbackState, initialRubricState, initialUiState } from './initialState';
-import type { AppState, ChatState, FeedbackState, RubricState, UiState } from './types';
+import { initialAppState, initialFeedbackState, initialRubricState, initialUiState } from './initialState';
+import type { AppState, FeedbackState, RubricState, UiState } from './types';
+import { chatReducer } from '../features/chat-interface/state/chatInterface.reducer';
 import { workspaceReducer } from '../features/workspace/state/workspace.reducer';
 
 const ASSESSMENT_SPLIT_MIN = 0.35;
@@ -11,54 +12,6 @@ function clampAssessmentSplitRatio(value: number): number {
     return initialUiState.assessmentSplitRatio;
   }
   return Math.min(ASSESSMENT_SPLIT_MAX, Math.max(ASSESSMENT_SPLIT_MIN, value));
-}
-
-export function chatReducer(state: ChatState = initialChatState, action: AppAction): ChatState {
-  switch (action.type) {
-    case 'chat/setMessages':
-      return {
-        ...state,
-        messages: action.payload
-      };
-    case 'chat/addMessage':
-      return {
-        ...state,
-        messages: [...state.messages, action.payload]
-      };
-    case 'chat/updateMessageContent':
-      return {
-        ...state,
-        messages: state.messages.map((message) => {
-          if (message.id !== action.payload.messageId) {
-            return message;
-          }
-          return {
-            ...message,
-            content:
-              action.payload.mode === 'append'
-                ? `${message.content}${action.payload.content}`
-                : action.payload.content
-          };
-        })
-      };
-    case 'chat/setDraft':
-      return {
-        ...state,
-        draft: action.payload
-      };
-    case 'chat/setStatus':
-      return {
-        ...state,
-        status: action.payload
-      };
-    case 'chat/setError':
-      return {
-        ...state,
-        error: action.payload
-      };
-    default:
-      return state;
-  }
 }
 
 export function feedbackReducer(state: FeedbackState = initialFeedbackState, action: AppAction): FeedbackState {
@@ -211,4 +164,5 @@ export function appReducer(state: AppState = initialAppState, action: AppAction)
   };
 }
 
+export { chatReducer };
 export { workspaceReducer };

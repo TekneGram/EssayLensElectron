@@ -1,4 +1,4 @@
-import type { ChatMode } from '../../domain';
+import type { ChatMode } from '../domain';
 
 interface ChatToggleProps {
   chatMode?: ChatMode;

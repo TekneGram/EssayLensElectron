@@ -1,19 +1,12 @@
 import type { AssessmentTopTab, CommentsTab, EntityId, Theme } from './primitives';
 import type {
-  ChatDataArray,
   FeedbackItem,
   RubricGradingSelection,
   RubricMatrix,
   RubricSummary
 } from './models';
+import type { ChatState } from '../features/chat-interface/domain';
 import type { WorkspaceState } from '../features/workspace/domain/workspace.types';
-
-export interface ChatState {
-  messages: ChatDataArray;
-  draft: string;
-  status: 'idle' | 'sending' | 'error';
-  error?: string;
-}
 
 export interface FeedbackState {
   byFileId: Record<string, FeedbackItem[]>;
@@ -51,4 +44,5 @@ export interface AppState {
 
 export type SelectedFileType = 'image' | 'docx' | 'pdf' | 'other' | null;
 
+export type { ChatState };
 export type { WorkspaceState };

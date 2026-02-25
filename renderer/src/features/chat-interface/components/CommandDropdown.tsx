@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ActiveCommand } from '../../domain';
+import { CHAT_COMMAND_OPTIONS, toActiveCommand } from '../domain';
+import type { ActiveCommand } from '../domain';
 
 interface CommandDropdownProps {
   activeCommand?: ActiveCommand | null;
   onCommandSelected?: (command: ActiveCommand | null) => void;
 }
-
-const COMMAND_OPTIONS = [
-  { id: 'evaluate-simple', label: 'Overview Comments' },
-  { id: 'evaluate-with-rubric', label: 'Rubric based comments' },
-  { id: 'bulk-evaluate', label: 'Comment in bulk' }
-] as const;
 
 export function CommandDropdown({ activeCommand = null, onCommandSelected }: CommandDropdownProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -67,18 +62,14 @@ export function CommandDropdown({ activeCommand = null, onCommandSelected }: Com
       </button>
       {!hasActiveCommand && isMenuOpen ? (
         <div className="chat-command-menu" role="menu" aria-label="Command options">
-          {COMMAND_OPTIONS.map((option) => (
+          {CHAT_COMMAND_OPTIONS.map((option) => (
             <button
               key={option.id}
               className="chat-command-item"
               type="button"
               role="menuitem"
               onClick={() => {
-                onCommandSelected?.({
-                  id: option.id,
-                  label: option.label,
-                  source: 'chat-dropdown'
-                });
+                onCommandSelected?.(toActiveCommand(option));
                 setIsMenuOpen(false);
               }}
             >
