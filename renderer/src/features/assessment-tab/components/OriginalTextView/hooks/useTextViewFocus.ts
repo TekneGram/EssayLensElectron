@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
 import type { PendingSelection } from '../../../types';
-import { buildRangeFromAnchors, type RenderBridge } from '../services/renderBridge';
+import { addRangeToWindowSelection, clearWindowSelection } from '../infrastructure/windowSelection';
+import { buildRangeFromAnchors, type RenderBridge } from '../infrastructure/renderBridge';
 import type { LoadedTextViewDocument } from './useTextViewDocument';
 
 interface UseTextViewFocusArgs {
@@ -33,9 +34,8 @@ export function useTextViewFocus({
       return;
     }
 
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
+    clearWindowSelection();
+    addRangeToWindowSelection(range);
     range.startContainer.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [activeCommentId, bridgeRef, document, pendingSelection]);
 }

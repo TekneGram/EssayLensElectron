@@ -1,4 +1,4 @@
-import type { CommentHeaderProps } from '../../types';
+import type { CommentHeaderProps } from '../../../types';
 
 export function CommentHeader({ title, comment, isActive }: CommentHeaderProps) {
   const createdAt = new Date(comment.createdAt).toLocaleString();

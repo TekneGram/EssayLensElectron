@@ -1,5 +1,5 @@
-import type { OriginalTextViewProps } from '../../types';
-import { TextViewWindow } from './TextViewWindow';
+import type { OriginalTextViewProps } from '../types';
+import { TextViewWindow } from './OriginalTextView/TextViewWindow';
 
 export function OriginalTextView({
   selectedFileId,

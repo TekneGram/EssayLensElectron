@@ -1,14 +1,8 @@
-import type { CommentBodyProps } from '../../types';
-
-function truncate(text: string, length: number): string {
-  if (text.length <= length) {
-    return text;
-  }
-  return `${text.slice(0, Math.max(0, length - 1)).trimEnd()}…`;
-}
+import type { CommentBodyProps } from '../../../types';
+import { truncateText } from '../domain/commentBody.logic';
 
 export function CommentBody({ comment, quotePreviewLength = 120 }: CommentBodyProps) {
-  const preview = comment.kind === 'inline' ? truncate(comment.exactQuote, quotePreviewLength) : '';
+  const preview = comment.kind === 'inline' ? truncateText(comment.exactQuote, quotePreviewLength) : '';
 
   return (
     <section className="comment-body">

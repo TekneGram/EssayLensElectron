@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AssessmentWindow } from './features/assessment-window/components/AssessmentWindow';
-import { AssessmentTab } from './features/assessment-tab/components/AssessmentTab';
+import { AssessmentTab } from './features/assessment-tab/AssessmentTab';
 import { ChatInterface } from './features/chat-interface';
 import type { ChatInterfaceBindings } from './features/chat-interface';
 import { ChatCollapsedRail, ChatView, collapseChatPanel, expandChatPanel, selectIsChatCollapsed } from './features/chat-view';

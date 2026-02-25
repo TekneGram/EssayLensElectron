@@ -1,6 +1,7 @@
-import type { CommentsTab } from '../../../../state';
-import type { CommentsViewProps } from '../../types';
-import { CommentView } from './CommentView';
+import type { CommentsTab } from '../../../state';
+import type { CommentsViewProps } from '../types';
+import { CommentView } from './CommentsView/components/CommentView';
+import { useCommentsViewController } from './CommentsView/hooks/useCommentsViewController';
 import { ScoreTool } from './ScoreTool';
 
 interface AssessmentCommentsViewProps extends CommentsViewProps {
@@ -24,44 +25,50 @@ export function CommentsView({
   activeTab,
   onTabChange
 }: AssessmentCommentsViewProps) {
+  const view = useCommentsViewController({
+    comments,
+    isLoading,
+    error,
+    isGeneratePending,
+    canGenerateFeedbackDocument,
+    activeTab,
+    onTabChange
+  });
+
   return (
     <section className="comments-view subpane">
       <h4>CommentsView</h4>
       <div role="tablist" aria-label="Comments tabs" className="comments-tabs tabs">
         <button
           type="button"
-          className={activeTab === 'comments' ? 'tab active is-active' : 'tab'}
+          className={view.isCommentsActive ? 'tab active is-active' : 'tab'}
           role="tab"
-          aria-selected={activeTab === 'comments'}
-          onClick={() => onTabChange('comments')}
+          aria-selected={view.isCommentsActive}
+          onClick={view.onSelectCommentsTab}
         >
           Comments
         </button>
         <button
           type="button"
-          className={activeTab === 'score' ? 'tab active is-active' : 'tab'}
+          className={view.isScoreActive ? 'tab active is-active' : 'tab'}
           role="tab"
-          aria-selected={activeTab === 'score'}
-          onClick={() => onTabChange('score')}
+          aria-selected={view.isScoreActive}
+          onClick={view.onSelectScoreTab}
         >
           Score
         </button>
       </div>
       <div className="comments-generate-action">
-        <button
-          type="button"
-          onClick={onGenerateFeedbackDocument}
-          disabled={!canGenerateFeedbackDocument || isGeneratePending}
-        >
+        <button type="button" onClick={onGenerateFeedbackDocument} disabled={!view.isGenerateEnabled}>
           {isGeneratePending ? 'Generating...' : 'Generate'}
         </button>
       </div>
       <div className="comments-content">
-        <div className="content-block comments-panel" role="tabpanel" hidden={activeTab !== 'comments'}>
+        <div className="content-block comments-panel" role="tabpanel" hidden={!view.isCommentsActive}>
           {isLoading ? <div>Loading comments...</div> : null}
           {error ? <div>{error}</div> : null}
-          {!isLoading && !error && comments.length === 0 ? <div>No comments yet.</div> : null}
-          {comments.length > 0 ? (
+          {view.showEmptyState ? <div>No comments yet.</div> : null}
+          {view.showCommentsList ? (
             <div className="comments-list">
               {comments.map((comment) => (
                 <CommentView
@@ -78,8 +85,8 @@ export function CommentsView({
             </div>
           ) : null}
         </div>
-        <div className="content-block comments-panel" role="tabpanel" hidden={activeTab !== 'score'}>
-          {activeTab === 'score' ? <ScoreTool /> : null}
+        <div className="content-block comments-panel" role="tabpanel" hidden={!view.isScoreActive}>
+          {view.isScoreActive ? <ScoreTool /> : null}
         </div>
       </div>
     </section>

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
 import { renderAsync } from 'docx-preview';
 import { extractDocument } from '../../../hooks/feedbackApi';
-import { buildTextMapFromDocx } from '../services/docxTextMap';
-import { buildRenderBridge, type RenderBridge } from '../services/renderBridge';
-import type { WordTextMap } from '../services/textMapTypes';
+import { buildTextMapFromDocx } from '../infrastructure/docxTextMap';
+import { buildRenderBridge, type RenderBridge } from '../infrastructure/renderBridge';
+import type { WordTextMap } from '../infrastructure/textMapTypes';
 
 export interface LoadedTextViewDocument {
   fileId: string;

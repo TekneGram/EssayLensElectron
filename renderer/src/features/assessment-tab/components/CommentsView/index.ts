@@ -1,6 +1,10 @@
-export { CommentBody } from './CommentBody';
-export { CommentHeader } from './CommentHeader';
-export { CommentTools } from './CommentTools';
-export { CommentView } from './CommentView';
-export { CommentsView } from './CommentsView';
-export { ScoreTool } from './ScoreTool';
+export { CommentBody } from './components/CommentBody';
+export { CommentHeader } from './components/CommentHeader';
+export { CommentTools } from './components/CommentTools';
+export { CommentView } from './components/CommentView';
+export { ScoreTool } from '../ScoreTool';
+export * from './application';
+export * from './domain';
+export * from './hooks';
+export * from './infrastructure';
+export * from './state';
