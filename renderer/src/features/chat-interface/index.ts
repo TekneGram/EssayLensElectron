@@ -6,3 +6,14 @@ export type {
   CommandId,
   PendingSelection
 } from './domain';
+export {
+  addChatMessage,
+  selectChatDraft,
+  selectChatError,
+  selectChatStatus,
+  setChatDraft,
+  setChatError,
+  setChatStatus,
+  updateChatMessageContent
+} from './state';
+export type { ChatInterfaceAction } from './state';

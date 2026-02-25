@@ -1,4 +1,5 @@
 import { useAppState } from '../../../state';
+import { selectChatMessages } from '../state';
 
 interface ChatViewProps {
   onCollapse: () => void;
@@ -6,6 +7,7 @@ interface ChatViewProps {
 
 export function ChatView({ onCollapse }: ChatViewProps) {
   const state = useAppState();
+  const messages = selectChatMessages(state);
 
   return (
     <section className="chat-view pane chat" data-testid="chat-view" aria-label="Chat view">
@@ -15,9 +17,9 @@ export function ChatView({ onCollapse }: ChatViewProps) {
           ‹
         </button>
       </div>
-      {state.chat.messages.length > 0 ? (
+      {messages.length > 0 ? (
         <ul className="chat-log">
-          {state.chat.messages.map((message) => (
+          {messages.map((message) => (
             <li key={message.id} className={`msg ${message.role}`}>
               [{message.role}] {message.content}
             </li>

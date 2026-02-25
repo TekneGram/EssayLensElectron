@@ -6,6 +6,12 @@ import type {
   SendChatMessageRequest,
   SendChatMessageResponse
 } from '../../../../../electron/shared/chatContracts';
+import {
+  addChatMessage,
+  setChatError,
+  setChatStatus,
+  updateChatMessageContent
+} from '../../chat-interface/state';
 import type { ActiveCommand, ChatMode, PendingSelection } from '../../chat-interface/domain';
 import { selectActiveCommentsTab, selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
@@ -136,28 +142,26 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
     streamMessageByClientRequestId.current.set(clientRequestId, assistantMessageId);
     streamSeqByClientRequestId.current.set(clientRequestId, -1);
 
-    dispatch({
-      type: 'chat/addMessage',
-      payload: {
+    dispatch(
+      addChatMessage({
         id: teacherMessageId,
         role: 'teacher',
         content: message,
         relatedFileId: selectedFileId ?? undefined,
         createdAt
-      }
-    });
-    dispatch({
-      type: 'chat/addMessage',
-      payload: {
+      })
+    );
+    dispatch(
+      addChatMessage({
         id: assistantMessageId,
         role: 'assistant',
         content: '',
         relatedFileId: selectedFileId ?? undefined,
         createdAt
-      }
-    });
-    dispatch({ type: 'chat/setStatus', payload: 'sending' });
-    dispatch({ type: 'chat/setError', payload: undefined });
+      })
+    );
+    dispatch(setChatStatus('sending'));
+    dispatch(setChatError(undefined));
     setDraftText('');
 
     try {
@@ -172,25 +176,24 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
         throw new Error(result.error.message || 'Unable to send chat message.');
       }
 
-      dispatch({
-        type: 'chat/updateMessageContent',
-        payload: {
+      dispatch(
+        updateChatMessageContent({
           messageId: assistantMessageId,
           content: result.data.reply,
           mode: 'replace'
-        }
-      });
+        })
+      );
       streamMessageByClientRequestId.current.delete(clientRequestId);
       streamSeqByClientRequestId.current.delete(clientRequestId);
       if (streamMessageByClientRequestId.current.size === 0) {
-        dispatch({ type: 'chat/setStatus', payload: 'idle' });
+        dispatch(setChatStatus('idle'));
       }
     } catch (error) {
       streamMessageByClientRequestId.current.delete(clientRequestId);
       streamSeqByClientRequestId.current.delete(clientRequestId);
       const errorMessage = error instanceof Error ? error.message : 'Unable to send chat message.';
-      dispatch({ type: 'chat/setStatus', payload: 'error' });
-      dispatch({ type: 'chat/setError', payload: errorMessage });
+      dispatch(setChatStatus('error'));
+      dispatch(setChatError(errorMessage));
       toast.error(errorMessage);
     }
   }, [addFeedback, chatMode, dispatch, draftText, pendingSelection, selectedFileId]);
@@ -220,14 +223,13 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
       streamSeqByClientRequestId.current.set(clientRequestId, event.seq);
 
       if (event.type === 'chunk' && event.channel === 'content' && event.text) {
-        dispatch({
-          type: 'chat/updateMessageContent',
-          payload: {
+        dispatch(
+          updateChatMessageContent({
             messageId: assistantMessageId,
             content: event.text,
             mode: 'append'
-          }
-        });
+          })
+        );
         return;
       }
 
@@ -235,7 +237,7 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
         streamMessageByClientRequestId.current.delete(clientRequestId);
         streamSeqByClientRequestId.current.delete(clientRequestId);
         if (streamMessageByClientRequestId.current.size === 0) {
-          dispatch({ type: 'chat/setStatus', payload: 'idle' });
+          dispatch(setChatStatus('idle'));
         }
         return;
       }
@@ -244,8 +246,8 @@ export function AssessmentTab({ selectedFileType, onChatBindingsChange }: Assess
         streamMessageByClientRequestId.current.delete(clientRequestId);
         streamSeqByClientRequestId.current.delete(clientRequestId);
         const message = event.error?.message || 'Streaming chat request failed.';
-        dispatch({ type: 'chat/setStatus', payload: 'error' });
-        dispatch({ type: 'chat/setError', payload: message });
+        dispatch(setChatStatus('error'));
+        dispatch(setChatError(message));
       }
     });
 

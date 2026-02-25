@@ -3,11 +3,11 @@ import { AssessmentWindow } from './features/assessment-window/components/Assess
 import { AssessmentTab } from './features/assessment-tab/components/AssessmentTab';
 import { ChatInterface } from './features/chat-interface';
 import type { ChatInterfaceBindings } from './features/chat-interface';
-import { ChatCollapsedRail, ChatView } from './features/chat-view';
+import { ChatCollapsedRail, ChatView, collapseChatPanel, expandChatPanel, selectIsChatCollapsed } from './features/chat-view';
 import { FileControlContainer } from './features/workspace/FileControlContainer';
 import { LlmManager } from './features/llm-manager/LlmManager';
 import { RubricTab } from './features/rubric-tab/components/RubricTab';
-import { selectActiveTopTab, selectIsChatCollapsed, selectSelectedFileType, useAppDispatch, useAppState } from './state';
+import { selectActiveTopTab, selectSelectedFileType, useAppDispatch, useAppState } from './state';
 
 export function App() {
   const state = useAppState();
@@ -17,8 +17,8 @@ export function App() {
   const selectedFileType = selectSelectedFileType(state);
   const isChatCollapsed = selectIsChatCollapsed(state);
 
-  const collapseChat = () => dispatch({ type: 'ui/setChatCollapsed', payload: true });
-  const expandChat = () => dispatch({ type: 'ui/setChatCollapsed', payload: false });
+  const collapseChat = () => dispatch(collapseChatPanel());
+  const expandChat = () => dispatch(expandChatPanel());
 
   return (
     <div className="app-shell" data-testid="app-shell" data-chat-collapsed={isChatCollapsed}>
