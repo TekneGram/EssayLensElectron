@@ -8,3 +8,4 @@ export {
   shouldShowEmptyCommentsState
 } from './commentsView.logic';
 export { canSaveCommentDraft, getTrimmedCommentDraft, toOptionalCommandId } from './commentTools.logic';
+export { SEND_TO_LLM_COMMANDS } from './commentTools.constants';

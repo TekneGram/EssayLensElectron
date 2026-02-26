@@ -1,6 +1,6 @@
 import type { AppAction } from './actions';
-import { initialAppState, initialFeedbackState, initialRubricState, initialUiState } from './initialState';
-import type { AppState, FeedbackState, RubricState, UiState } from './types';
+import { initialAppState, initialRubricState, initialUiState } from './initialState';
+import type { AppState, RubricState, UiState } from './types';
 import { chatReducer } from '../features/chat-interface/state/chatInterface.reducer';
 import { workspaceReducer } from '../features/workspace/state/workspace.reducer';
 
@@ -14,53 +14,8 @@ function clampAssessmentSplitRatio(value: number): number {
   return Math.min(ASSESSMENT_SPLIT_MAX, Math.max(ASSESSMENT_SPLIT_MIN, value));
 }
 
-export function feedbackReducer(state: FeedbackState = initialFeedbackState, action: AppAction): FeedbackState {
-  switch (action.type) {
-    case 'feedback/setForFile':
-      return {
-        ...state,
-        byFileId: {
-          ...state.byFileId,
-          [action.payload.fileId]: action.payload.items
-        }
-      };
-    case 'feedback/add': {
-      const existing = state.byFileId[action.payload.fileId] ?? [];
-      return {
-        ...state,
-        byFileId: {
-          ...state.byFileId,
-          [action.payload.fileId]: [...existing, action.payload]
-        }
-      };
-    }
-    case 'feedback/setStatus':
-      return {
-        ...state,
-        status: action.payload
-      };
-    case 'feedback/setError':
-      return {
-        ...state,
-        error: action.payload
-      };
-    default:
-      return state;
-  }
-}
-
 export function rubricReducer(state: RubricState = initialRubricState, action: AppAction): RubricState {
   switch (action.type) {
-    case 'rubric/setList':
-      return {
-        ...state,
-        rubricList: action.payload
-      };
-    case 'rubric/selectEditing':
-      return {
-        ...state,
-        selectedEditingRubricId: action.payload
-      };
     case 'rubric/selectGradingForFile': {
       const nextSelectedByFileId = { ...state.selectedGradingRubricIdByFileId };
       if (!action.payload.rubricId) {
@@ -77,16 +32,6 @@ export function rubricReducer(state: RubricState = initialRubricState, action: A
       return {
         ...state,
         lockedGradingRubricId: action.payload
-      };
-    case 'rubric/setMatrix':
-      return {
-        ...state,
-        activeMatrix: action.payload
-      };
-    case 'rubric/setInteractionMode':
-      return {
-        ...state,
-        interactionMode: action.payload
       };
     case 'rubric/setGradingSelection':
       return {
@@ -107,16 +52,6 @@ export function rubricReducer(state: RubricState = initialRubricState, action: A
         gradingSelectionByFileId: nextSelection
       };
     }
-    case 'rubric/setStatus':
-      return {
-        ...state,
-        status: action.payload
-      };
-    case 'rubric/setError':
-      return {
-        ...state,
-        error: action.payload
-      };
     default:
       return state;
   }
@@ -158,7 +93,6 @@ export function appReducer(state: AppState = initialAppState, action: AppAction)
   return {
     workspace: workspaceReducer(state.workspace, action),
     chat: chatReducer(state.chat, action),
-    feedback: feedbackReducer(state.feedback, action),
     rubric: rubricReducer(state.rubric, action),
     ui: uiReducer(state.ui, action)
   };

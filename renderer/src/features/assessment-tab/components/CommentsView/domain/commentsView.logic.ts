@@ -1,5 +1,5 @@
 import type { CommentsTab } from '../../../../../state';
-import type { FeedbackItem } from '../../../../../types';
+import type { FeedbackItem } from '../../../../feedback/domain';
 
 export function isCommentsTabActive(activeTab: CommentsTab): boolean {
   return activeTab === 'comments';

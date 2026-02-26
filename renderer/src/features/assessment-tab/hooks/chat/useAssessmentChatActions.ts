@@ -5,9 +5,8 @@ import type {
   AddBlockFeedbackRequest,
   AddInlineFeedbackRequest
 } from '../../../../../../electron/shared/assessmentContracts';
-import type { FeedbackItem } from '../../../../types';
-import type { ChatApi } from '../../infrastructure/chat.api';
-import { getChatApi } from '../../infrastructure/chat.api';
+import { usePorts } from '../../../../ports';
+import type { FeedbackItem } from '../../../feedback/domain';
 import { toChatErrorMessage } from '../../domain/assessmentTab.logic';
 import { handleChatStreamChunkWorkflow, submitChatMessageWorkflow } from '../../application/chatWorkflow.service';
 import { submitCommentFeedbackWorkflow } from '../../application/commentsWorkflow.service';
@@ -40,6 +39,7 @@ export function useAssessmentChatActions({
   selectedFileId,
   addFeedback
 }: UseAssessmentChatActionsParams): UseAssessmentChatActionsResult {
+  const { chat: chatApi } = usePorts();
   const { pendingSelection, chatMode, draftText } = localState;
   const isModeLockedToChat = selectIsModeLockedToChat(localState);
 
@@ -87,7 +87,6 @@ export function useAssessmentChatActions({
     }
 
     try {
-      const chatApi = getChatApi();
       localDispatch({ type: 'assessmentTab/setDraftText', payload: '' });
       await submitChatMessageWorkflow({
         chatApi,
@@ -102,15 +101,9 @@ export function useAssessmentChatActions({
       const errorMessage = toChatErrorMessage(error, 'Unable to send chat message.');
       toast.error(errorMessage);
     }
-  }, [addFeedback, appDispatch, chatMode, draftText, localDispatch, pendingSelection, selectedFileId]);
+  }, [addFeedback, appDispatch, chatApi, chatMode, draftText, localDispatch, pendingSelection, selectedFileId]);
 
   useEffect(() => {
-    let chatApi: ChatApi;
-    try {
-      chatApi = getChatApi();
-    } catch {
-      return;
-    }
     if (typeof chatApi.onStreamChunk !== 'function') {
       return;
     }
@@ -127,7 +120,7 @@ export function useAssessmentChatActions({
     return () => {
       unsubscribe();
     };
-  }, [appDispatch]);
+  }, [appDispatch, chatApi]);
 
   return {
     handleModeChange,

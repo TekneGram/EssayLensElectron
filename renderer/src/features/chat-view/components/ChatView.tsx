@@ -1,5 +1,5 @@
 import { toChatViewMessageItems } from '../application/chatView.service';
-import { useChatViewState } from '../infrastructure/chatViewState.adapter';
+import { useChatViewState } from '../hooks/useChatViewState';
 
 interface ChatViewProps {
   onCollapse: () => void;

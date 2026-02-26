@@ -1,9 +1,10 @@
-import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
+import { AppProviders } from '../../../app/AppProviders';
 import { createAppQueryClient } from '../../../app/queryClient';
-import { AppStateProvider, useAppState } from '../../../state';
+import type { WorkspacePort } from '../../../ports';
+import { useAppState } from '../../../state';
 import { FileControlContainer } from '../FileControlContainer';
 
 function WorkspaceStateProbe() {
@@ -18,16 +19,27 @@ function WorkspaceStateProbe() {
   );
 }
 
-function renderWithProviders() {
+function createWorkspacePort(overrides: Partial<WorkspacePort> = {}): WorkspacePort {
+  return {
+    selectFolder: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { folder: null }
+    }),
+    listFiles: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { files: [] }
+    }),
+    ...overrides
+  };
+}
+
+function renderWithProviders(workspacePort: WorkspacePort) {
   const queryClient = createAppQueryClient();
   return render(
-    <QueryClientProvider client={queryClient}>
-      <AppStateProvider>
-        <ToastContainer />
-        <FileControlContainer />
-        <WorkspaceStateProbe />
-      </AppStateProvider>
-    </QueryClientProvider>
+    <AppProviders queryClient={queryClient} ports={{ workspace: workspacePort }}>
+      <FileControlContainer />
+      <WorkspaceStateProbe />
+    </AppProviders>
   );
 }
 
@@ -58,17 +70,7 @@ describe('FileControlContainer', () => {
       }
     });
 
-    Object.defineProperty(window, 'api', {
-      value: {
-        workspace: { selectFolder, listFiles },
-        assessment: {},
-        rubric: {},
-        chat: {}
-      },
-      configurable: true
-    });
-
-    renderWithProviders();
+    renderWithProviders(createWorkspacePort({ selectFolder, listFiles }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Select Folder' }));
 
@@ -92,17 +94,7 @@ describe('FileControlContainer', () => {
       }
     });
 
-    Object.defineProperty(window, 'api', {
-      value: {
-        workspace: { selectFolder, listFiles: vi.fn() },
-        assessment: {},
-        rubric: {},
-        chat: {}
-      },
-      configurable: true
-    });
-
-    renderWithProviders();
+    renderWithProviders(createWorkspacePort({ selectFolder }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Select Folder' }));
 
@@ -124,17 +116,7 @@ describe('FileControlContainer', () => {
     });
     const listFiles = vi.fn();
 
-    Object.defineProperty(window, 'api', {
-      value: {
-        workspace: { selectFolder, listFiles },
-        assessment: {},
-        rubric: {},
-        chat: {}
-      },
-      configurable: true
-    });
-
-    renderWithProviders();
+    renderWithProviders(createWorkspacePort({ selectFolder, listFiles }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Select Folder' }));
 

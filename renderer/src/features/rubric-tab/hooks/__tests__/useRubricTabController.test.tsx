@@ -3,58 +3,40 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRubricTabController } from '../useRubricTabController';
 
 const {
-  mockUseAppState,
-  mockUseAppDispatch,
+  mockUseRubricTabState,
+  mockUseRubricTabDispatch,
   mockUseRubricListQuery,
-  mockUseRubricDraftQuery,
   mockUseRubricMutations,
   mockReconcileRubricSelection,
   mockSelectRubric,
   mockCreateRubricAndSelect,
   mockCloneRubricAndSelect,
   mockDeleteRubricAndClearSelection,
-  mockSetRubricInteractionMode,
-  queueSchedule,
-  queueFlush
+  mockSetRubricInteractionMode
 } = vi.hoisted(() => ({
-  mockUseAppState: vi.fn(),
-  mockUseAppDispatch: vi.fn(),
+  mockUseRubricTabState: vi.fn(),
+  mockUseRubricTabDispatch: vi.fn(),
   mockUseRubricListQuery: vi.fn(),
-  mockUseRubricDraftQuery: vi.fn(),
   mockUseRubricMutations: vi.fn(),
   mockReconcileRubricSelection: vi.fn(),
   mockSelectRubric: vi.fn().mockResolvedValue(undefined),
   mockCreateRubricAndSelect: vi.fn().mockResolvedValue(undefined),
   mockCloneRubricAndSelect: vi.fn().mockResolvedValue(undefined),
   mockDeleteRubricAndClearSelection: vi.fn().mockResolvedValue(undefined),
-  mockSetRubricInteractionMode: vi.fn().mockResolvedValue(undefined),
-  queueSchedule: vi.fn(),
-  queueFlush: vi.fn().mockResolvedValue(undefined)
+  mockSetRubricInteractionMode: vi.fn().mockResolvedValue(undefined)
 }));
 
-vi.mock('../../../../state', () => ({
-  useAppState: mockUseAppState,
-  useAppDispatch: mockUseAppDispatch
+vi.mock('../../state', () => ({
+  useRubricTabState: mockUseRubricTabState,
+  useRubricTabDispatch: mockUseRubricTabDispatch
 }));
 
-vi.mock('../useRubricListQuery', () => ({
-  useRubricListQuery: mockUseRubricListQuery
-}));
-
-vi.mock('../useRubricDraftQuery', () => ({
-  useRubricDraftQuery: mockUseRubricDraftQuery
-}));
-
-vi.mock('../useRubricMutations', () => ({
+vi.mock('../../../rubric-data', () => ({
+  useRubricListQuery: mockUseRubricListQuery,
   useRubricMutations: mockUseRubricMutations
 }));
 
 vi.mock('../../application', () => ({
-  RubricUpdateQueue: class {
-    schedule = queueSchedule;
-    flush = queueFlush;
-    constructor(_: unknown) {}
-  },
   reconcileRubricSelection: mockReconcileRubricSelection,
   selectRubric: mockSelectRubric,
   createRubricAndSelect: mockCreateRubricAndSelect,
@@ -66,10 +48,14 @@ vi.mock('../../application', () => ({
 describe('useRubricTabController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAppState.mockReturnValue({
-      rubric: { selectedEditingRubricId: 'r1', interactionMode: 'viewing' }
+    mockUseRubricTabState.mockReturnValue({
+      rubricList: [{ entityUuid: 'r1', name: 'Rubric 1', isActive: false, isArchived: false }],
+      selectedEditingRubricId: 'r1',
+      interactionMode: 'viewing',
+      activeMatrix: null,
+      status: 'idle'
     });
-    mockUseAppDispatch.mockReturnValue(vi.fn());
+    mockUseRubricTabDispatch.mockReturnValue(vi.fn());
     mockUseRubricListQuery.mockReturnValue({
       isSuccess: true,
       data: {
@@ -79,9 +65,7 @@ describe('useRubricTabController', () => {
       isPending: false,
       isError: false
     });
-    mockUseRubricDraftQuery.mockReturnValue({ isPending: false, isError: false, data: { rubricId: 'r1' } });
     mockUseRubricMutations.mockReturnValue({
-      updateRubric: vi.fn().mockResolvedValue(undefined),
       setLastUsed: vi.fn().mockResolvedValue(undefined),
       createRubric: vi.fn().mockResolvedValue('new-id'),
       cloneRubric: vi.fn().mockResolvedValue('clone-id'),
@@ -110,12 +94,12 @@ describe('useRubricTabController', () => {
 
   it('dispatches reconciliation transition when workflow returns one', () => {
     const dispatch = vi.fn();
-    mockUseAppDispatch.mockReturnValue(dispatch);
+    mockUseRubricTabDispatch.mockReturnValue(dispatch);
     mockReconcileRubricSelection.mockReturnValue({ rubricId: 'r2', mode: 'viewing' });
 
     renderHook(() => useRubricTabController());
 
-    expect(dispatch).toHaveBeenCalledWith({ type: 'rubric/selectEditing', payload: 'r2' });
-    expect(dispatch).toHaveBeenCalledWith({ type: 'rubric/setInteractionMode', payload: 'viewing' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'rubricTab/selectEditing', payload: 'r2' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'rubricTab/setInteractionMode', payload: 'viewing' });
   });
 });

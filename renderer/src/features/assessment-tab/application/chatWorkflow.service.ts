@@ -3,16 +3,16 @@ import type { ChatStreamChunkEvent } from '../../../../../electron/shared/chatCo
 import { addChatMessage, setChatError, setChatStatus, updateChatMessageContent } from '../../chat-interface/state';
 import type { PendingSelection } from '../../chat-interface/domain';
 import type { AppAction } from '../../../state/actions';
+import type { ChatPort } from '../../../ports';
 import {
   isContentStreamChunk,
   isNewerStreamSeq,
   makeLocalId,
   toChatErrorMessage
 } from '../domain/assessmentTab.logic';
-import type { ChatApi } from '../infrastructure/chat.api';
 
 interface SubmitChatMessageWorkflowParams {
-  chatApi: ChatApi;
+  chatApi: ChatPort;
   dispatch: Dispatch<AppAction>;
   message: string;
   selectedFileId: string | null;

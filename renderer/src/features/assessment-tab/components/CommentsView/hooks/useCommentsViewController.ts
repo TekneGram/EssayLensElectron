@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { CommentsTab } from '../../../../../state';
-import type { FeedbackItem } from '../../../../../types';
+import type { FeedbackItem } from '../../../../feedback/domain';
 import { canGenerateDocument, isCommentsTabActive, isScoreTabActive, shouldRenderCommentsList, shouldShowEmptyCommentsState } from '../domain/commentsView.logic';
 import { toCommentsTab } from '../application/commentsView.service';
 

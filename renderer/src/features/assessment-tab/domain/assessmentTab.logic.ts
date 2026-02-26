@@ -1,6 +1,6 @@
 import type { ChatStreamChunkEvent } from '../../../../../electron/shared/chatContracts';
 import type { ActiveCommand, ChatMode, PendingSelection } from '../../chat-interface/domain';
-import type { FeedbackItem } from '../../../types';
+import type { FeedbackItem } from '../../feedback/domain';
 
 export function makeLocalId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

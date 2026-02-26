@@ -1,4 +1,5 @@
 import { useAppDispatch, useAppState } from '../../../state';
+import { usePorts } from '../../../ports';
 import type { WorkspaceFile } from '../domain/workspace.types';
 import { useSelectFolder } from './useSelectFolder';
 
@@ -13,7 +14,8 @@ interface UseFileControlResult {
 export function useFileControl(): UseFileControlResult {
   const dispatch = useAppDispatch();
   const state = useAppState();
-  const selectFolderMutation = useSelectFolder(dispatch);
+  const { workspace } = usePorts();
+  const selectFolderMutation = useSelectFolder(dispatch, workspace);
 
   return {
     files: state.workspace.files,

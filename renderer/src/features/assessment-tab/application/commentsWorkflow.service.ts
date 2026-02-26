@@ -4,7 +4,7 @@ import type {
 } from '../../../../../electron/shared/assessmentContracts';
 import type { CommandId, PendingSelection } from '../../chat-interface/domain';
 import { toPendingSelectionFromComment, toSendToLlmActiveCommand } from '../domain/assessmentTab.logic';
-import type { FeedbackItem } from '../../../types';
+import type { FeedbackItem } from '../../feedback/domain';
 
 interface SubmitCommentFeedbackWorkflowParams {
   message: string;

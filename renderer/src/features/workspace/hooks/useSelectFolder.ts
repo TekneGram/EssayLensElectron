@@ -2,15 +2,12 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import type { Dispatch } from 'react';
 import type { AppAction } from '../../../state';
+import type { WorkspacePort } from '../../../ports';
 import { selectWorkspaceFolder } from '../application/workspace.service';
-import { getWorkspaceApi } from '../infrastructure/workspace.api';
 
-export function useSelectFolder(dispatch: Dispatch<AppAction>) {
+export function useSelectFolder(dispatch: Dispatch<AppAction>, workspacePort: WorkspacePort) {
   return useMutation({
-    mutationFn: async () => {
-      const api = getWorkspaceApi();
-      return selectWorkspaceFolder(api);
-    },
+    mutationFn: async () => selectWorkspaceFolder(workspacePort),
 
     onMutate: () => {
       dispatch({ type: 'workspace/setStatus', payload: 'loading' });

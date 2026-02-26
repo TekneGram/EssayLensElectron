@@ -1,4 +1,4 @@
-import type { WorkspaceApi } from '../infrastructure/workspace.api';
+import type { WorkspacePort } from '../../../ports';
 import { toWorkspaceFiles, toWorkspaceFolder } from '../domain/workspace.mappers';
 import type { WorkspaceFile, WorkspaceFolder } from '../domain/workspace.types';
 
@@ -7,8 +7,8 @@ export interface SelectFolderResult {
   files: WorkspaceFile[];
 }
 
-export async function selectWorkspaceFolder(workspaceApi: WorkspaceApi): Promise<SelectFolderResult> {
-  const selectResult = await workspaceApi.selectFolder();
+export async function selectWorkspaceFolder(workspacePort: WorkspacePort): Promise<SelectFolderResult> {
+  const selectResult = await workspacePort.selectFolder();
 
   if (!selectResult.ok) {
     throw new Error(selectResult.error.message);
@@ -23,7 +23,7 @@ export async function selectWorkspaceFolder(workspaceApi: WorkspaceApi): Promise
     return { folder: null, files: [] };
   }
 
-  const listResult = await workspaceApi.listFiles(folder.id);
+  const listResult = await workspacePort.listFiles(folder.id);
 
   if (!listResult.ok) {
     throw new Error(listResult.error.message);

@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import type { Dispatch } from 'react';
+import { usePorts } from '../../../../../ports';
 import type { AppAction } from '../../../../../state/actions';
-import { useRubricDraftQuery } from '../../../../rubric-tab/hooks';
-import { clearAppliedRubric, saveFileRubricScores } from '../infrastructure/scoreTool.api';
+import { useRubricDraftQuery } from '../../../../rubric-data';
 import { buildScoreSelectionsFromCellKeys, handleClearAppliedSuccess, invalidateRubricQueries } from '../application/scoreTool.workflows';
 import { hasDraftCells } from '../domain/scoreTool.logic';
 
@@ -17,6 +17,8 @@ interface UseScoreToolMutationsArgs {
 }
 
 export function useScoreToolMutations(args: UseScoreToolMutationsArgs) {
+  const { rubric } = usePorts();
+
   const saveScoresMutation = useMutation({
     mutationFn: async (nextSelectedCellKeys: string[]) => {
       if (!args.fileId || !args.effectiveRubricId || !hasDraftCells(args.draftData)) {
@@ -28,7 +30,14 @@ export function useScoreToolMutations(args: UseScoreToolMutationsArgs) {
         return;
       }
 
-      await saveFileRubricScores(args.fileId, args.effectiveRubricId, selections);
+      const result = await rubric.saveFileScores({
+        fileId: args.fileId,
+        rubricId: args.effectiveRubricId,
+        selections
+      });
+      if (!result.ok) {
+        throw new Error(result.error.message || 'Unable to save rubric scores.');
+      }
     },
     onSuccess: async () => {
       if (!args.fileId || !args.effectiveRubricId) {
@@ -43,7 +52,13 @@ export function useScoreToolMutations(args: UseScoreToolMutationsArgs) {
       if (!args.fileId || !args.effectiveRubricId) {
         return;
       }
-      await clearAppliedRubric(args.fileId, args.effectiveRubricId);
+      const result = await rubric.clearAppliedRubric({
+        fileId: args.fileId,
+        rubricId: args.effectiveRubricId
+      });
+      if (!result.ok) {
+        throw new Error(result.error.message || 'Unable to clear applied rubric.');
+      }
     },
     onSuccess: async () => {
       if (!args.fileId) {

@@ -1,23 +1,14 @@
-import type {
-  CatalogLlmModelDto,
-  DownloadedLlmModelDto,
-  DownloadProgressEvent,
-  LlmModelKey
-} from '../../../../../electron/shared/llmManagerContracts';
-
-interface DownloadProgressView {
-  event: DownloadProgressEvent;
-}
+import type { DownloadProgressView, LlmCatalogModel, LlmDownloadedModel, LlmKey } from '../domain/llmManager.types';
 
 interface LlmDownloadProps {
-  catalogModels: CatalogLlmModelDto[];
-  downloadedModels: DownloadedLlmModelDto[];
+  catalogModels: LlmCatalogModel[];
+  downloadedModels: LlmDownloadedModel[];
   supportsDownload: boolean;
-  onDownload: (key: LlmModelKey) => Promise<unknown>;
-  onDelete: (key: LlmModelKey) => Promise<unknown>;
+  onDownload: (key: LlmKey) => Promise<unknown>;
+  onDelete: (key: LlmKey) => Promise<unknown>;
   isDownloading: boolean;
   isDeleting: boolean;
-  progressByKey: Partial<Record<LlmModelKey, DownloadProgressView>>;
+  progressByKey: Partial<Record<LlmKey, DownloadProgressView>>;
   errorMessage?: string;
 }
 

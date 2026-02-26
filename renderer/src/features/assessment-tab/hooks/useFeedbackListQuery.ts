@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import type { Dispatch } from 'react';
 import { toast } from 'react-toastify';
-import { useAppDispatch } from '../../../state';
-import { listFeedback } from './feedbackApi';
+import { usePorts } from '../../../ports';
+import { listAssessmentFeedback } from '../application/assessmentApi.service';
+import type { AssessmentTabAction } from '../state';
 import { assessmentQueryKeys } from './queryKeys';
 
-export function useFeedbackListQuery(fileId: string | null) {
-  const dispatch = useAppDispatch();
+export function useFeedbackListQuery(fileId: string | null, dispatch: Dispatch<AssessmentTabAction>) {
+  const { assessment } = usePorts();
   const lastErrorAt = useRef<number | null>(null);
 
   const query = useQuery({
@@ -16,19 +18,19 @@ export function useFeedbackListQuery(fileId: string | null) {
       if (!fileId) {
         return [];
       }
-      return listFeedback(fileId);
+      return listAssessmentFeedback(assessment, fileId);
     }
   });
 
   useEffect(() => {
     if (!fileId) {
-      dispatch({ type: 'feedback/setStatus', payload: 'idle' });
-      dispatch({ type: 'feedback/setError', payload: undefined });
+      dispatch({ type: 'assessmentTab/setFeedbackStatus', payload: 'idle' });
+      dispatch({ type: 'assessmentTab/setFeedbackError', payload: undefined });
       return;
     }
     if (query.isPending) {
-      dispatch({ type: 'feedback/setStatus', payload: 'loading' });
-      dispatch({ type: 'feedback/setError', payload: undefined });
+      dispatch({ type: 'assessmentTab/setFeedbackStatus', payload: 'loading' });
+      dispatch({ type: 'assessmentTab/setFeedbackError', payload: undefined });
     }
   }, [dispatch, fileId, query.isPending]);
 
@@ -38,14 +40,14 @@ export function useFeedbackListQuery(fileId: string | null) {
     }
 
     dispatch({
-      type: 'feedback/setForFile',
+      type: 'assessmentTab/setFeedbackForFile',
       payload: {
         fileId,
         items: query.data
       }
     });
-    dispatch({ type: 'feedback/setStatus', payload: 'idle' });
-    dispatch({ type: 'feedback/setError', payload: undefined });
+    dispatch({ type: 'assessmentTab/setFeedbackStatus', payload: 'idle' });
+    dispatch({ type: 'assessmentTab/setFeedbackError', payload: undefined });
   }, [dispatch, fileId, query.data, query.isSuccess]);
 
   useEffect(() => {
@@ -60,8 +62,8 @@ export function useFeedbackListQuery(fileId: string | null) {
     lastErrorAt.current = nextErrorAt;
 
     const message = query.error instanceof Error ? query.error.message : 'Unable to load comments.';
-    dispatch({ type: 'feedback/setStatus', payload: 'error' });
-    dispatch({ type: 'feedback/setError', payload: message });
+    dispatch({ type: 'assessmentTab/setFeedbackStatus', payload: 'error' });
+    dispatch({ type: 'assessmentTab/setFeedbackError', payload: message });
     toast.error(message);
   }, [dispatch, query.error, query.errorUpdatedAt, query.isError]);
 

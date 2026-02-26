@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Dispatch } from 'react';
 import type { AppAction } from '../../../../../state/actions';
-import { useRubricDraftQuery } from '../../../../rubric-tab/hooks';
+import { useRubricDraftQuery } from '../../../../rubric-data';
 import { buildHydratedSelectionFromScores } from '../application/scoreTool.workflows';
 import { hasDraftCells, normalizeCellKeyList } from '../domain/scoreTool.logic';
 

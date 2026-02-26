@@ -1,25 +1,19 @@
 export type {
   AppState,
   AssessmentTopTab,
-  ChatDataArray,
-  ChatMessage,
   ChatRole,
-  ChatState,
   CommentKind,
   CommentsTab,
   EntityId,
-  FeedbackItem,
-  RubricGradingSelection,
-  FeedbackState,
   ISODateString,
-  RubricMatrix,
   RubricState,
-  RubricSummary,
   SelectedFileType,
   Theme,
   UiState,
   WorkspaceState
 } from '../types';
+export type { ChatDataArray, ChatMessage, ChatState } from '../features/chat-interface/domain';
+export type { RubricGradingSelection } from '../types';
 export type {
   DocumentTextModel,
   FileKind,

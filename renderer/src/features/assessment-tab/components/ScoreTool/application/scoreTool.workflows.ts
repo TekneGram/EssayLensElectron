@@ -1,9 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { Dispatch } from 'react';
+import { rubricQueryKeys } from '../../../../rubric-data';
 import type { RubricSourceData } from '../../../../rubric-tab/domain';
-import { rubricQueryKeys } from '../../../../rubric-tab/hooks';
+import { createCellKey } from '../../../../rubric-tab/domain';
 import type { AppAction } from '../../../../../state/actions';
-import { createCellKey } from '../infrastructure/scoreTool.api';
 import { isTemporaryDetailId, normalizeCellKeyList } from '../domain/scoreTool.logic';
 
 export function buildScoreSelectionsFromCellKeys(draftData: RubricSourceData, selectedCellKeys: string[]) {

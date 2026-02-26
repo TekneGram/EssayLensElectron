@@ -1,4 +1,4 @@
-import type { ChatDataArray } from '../../../types/models';
+import type { ChatDataArray } from './chatMessage.types';
 
 export interface ChatState {
   messages: ChatDataArray;
@@ -6,4 +6,3 @@ export interface ChatState {
   status: 'idle' | 'sending' | 'error';
   error?: string;
 }
-

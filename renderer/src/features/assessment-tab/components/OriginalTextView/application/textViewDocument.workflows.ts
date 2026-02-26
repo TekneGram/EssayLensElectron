@@ -1,6 +1,7 @@
 import { buildTextMapFromDocx } from '../domain/docxTextMap';
 import type { WordTextMap } from '../domain/textMapTypes';
-import { fetchExtractedDocument } from '../infrastructure/originalTextView.api';
+import { extractAssessmentDocument } from '../../../application/assessmentApi.service';
+import type { AssessmentPort } from '../../../../../ports';
 
 export interface LoadedTextViewDocument {
   fileId: string;
@@ -26,8 +27,11 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-export async function loadTextViewDocument(fileId: string): Promise<LoadTextViewDocumentResult> {
-  const response = await fetchExtractedDocument(fileId);
+export async function loadTextViewDocument(
+  fileId: string,
+  assessmentPort: AssessmentPort
+): Promise<LoadTextViewDocumentResult> {
+  const response = await extractAssessmentDocument(assessmentPort, fileId);
 
   if (response.format !== 'docx' || !response.dataBase64) {
     return {

@@ -60,12 +60,12 @@ describe('rubric-tab application workflows', () => {
     expect(cloneRubric).toHaveBeenCalledWith('r1');
     expect(deleteRubric).toHaveBeenCalledWith('r1');
 
-    expect(dispatch).toHaveBeenCalledWith({ type: 'rubric/selectEditing', payload: 'r1' });
-    expect(dispatch).toHaveBeenCalledWith({ type: 'rubric/setInteractionMode', payload: 'viewing' });
-    expect(dispatch).toHaveBeenCalledWith({ type: 'rubric/selectEditing', payload: 'created-id' });
-    expect(dispatch).toHaveBeenCalledWith({ type: 'rubric/setInteractionMode', payload: 'editing' });
-    expect(dispatch).toHaveBeenCalledWith({ type: 'rubric/selectEditing', payload: 'cloned-id' });
-    expect(dispatch).toHaveBeenCalledWith({ type: 'rubric/selectEditing', payload: null });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'rubricTab/selectEditing', payload: 'r1' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'rubricTab/setInteractionMode', payload: 'viewing' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'rubricTab/selectEditing', payload: 'created-id' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'rubricTab/setInteractionMode', payload: 'editing' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'rubricTab/selectEditing', payload: 'cloned-id' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'rubricTab/selectEditing', payload: null });
   });
 });
 

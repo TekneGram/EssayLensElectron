@@ -2,6 +2,15 @@
 Read what this app is about before implementing anything.
 Then follow the instructions to implement the relevant phase.
 
+## Frontend architecture
+UI Layer: focuses on hooks (react, TanStack), event handlers, local UI state, Toast, dispatch (folder: state, hooks,
+  reducers)
+  Application layer: Contains workflow logic, dispatch logic, state transitions, calls API, no React, uses domain layer
+  (folder: application, services)
+  Domain layer: pure functions, business rules, types, mappers, no react, no electron, no side effects (folders: domain)
+  Infrastructure layer: electron bridge, window.api, how to talk to electron, how to call apis, how to fetch data (folder:
+  infrastructure, adapters)
+
 ## What is EssayLens tech stack?
 - This app is an electron app.
 - Electron will handle the database.

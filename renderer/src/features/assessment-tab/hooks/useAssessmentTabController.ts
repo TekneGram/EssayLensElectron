@@ -27,7 +27,7 @@ export function useAssessmentTabController({
   const selectedFileId = selectedFile?.id ?? null;
 
   const { addFeedback, isPending: isAddFeedbackPending, errorMessage: addFeedbackErrorMessage } =
-    useAddFeedbackMutation(selectedFileId);
+    useAddFeedbackMutation(selectedFileId, localDispatch);
 
   const setActiveCommandWithModeRule = useCallback(
     (command: AssessmentTabChatBindings['activeCommand']) => {

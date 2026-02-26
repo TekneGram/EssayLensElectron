@@ -1,4 +1,4 @@
-import type { FeedbackAnchor } from '../../../../../types';
+import type { FeedbackAnchor } from '../../../../feedback/domain';
 
 export type WordAnchor = FeedbackAnchor;
 

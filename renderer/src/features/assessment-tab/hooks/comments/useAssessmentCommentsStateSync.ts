@@ -20,7 +20,7 @@ export function useAssessmentCommentsStateSync({
   isAddFeedbackPending,
   addFeedbackErrorMessage
 }: UseAssessmentCommentsStateSyncParams) {
-  const comments = selectedFileId ? appState.feedback.byFileId[selectedFileId] ?? [] : [];
+  const comments = selectedFileId ? localState.feedbackByFileId[selectedFileId] ?? [] : [];
   const canGenerateFeedbackDocument = selectedFileType === 'docx' && comments.length > 0;
   const activeCommentsTab = selectActiveCommentsTab(appState);
 
@@ -29,11 +29,11 @@ export function useAssessmentCommentsStateSync({
     pendingSelection: localState.pendingSelection,
     activeCommentId: localState.activeCommentId,
     activeCommentsTab,
-    isCommentsLoading: appState.feedback.status === 'loading' || isAddFeedbackPending,
+    isCommentsLoading: localState.feedbackStatus === 'loading' || isAddFeedbackPending,
     canGenerateFeedbackDocument,
     commentsError:
-      appState.feedback.status === 'error'
-        ? appState.feedback.error ?? addFeedbackErrorMessage ?? 'Unable to load comments.'
+      localState.feedbackStatus === 'error'
+        ? localState.feedbackError ?? addFeedbackErrorMessage ?? 'Unable to load comments.'
         : undefined
   };
 }

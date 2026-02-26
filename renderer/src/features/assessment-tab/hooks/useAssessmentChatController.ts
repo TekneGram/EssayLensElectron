@@ -1,6 +1,6 @@
 import { useAssessmentChatActions } from './chat/useAssessmentChatActions';
 import { useAssessmentChatStateSync } from './chat/useAssessmentChatStateSync';
-import type { FeedbackItem } from '../../../types';
+import type { FeedbackItem } from '../../feedback/domain';
 import type {
   AddBlockFeedbackRequest,
   AddInlineFeedbackRequest

@@ -1,12 +1,12 @@
-import type { AppAction, RubricState } from '../../../state';
+import type { RubricTabAction, RubricTabState } from '../state';
 import {
   isSelectedRubricStillValid,
   resolvePreferredRubricSelection,
   type RubricListItem
 } from '../domain/rubricTab';
 
-type Dispatch = (action: AppAction) => void;
-type InteractionMode = RubricState['interactionMode'];
+type Dispatch = (action: RubricTabAction) => void;
+type InteractionMode = RubricTabState['interactionMode'];
 
 interface ReconcileRubricSelectionArgs {
   rubrics: RubricListItem[];
@@ -36,8 +36,8 @@ interface DeleteRubricDeps extends RubricActionDeps {
 }
 
 function setSelectionAndMode(dispatch: Dispatch, rubricId: string | null, mode: InteractionMode): void {
-  dispatch({ type: 'rubric/selectEditing', payload: rubricId });
-  dispatch({ type: 'rubric/setInteractionMode', payload: mode });
+  dispatch({ type: 'rubricTab/selectEditing', payload: rubricId });
+  dispatch({ type: 'rubricTab/setInteractionMode', payload: mode });
 }
 
 export function reconcileRubricSelection(args: ReconcileRubricSelectionArgs): { rubricId: string | null; mode: 'viewing' } | null {
@@ -86,5 +86,5 @@ export async function setRubricInteractionMode(
   mode: 'editing' | 'viewing'
 ): Promise<void> {
   await flushPendingUpdates();
-  dispatch({ type: 'rubric/setInteractionMode', payload: mode });
+  dispatch({ type: 'rubricTab/setInteractionMode', payload: mode });
 }

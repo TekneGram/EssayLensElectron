@@ -1,11 +1,17 @@
 import { useCallback } from 'react';
 import type { Dispatch } from 'react';
 import { toast } from 'react-toastify';
-import type { FeedbackItem } from '../../../../types';
+import { usePorts } from '../../../../ports';
+import type { FeedbackItem } from '../../../feedback/domain';
 import type { PendingSelection } from '../../../chat-interface/domain';
+import {
+  applyAssessmentFeedback,
+  deleteAssessmentFeedback,
+  editAssessmentFeedback,
+  sendAssessmentFeedbackToLlm
+} from '../../application/assessmentApi.service';
 import { useGenerateFeedbackDocumentMutation } from '../useGenerateFeedbackDocumentMutation';
 import { useFeedbackListQuery } from '../useFeedbackListQuery';
-import { applyFeedback, deleteFeedback, editFeedback, sendFeedbackToLlm } from '../feedbackApi';
 import {
   applyCommentWorkflow,
   deleteCommentWorkflow,
@@ -37,7 +43,8 @@ export function useAssessmentCommentsActions({
   canGenerateFeedbackDocument,
   setActiveCommandWithModeRule
 }: UseAssessmentCommentsActionsParams) {
-  const feedbackListQuery = useFeedbackListQuery(selectedFileId);
+  const { assessment } = usePorts();
+  const feedbackListQuery = useFeedbackListQuery(selectedFileId, localDispatch);
   const {
     generateFeedbackDocumentForFile,
     isPending: isGenerateFeedbackPending,
@@ -68,7 +75,7 @@ export function useAssessmentCommentsActions({
         await editCommentWorkflow({
           commentId,
           nextText,
-          editFeedback,
+          editFeedback: (request) => editAssessmentFeedback(assessment, request),
           refetchFeedback: feedbackListQuery.refetch
         });
       } catch (error) {
@@ -84,7 +91,7 @@ export function useAssessmentCommentsActions({
       try {
         await deleteCommentWorkflow({
           commentId,
-          deleteFeedback,
+          deleteFeedback: (request) => deleteAssessmentFeedback(assessment, request),
           refetchFeedback: feedbackListQuery.refetch,
           onDeletedCommentId: (deletedCommentId) => {
             localDispatch({ type: 'assessmentTab/clearActiveCommentIfMatch', payload: deletedCommentId });
@@ -104,7 +111,7 @@ export function useAssessmentCommentsActions({
         await applyCommentWorkflow({
           commentId,
           applied,
-          applyFeedback,
+          applyFeedback: (request) => applyAssessmentFeedback(assessment, request),
           refetchFeedback: feedbackListQuery.refetch
         });
       } catch (error) {
@@ -121,7 +128,7 @@ export function useAssessmentCommentsActions({
         await sendCommentToLlmWorkflow({
           commentId,
           commandId,
-          sendFeedbackToLlm,
+          sendFeedbackToLlm: (request) => sendAssessmentFeedbackToLlm(assessment, request),
           refetchFeedback: feedbackListQuery.refetch,
           onBeforeSend: ({ commentId: nextCommentId, commandId: nextCommandId }) => {
             localDispatch({ type: 'assessmentTab/setActiveCommentId', payload: nextCommentId });

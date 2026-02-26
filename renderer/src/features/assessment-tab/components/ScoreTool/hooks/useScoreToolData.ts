@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import { usePorts } from '../../../../../ports';
 import { useAppState } from '../../../../../state';
-import { rubricQueryKeys, useRubricDraftQuery, useRubricListQuery } from '../../../../rubric-tab/hooks';
-import { getFileRubricScores, getRubricGradingContext } from '../infrastructure/scoreTool.api';
+import { rubricQueryKeys, useRubricDraftQuery, useRubricListQuery } from '../../../../rubric-data';
 import { normalizeCellKeyList, resolveEffectiveRubricId, resolvePreferredRubricId } from '../domain/scoreTool.logic';
 
 export function useScoreToolData() {
+  const { rubric } = usePorts();
   const state = useAppState();
   const fileId = state.workspace.selectedFile.fileId;
   const listQuery = useRubricListQuery();
@@ -18,7 +19,12 @@ export function useScoreToolData() {
       if (!fileId) {
         return null;
       }
-      return getRubricGradingContext(fileId);
+      const result = await rubric.getGradingContext({ fileId });
+      if (!result.ok) {
+        throw new Error(result.error.message || 'Unable to load rubric grading context.');
+      }
+
+      return result.data;
     }
   });
 
@@ -48,7 +54,12 @@ export function useScoreToolData() {
       if (!fileId || !effectiveRubricId) {
         return null;
       }
-      return getFileRubricScores(fileId, effectiveRubricId);
+      const result = await rubric.getFileScores({ fileId, rubricId: effectiveRubricId });
+      if (!result.ok) {
+        throw new Error(result.error.message || 'Unable to load rubric scores.');
+      }
+
+      return result.data;
     }
   });
 

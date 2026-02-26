@@ -1,4 +1,5 @@
 import type { ActiveCommand, ChatMode, PendingSelection } from '../../chat-interface/domain';
+import type { FeedbackItem } from '../../feedback/domain';
 
 export interface AssessmentTabLocalState {
   pendingSelection: PendingSelection | null;
@@ -6,4 +7,7 @@ export interface AssessmentTabLocalState {
   chatMode: ChatMode;
   activeCommentId: string | null;
   draftText: string;
+  feedbackByFileId: Record<string, FeedbackItem[]>;
+  feedbackStatus: 'idle' | 'loading' | 'error';
+  feedbackError?: string;
 }

@@ -1,6 +1,6 @@
 import type { CommentToolsProps } from '../../../types';
 import { useCommentToolsController } from '../hooks/useCommentToolsController';
-import { SEND_TO_LLM_COMMANDS } from '../infrastructure/commentTools.constants';
+import { SEND_TO_LLM_COMMANDS } from '../domain/commentTools.constants';
 
 export function CommentTools({
   commentId,

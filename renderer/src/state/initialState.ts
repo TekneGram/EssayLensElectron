@@ -1,21 +1,11 @@
 import { initialChatState } from '../features/chat-interface/state/chatInterface.initialState';
-import type { AppState, FeedbackState, RubricState, UiState } from './types';
+import type { AppState, RubricState, UiState } from './types';
 import { initialWorkspaceState } from '../features/workspace/state/workspace.reducer';
 
-export const initialFeedbackState: FeedbackState = {
-  byFileId: {},
-  status: 'idle'
-};
-
 export const initialRubricState: RubricState = {
-  rubricList: [],
-  selectedEditingRubricId: null,
   selectedGradingRubricIdByFileId: {},
   lockedGradingRubricId: null,
-  activeMatrix: null,
-  interactionMode: 'viewing',
-  gradingSelectionByFileId: {},
-  status: 'idle'
+  gradingSelectionByFileId: {}
 };
 
 export const initialUiState: UiState = {
@@ -29,7 +19,6 @@ export const initialUiState: UiState = {
 export const initialAppState: AppState = {
   workspace: initialWorkspaceState,
   chat: initialChatState,
-  feedback: initialFeedbackState,
   rubric: initialRubricState,
   ui: initialUiState
 };

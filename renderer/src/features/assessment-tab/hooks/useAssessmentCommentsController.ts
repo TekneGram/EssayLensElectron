@@ -7,6 +7,7 @@ import type { SelectedFileType } from '../../../state';
 import type { AppAction } from '../../../state/actions';
 import type { Dispatch } from 'react';
 import type { PendingSelection } from '../../chat-interface/domain';
+import type { FeedbackItem } from '../../feedback/domain';
 
 interface UseAssessmentCommentsControllerParams {
   appState: AppState;
@@ -21,7 +22,7 @@ interface UseAssessmentCommentsControllerParams {
 }
 
 interface UseAssessmentCommentsControllerResult {
-  comments: AppState['feedback']['byFileId'][string];
+  comments: FeedbackItem[];
   pendingSelection: PendingSelection | null;
   activeCommentId: string | null;
   activeCommentsTab: import('../../../state').CommentsTab;

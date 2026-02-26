@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useReducer } from 'react';
 import { useAppDispatch } from '../../../../../state';
-import { useRubricDraftQuery } from '../../../../rubric-tab/hooks';
+import { useRubricDraftQuery } from '../../../../rubric-data';
 import { findAppliedRubricName, hasDraftCells, hasRubricsList } from '../domain/scoreTool.logic';
 import { initialScoreToolState, scoreToolReducer } from '../state/scoreTool.state';
 import { useScoreToolActions } from './useScoreToolActions';

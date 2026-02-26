@@ -5,7 +5,7 @@ import type {
   CommandId,
   PendingSelection
 } from '../chat-interface/domain';
-import type { FeedbackItem } from '../../types';
+import type { FeedbackItem } from '../feedback/domain';
 import type { EntityId } from '../../types/primitives';
 
 export interface OriginalTextViewProps {

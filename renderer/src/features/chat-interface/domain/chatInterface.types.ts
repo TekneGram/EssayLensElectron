@@ -1,4 +1,4 @@
-import type { FeedbackAnchor } from '../../../types';
+import type { FeedbackAnchor } from '../../feedback/domain';
 
 export type ChatMode = 'comment' | 'chat';
 export type CommandId = string;
@@ -28,4 +28,3 @@ export interface ChatInterfaceBindings {
   onModeChange: (mode: ChatMode) => void;
   onCommandSelected: (command: ActiveCommand | null) => void;
 }
-

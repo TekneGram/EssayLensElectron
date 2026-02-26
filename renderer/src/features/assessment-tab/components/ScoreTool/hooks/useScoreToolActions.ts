@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { Dispatch } from 'react';
 import type { AppAction } from '../../../../../state/actions';
 import { shouldApplySelectedCellChange } from '../application/scoreTool.workflows';
-import { confirmRubricChange } from '../infrastructure/scoreTool.ui';
+import { confirmRubricChange } from './confirmRubricChange';
 
 interface UseScoreToolActionsArgs {
   fileId: string | null;

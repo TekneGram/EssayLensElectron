@@ -6,7 +6,7 @@ beforeEach(() => {
     return;
   }
 
-  const appWindow = window as Window & { api?: Record<string, unknown> };
+  const appWindow = window as unknown as { api?: Record<string, unknown> };
   appWindow.api ??= {};
 
   const existingLlmManager = (appWindow.api.llmManager as Record<string, unknown> | undefined) ?? {};

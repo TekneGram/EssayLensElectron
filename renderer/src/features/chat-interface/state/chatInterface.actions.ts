@@ -1,5 +1,4 @@
-import type { ChatMessage } from '../../../types/models';
-import type { ChatState } from '../../../types/state';
+import type { ChatMessage, ChatState } from '../domain';
 
 type SetMessagesAction = { type: 'chat/setMessages'; payload: ChatMessage[] };
 type AddMessageAction = { type: 'chat/addMessage'; payload: ChatMessage };

@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { useAppDispatch, useAppState } from '../../../state';
+import { toast } from 'react-toastify';
 import {
-  RubricUpdateQueue,
   cloneRubricAndSelect,
   createRubricAndSelect,
   deleteRubricAndClearSelection,
@@ -9,48 +8,55 @@ import {
   selectRubric,
   setRubricInteractionMode
 } from '../application';
-import type { RubricCommand } from '../domain';
 import { computeCanEditSelectedRubric } from '../domain';
-import { useRubricDraftQuery } from './useRubricDraftQuery';
-import { useRubricListQuery } from './useRubricListQuery';
-import { useRubricMutations } from './useRubricMutations';
+import { useRubricListQuery, useRubricMutations } from '../../rubric-data';
+import { useRubricTabDispatch, useRubricTabState } from '../state';
 
 export function useRubricTabController() {
-  const state = useAppState();
-  const dispatch = useAppDispatch();
-  const selectedRubricId = state.rubric.selectedEditingRubricId;
-  const interactionMode = state.rubric.interactionMode;
+  const state = useRubricTabState();
+  const dispatch = useRubricTabDispatch();
+  const selectedRubricId = state.selectedEditingRubricId;
+  const interactionMode = state.interactionMode;
 
   const listQuery = useRubricListQuery();
-  const draftQuery = useRubricDraftQuery(selectedRubricId);
-  const { updateRubric, setLastUsed, createRubric, cloneRubric, deleteRubric } = useRubricMutations(selectedRubricId);
-  const updateRubricRef = useRef(updateRubric);
-  const updateQueueRef = useRef<RubricUpdateQueue | null>(null);
-
-  if (!updateQueueRef.current) {
-    updateQueueRef.current = new RubricUpdateQueue((operation) => updateRubricRef.current(operation));
-  }
-
-  useEffect(() => {
-    updateRubricRef.current = updateRubric;
-  }, [updateRubric]);
+  const { setLastUsed, createRubric, cloneRubric, deleteRubric } = useRubricMutations(selectedRubricId);
+  const lastErrorAt = useRef<number | null>(null);
 
   const flushPendingUpdates = async () => {
-    if (!updateQueueRef.current) {
-      return;
-    }
-    await updateQueueRef.current.flush();
-  };
-
-  const scheduleUpdate = (operationKey: string, operation: RubricCommand) => {
-    updateQueueRef.current?.schedule(operationKey, operation);
+    return;
   };
 
   useEffect(() => {
-    return () => {
-      void flushPendingUpdates();
-    };
-  }, []);
+    if (listQuery.isPending) {
+      dispatch({ type: 'rubricTab/setStatus', payload: 'loading' });
+      dispatch({ type: 'rubricTab/setError', payload: undefined });
+    }
+  }, [dispatch, listQuery.isPending]);
+
+  useEffect(() => {
+    if (!listQuery.isSuccess) {
+      return;
+    }
+    dispatch({ type: 'rubricTab/setList', payload: listQuery.data.rubrics });
+    dispatch({ type: 'rubricTab/setStatus', payload: 'idle' });
+    dispatch({ type: 'rubricTab/setError', payload: undefined });
+  }, [dispatch, listQuery.data, listQuery.isSuccess]);
+
+  useEffect(() => {
+    if (!listQuery.isError) {
+      return;
+    }
+    const nextErrorAt = listQuery.errorUpdatedAt;
+    if (lastErrorAt.current === nextErrorAt) {
+      return;
+    }
+    lastErrorAt.current = nextErrorAt;
+
+    const message = listQuery.error instanceof Error ? listQuery.error.message : 'Unable to load rubrics.';
+    dispatch({ type: 'rubricTab/setStatus', payload: 'error' });
+    dispatch({ type: 'rubricTab/setError', payload: message });
+    toast.error(message);
+  }, [dispatch, listQuery.error, listQuery.errorUpdatedAt, listQuery.isError]);
 
   useEffect(() => {
     if (!listQuery.isSuccess) {
@@ -64,18 +70,18 @@ export function useRubricTabController() {
     if (!reconciliation) {
       return;
     }
-    dispatch({ type: 'rubric/selectEditing', payload: reconciliation.rubricId });
-    dispatch({ type: 'rubric/setInteractionMode', payload: reconciliation.mode });
+    dispatch({ type: 'rubricTab/selectEditing', payload: reconciliation.rubricId });
+    dispatch({ type: 'rubricTab/setInteractionMode', payload: reconciliation.mode });
   }, [dispatch, listQuery.data, listQuery.isSuccess, selectedRubricId]);
 
-  const selectedRubric = listQuery.data?.rubrics.find((rubric) => rubric.entityUuid === selectedRubricId);
+  const selectedRubric = state.rubricList.find((rubric) => rubric.entityUuid === selectedRubricId);
   const canEditSelectedRubric = computeCanEditSelectedRubric(selectedRubric);
 
   return {
+    rubricList: state.rubricList,
     selectedRubricId,
     interactionMode,
     listQuery,
-    draftQuery,
     selectedRubric,
     canEditSelectedRubric,
     selectRubric: (rubricId: string) => selectRubric({ dispatch, flushPendingUpdates, setLastUsed }, rubricId),
@@ -92,8 +98,6 @@ export function useRubricTabController() {
       }
       return deleteRubricAndClearSelection({ dispatch, flushPendingUpdates, deleteRubric }, selectedRubricId);
     },
-    setInteractionMode: (mode: 'editing' | 'viewing') => setRubricInteractionMode(dispatch, flushPendingUpdates, mode),
-    scheduleUpdate,
-    updateRubric
+    setInteractionMode: (mode: 'editing' | 'viewing') => setRubricInteractionMode(dispatch, flushPendingUpdates, mode)
   };
 }

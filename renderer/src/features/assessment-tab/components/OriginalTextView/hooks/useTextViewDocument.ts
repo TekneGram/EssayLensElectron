@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
+import { usePorts } from '../../../../../ports';
 import { renderDocxIntoContainer } from '../adapters/docxRenderer';
 import { buildRenderBridge, type RenderBridge } from '../adapters/renderBridge';
 import { loadTextViewDocument, type LoadedTextViewDocument, type TextViewStatusKind } from '../application/textViewDocument.workflows';
@@ -23,6 +24,7 @@ export function useTextViewDocument({
   containerRef,
   onSelectionCleared
 }: UseTextViewDocumentArgs): UseTextViewDocumentResult {
+  const { assessment } = usePorts();
   const [document, setDocument] = useState<LoadedTextViewDocument | null>(null);
   const [statusMessage, setStatusMessage] = useState('Select a .docx file to begin.');
   const [statusKind, setStatusKind] = useState<TextViewStatusKind>('idle');
@@ -58,7 +60,7 @@ export function useTextViewDocument({
       setStatusKind('loading');
 
       try {
-        const result = await loadTextViewDocument(selectedFileId);
+        const result = await loadTextViewDocument(selectedFileId, assessment);
         if (requestId !== requestIdRef.current) {
           return;
         }
@@ -87,7 +89,7 @@ export function useTextViewDocument({
     };
 
     void load();
-  }, [containerRef, selectedFileId]);
+  }, [assessment, containerRef, selectedFileId]);
 
   useEffect(() => {
     if (!document || !containerRef.current) {

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { App } from '../../../App';
 import { AppProviders } from '../../../app/AppProviders';
 import { createAppQueryClient } from '../../../app/queryClient';
+import type { FeedbackItem } from '../../feedback/domain';
 import { CommentsView } from '../components/CommentsView';
-import type { FeedbackItem } from '../../../types';
 
 function createLlmManagerApiMock() {
   return {

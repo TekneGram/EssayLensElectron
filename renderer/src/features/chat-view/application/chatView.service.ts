@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../../../state';
+import type { ChatMessage } from '../../chat-interface/domain';
 
 export interface ChatViewMessageItem {
   id: string;
@@ -13,4 +13,3 @@ export function toChatViewMessageItems(messages: ChatMessage[]): ChatViewMessage
     text: `[${message.role}] ${message.content}`
   }));
 }
-

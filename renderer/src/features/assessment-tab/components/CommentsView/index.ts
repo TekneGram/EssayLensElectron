@@ -6,5 +6,4 @@ export { ScoreTool } from '../ScoreTool';
 export * from './application';
 export * from './domain';
 export * from './hooks';
-export * from './infrastructure';
 export * from './state';
