@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { WorkspaceState } from '../domain/workspace.types';
 import { initialWorkspaceState, workspaceReducer } from '../state/workspace.reducer';
 
 describe('workspaceReducer', () => {
@@ -13,20 +12,14 @@ describe('workspaceReducer', () => {
     expect(initialWorkspaceState.currentFolder).toBeNull();
   });
 
-  it('adds document text without mutating previous state', () => {
-    const state: WorkspaceState = {
-      ...initialWorkspaceState,
-      documentTextByFileId: {
-        fileA: { fileId: 'fileA', text: 'first' }
-      }
-    };
-
+  it('sets selected file without mutating previous state', () => {
+    const state = initialWorkspaceState;
     const next = workspaceReducer(state, {
-      type: 'workspace/setDocumentText',
-      payload: { fileId: 'fileB', text: 'second' }
+      type: 'workspace/setSelectedFile',
+      payload: { fileId: 'fileB', status: 'ready' }
     });
 
-    expect(next.documentTextByFileId.fileB?.text).toBe('second');
-    expect(state.documentTextByFileId.fileB).toBeUndefined();
+    expect(next.selectedFile.fileId).toBe('fileB');
+    expect(state.selectedFile.fileId).toBeNull();
   });
 });

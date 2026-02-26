@@ -9,8 +9,7 @@ export const initialWorkspaceState: WorkspaceState = {
   selectedFile: {
     fileId: null,
     status: 'idle'
-  },
-  documentTextByFileId: {}
+  }
 };
 
 export function workspaceReducer(
@@ -42,14 +41,6 @@ export function workspaceReducer(
       return {
         ...state,
         selectedFile: action.payload
-      };
-    case 'workspace/setDocumentText':
-      return {
-        ...state,
-        documentTextByFileId: {
-          ...state.documentTextByFileId,
-          [action.payload.fileId]: action.payload
-        }
       };
     default:
       return state;

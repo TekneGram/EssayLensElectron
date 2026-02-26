@@ -6,4 +6,3 @@ export type ChatRole = 'system' | 'teacher' | 'assistant';
 
 export type AssessmentTopTab = 'assessment' | 'rubric' | 'llm';
 export type CommentsTab = 'comments' | 'score';
-export type Theme = 'light' | 'dark' | 'system';

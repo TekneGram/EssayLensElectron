@@ -27,22 +27,6 @@ export function useRubricTabController() {
   };
 
   useEffect(() => {
-    if (listQuery.isPending) {
-      dispatch({ type: 'rubricTab/setStatus', payload: 'loading' });
-      dispatch({ type: 'rubricTab/setError', payload: undefined });
-    }
-  }, [dispatch, listQuery.isPending]);
-
-  useEffect(() => {
-    if (!listQuery.isSuccess) {
-      return;
-    }
-    dispatch({ type: 'rubricTab/setList', payload: listQuery.data.rubrics });
-    dispatch({ type: 'rubricTab/setStatus', payload: 'idle' });
-    dispatch({ type: 'rubricTab/setError', payload: undefined });
-  }, [dispatch, listQuery.data, listQuery.isSuccess]);
-
-  useEffect(() => {
     if (!listQuery.isError) {
       return;
     }
@@ -53,10 +37,8 @@ export function useRubricTabController() {
     lastErrorAt.current = nextErrorAt;
 
     const message = listQuery.error instanceof Error ? listQuery.error.message : 'Unable to load rubrics.';
-    dispatch({ type: 'rubricTab/setStatus', payload: 'error' });
-    dispatch({ type: 'rubricTab/setError', payload: message });
     toast.error(message);
-  }, [dispatch, listQuery.error, listQuery.errorUpdatedAt, listQuery.isError]);
+  }, [listQuery.error, listQuery.errorUpdatedAt, listQuery.isError]);
 
   useEffect(() => {
     if (!listQuery.isSuccess) {
@@ -74,11 +56,12 @@ export function useRubricTabController() {
     dispatch({ type: 'rubricTab/setInteractionMode', payload: reconciliation.mode });
   }, [dispatch, listQuery.data, listQuery.isSuccess, selectedRubricId]);
 
-  const selectedRubric = state.rubricList.find((rubric) => rubric.entityUuid === selectedRubricId);
+  const rubricList = listQuery.data?.rubrics ?? [];
+  const selectedRubric = rubricList.find((rubric) => rubric.entityUuid === selectedRubricId);
   const canEditSelectedRubric = computeCanEditSelectedRubric(selectedRubric);
 
   return {
-    rubricList: state.rubricList,
+    rubricList,
     selectedRubricId,
     interactionMode,
     listQuery,

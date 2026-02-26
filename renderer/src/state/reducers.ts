@@ -69,11 +69,6 @@ export function uiReducer(state: UiState = initialUiState, action: AppAction): U
         ...state,
         activeCommentsTab: action.payload
       };
-    case 'ui/setTheme':
-      return {
-        ...state,
-        theme: action.payload
-      };
     case 'ui/setChatCollapsed':
       return {
         ...state,

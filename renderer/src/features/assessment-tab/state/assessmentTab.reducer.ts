@@ -6,9 +6,7 @@ export const initialAssessmentTabState: AssessmentTabLocalState = {
   activeCommand: null,
   chatMode: 'comment',
   activeCommentId: null,
-  draftText: '',
-  feedbackByFileId: {},
-  feedbackStatus: 'idle'
+  draftText: ''
 };
 
 export function assessmentTabReducer(
@@ -45,34 +43,6 @@ export function assessmentTabReducer(
       return {
         ...state,
         draftText: action.payload
-      };
-    case 'assessmentTab/setFeedbackForFile':
-      return {
-        ...state,
-        feedbackByFileId: {
-          ...state.feedbackByFileId,
-          [action.payload.fileId]: action.payload.items
-        }
-      };
-    case 'assessmentTab/addFeedback': {
-      const existing = state.feedbackByFileId[action.payload.fileId] ?? [];
-      return {
-        ...state,
-        feedbackByFileId: {
-          ...state.feedbackByFileId,
-          [action.payload.fileId]: [...existing, action.payload]
-        }
-      };
-    }
-    case 'assessmentTab/setFeedbackStatus':
-      return {
-        ...state,
-        feedbackStatus: action.payload
-      };
-    case 'assessmentTab/setFeedbackError':
-      return {
-        ...state,
-        feedbackError: action.payload
       };
     default:
       return state;

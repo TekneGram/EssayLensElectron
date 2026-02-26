@@ -9,7 +9,7 @@ UI Layer: focuses on hooks (react, TanStack), event handlers, local UI state, To
   (folder: application, services)
   Domain layer: pure functions, business rules, types, mappers, no react, no electron, no side effects (folders: domain)
   Infrastructure layer: electron bridge, window.api, how to talk to electron, how to call apis, how to fetch data (folder:
-  infrastructure, adapters)
+  adapters, ports)
 
 ## What is EssayLens tech stack?
 - This app is an electron app.
@@ -417,6 +417,16 @@ Mobile (`max-width: 900px`):
 - Preserve split-ratio clamping and keyboard resizing behavior.
 - Preserve tab ARIA semantics and chat-collapse layout behavior.
 - If adding persistence, implement repositories behind current interfaces so handlers and renderer contracts remain stable.
+
+### 10.1) Frontend PR checklist (state ownership)
+
+- React Query owns server state (lists, entities, loading/error from backend requests).
+- Reducers/context own UI-only state (tabs, panel state, transient interaction flow).
+- Do not mirror Query data into reducer caches.
+- Do not add duplicate loading/error flags when Query already provides them.
+- Remove unused global state/actions/selectors when they become dead.
+- Before merge, run `npx tsc -p renderer/tsconfig.json --noEmit` and targeted renderer tests for touched features.
+- Reference `renderer/STATE_OWNERSHIP.md` when introducing new state.
 
 ## Database Schema
 # Database plan for EssayLens

@@ -2,11 +2,13 @@ import { selectActiveCommentsTab } from '../../../../state';
 import type { AppState } from '../../../../state/types';
 import type { SelectedFileType } from '../../../../state';
 import type { AssessmentTabLocalState } from '../../state';
+import type { UseQueryResult } from '@tanstack/react-query';
+import type { FeedbackItem } from '../../../feedback/domain';
 
 interface UseAssessmentCommentsStateSyncParams {
   appState: AppState;
   localState: AssessmentTabLocalState;
-  selectedFileId: string | null;
+  feedbackListQuery: UseQueryResult<FeedbackItem[], Error>;
   selectedFileType: SelectedFileType;
   isAddFeedbackPending: boolean;
   addFeedbackErrorMessage?: string;
@@ -15,25 +17,26 @@ interface UseAssessmentCommentsStateSyncParams {
 export function useAssessmentCommentsStateSync({
   appState,
   localState,
-  selectedFileId,
+  feedbackListQuery,
   selectedFileType,
   isAddFeedbackPending,
   addFeedbackErrorMessage
 }: UseAssessmentCommentsStateSyncParams) {
-  const comments = selectedFileId ? localState.feedbackByFileId[selectedFileId] ?? [] : [];
+  const comments = feedbackListQuery.data ?? [];
   const canGenerateFeedbackDocument = selectedFileType === 'docx' && comments.length > 0;
   const activeCommentsTab = selectActiveCommentsTab(appState);
+  const commentsError =
+    feedbackListQuery.error instanceof Error
+      ? feedbackListQuery.error.message
+      : addFeedbackErrorMessage;
 
   return {
     comments,
     pendingSelection: localState.pendingSelection,
     activeCommentId: localState.activeCommentId,
     activeCommentsTab,
-    isCommentsLoading: localState.feedbackStatus === 'loading' || isAddFeedbackPending,
+    isCommentsLoading: feedbackListQuery.isPending || isAddFeedbackPending,
     canGenerateFeedbackDocument,
-    commentsError:
-      localState.feedbackStatus === 'error'
-        ? localState.feedbackError ?? addFeedbackErrorMessage ?? 'Unable to load comments.'
-        : undefined
+    commentsError: commentsError ?? undefined
   };
 }

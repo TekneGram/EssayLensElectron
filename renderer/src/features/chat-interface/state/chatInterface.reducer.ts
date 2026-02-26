@@ -30,11 +30,6 @@ export function chatReducer(state: ChatState = initialChatState, action: AppActi
           };
         })
       };
-    case 'chat/setDraft':
-      return {
-        ...state,
-        draft: action.payload
-      };
     case 'chat/setStatus':
       return {
         ...state,
@@ -49,4 +44,3 @@ export function chatReducer(state: ChatState = initialChatState, action: AppActi
       return state;
   }
 }
-

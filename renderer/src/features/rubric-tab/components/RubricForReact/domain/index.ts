@@ -1,6 +1,5 @@
 export type { RubricForReactProps } from './rubricForReact.types';
 export type { RubricCommand } from './rubricCommands';
-export { matrixToRubricSourceData } from './rubricMatrixMapper';
 export { createCellKey, createEntityId, normalizeRubric } from './normalizeRubric';
 export type {
   CategoryId,

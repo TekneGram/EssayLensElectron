@@ -8,14 +8,12 @@ export type {
   ISODateString,
   RubricState,
   SelectedFileType,
-  Theme,
   UiState,
   WorkspaceState
 } from '../types';
 export type { ChatDataArray, ChatMessage, ChatState } from '../features/chat-interface/domain';
 export type { RubricGradingSelection } from '../types';
 export type {
-  DocumentTextModel,
   FileKind,
   SelectedFileState,
   WorkspaceFile,

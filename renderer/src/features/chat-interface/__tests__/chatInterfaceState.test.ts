@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { initialAppState } from '../../../state';
 import {
   addChatMessage,
-  selectChatDraft,
   selectChatError,
   selectChatStatus,
-  setChatDraft,
   setChatError,
   setChatStatus,
   updateChatMessageContent
@@ -13,7 +11,6 @@ import {
 
 describe('chat-interface state helpers', () => {
   it('creates chat actions', () => {
-    expect(setChatDraft('Hello')).toEqual({ type: 'chat/setDraft', payload: 'Hello' });
     expect(setChatStatus('sending')).toEqual({ type: 'chat/setStatus', payload: 'sending' });
     expect(setChatError('Failed')).toEqual({ type: 'chat/setError', payload: 'Failed' });
     expect(
@@ -49,15 +46,12 @@ describe('chat-interface state helpers', () => {
       ...initialAppState,
       chat: {
         ...initialAppState.chat,
-        draft: 'draft',
         status: 'error' as const,
         error: 'Request failed'
       }
     };
 
-    expect(selectChatDraft(state)).toBe('draft');
     expect(selectChatStatus(state)).toBe('error');
     expect(selectChatError(state)).toBe('Request failed');
   });
 });
-

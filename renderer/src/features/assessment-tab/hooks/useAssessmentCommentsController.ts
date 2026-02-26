@@ -1,5 +1,6 @@
 import { useAssessmentCommentsActions } from './comments/useAssessmentCommentsActions';
 import { useAssessmentCommentsStateSync } from './comments/useAssessmentCommentsStateSync';
+import { useFeedbackListQuery } from './useFeedbackListQuery';
 import type { AssessmentTabAction, AssessmentTabLocalState } from '../state';
 import type { AssessmentTabChatBindings } from '../types';
 import type { AppState } from '../../../state/types';
@@ -51,10 +52,12 @@ export function useAssessmentCommentsController({
   addFeedbackErrorMessage,
   setActiveCommandWithModeRule
 }: UseAssessmentCommentsControllerParams): UseAssessmentCommentsControllerResult {
+  const feedbackListQuery = useFeedbackListQuery(selectedFileId);
+
   const synced = useAssessmentCommentsStateSync({
     appState,
     localState,
-    selectedFileId,
+    feedbackListQuery,
     selectedFileType,
     isAddFeedbackPending,
     addFeedbackErrorMessage
@@ -64,6 +67,7 @@ export function useAssessmentCommentsController({
     appDispatch,
     localDispatch,
     selectedFileId,
+    feedbackListQuery,
     comments: synced.comments,
     canGenerateFeedbackDocument: synced.canGenerateFeedbackDocument,
     setActiveCommandWithModeRule

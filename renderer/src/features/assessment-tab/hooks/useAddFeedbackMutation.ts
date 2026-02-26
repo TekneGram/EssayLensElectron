@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Dispatch } from 'react';
 import { toast } from 'react-toastify';
 import type {
   AddBlockFeedbackRequest,
@@ -9,7 +8,6 @@ import type {
 import type { FeedbackItem } from '../../feedback/domain';
 import { usePorts } from '../../../ports';
 import { addAssessmentFeedback } from '../application/assessmentApi.service';
-import type { AssessmentTabAction } from '../state';
 import { assessmentQueryKeys } from './queryKeys';
 
 type AddInlineFeedbackDraft = Omit<AddInlineFeedbackRequest, 'fileId'>;
@@ -22,10 +20,7 @@ interface UseAddFeedbackMutationResult {
   isPending: boolean;
 }
 
-export function useAddFeedbackMutation(
-  selectedFileId: string | null,
-  dispatch: Dispatch<AssessmentTabAction>
-): UseAddFeedbackMutationResult {
+export function useAddFeedbackMutation(selectedFileId: string | null): UseAddFeedbackMutationResult {
   const { assessment } = usePorts();
   const queryClient = useQueryClient();
 
@@ -45,15 +40,7 @@ export function useAddFeedbackMutation(
         fileId: selectedFileId
       });
     },
-    onMutate: () => {
-      dispatch({ type: 'assessmentTab/setFeedbackStatus', payload: 'loading' });
-      dispatch({ type: 'assessmentTab/setFeedbackError', payload: undefined });
-    },
-    onSuccess: async (feedback) => {
-      dispatch({ type: 'assessmentTab/addFeedback', payload: feedback });
-      dispatch({ type: 'assessmentTab/setFeedbackStatus', payload: 'idle' });
-      dispatch({ type: 'assessmentTab/setFeedbackError', payload: undefined });
-
+    onSuccess: async () => {
       if (selectedFileId) {
         await queryClient.invalidateQueries({
           queryKey: assessmentQueryKeys.feedbackList(selectedFileId)
@@ -62,8 +49,6 @@ export function useAddFeedbackMutation(
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'Unable to add feedback.';
-      dispatch({ type: 'assessmentTab/setFeedbackStatus', payload: 'error' });
-      dispatch({ type: 'assessmentTab/setFeedbackError', payload: message });
       toast.error(message);
     }
   });

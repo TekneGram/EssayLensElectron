@@ -4,12 +4,10 @@ export type {
   CommentKind,
   CommentsTab,
   EntityId,
-  ISODateString,
-  Theme
+  ISODateString
 } from './primitives';
 export type { AppState, ChatState, RubricGradingSelection, RubricState, SelectedFileType, UiState, WorkspaceState } from './state';
 export type {
-  DocumentTextModel,
   FileKind,
   SelectedFileState,
   WorkspaceFile,

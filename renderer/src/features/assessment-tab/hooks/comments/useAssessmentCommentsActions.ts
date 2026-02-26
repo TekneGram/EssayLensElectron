@@ -11,7 +11,6 @@ import {
   sendAssessmentFeedbackToLlm
 } from '../../application/assessmentApi.service';
 import { useGenerateFeedbackDocumentMutation } from '../useGenerateFeedbackDocumentMutation';
-import { useFeedbackListQuery } from '../useFeedbackListQuery';
 import {
   applyCommentWorkflow,
   deleteCommentWorkflow,
@@ -25,11 +24,13 @@ import type { AssessmentTabAction } from '../../state';
 import type { AssessmentTabChatBindings } from '../../types';
 import { selectActiveCommentsTab } from '../../../../state';
 import type { AppAction } from '../../../../state/actions';
+import type { UseQueryResult } from '@tanstack/react-query';
 
 interface UseAssessmentCommentsActionsParams {
   appDispatch: Dispatch<AppAction>;
   localDispatch: Dispatch<AssessmentTabAction>;
   selectedFileId: string | null;
+  feedbackListQuery: UseQueryResult<FeedbackItem[], Error>;
   comments: FeedbackItem[];
   canGenerateFeedbackDocument: boolean;
   setActiveCommandWithModeRule: (command: AssessmentTabChatBindings['activeCommand']) => void;
@@ -39,12 +40,12 @@ export function useAssessmentCommentsActions({
   appDispatch,
   localDispatch,
   selectedFileId,
+  feedbackListQuery,
   comments,
   canGenerateFeedbackDocument,
   setActiveCommandWithModeRule
 }: UseAssessmentCommentsActionsParams) {
   const { assessment } = usePorts();
-  const feedbackListQuery = useFeedbackListQuery(selectedFileId, localDispatch);
   const {
     generateFeedbackDocumentForFile,
     isPending: isGenerateFeedbackPending,

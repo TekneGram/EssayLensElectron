@@ -41,17 +41,10 @@ export interface SelectedFileState {
   error?: string;
 }
 
-export interface DocumentTextModel {
-  fileId: EntityId;
-  text: string;
-  extractedAt?: ISODateString;
-}
-
 export interface WorkspaceState {
   currentFolder: WorkspaceFolder | null;
   files: WorkspaceFile[];
   status: 'idle' | 'loading' | 'error';
   error?: string;
   selectedFile: SelectedFileState;
-  documentTextByFileId: Record<string, DocumentTextModel | undefined>;
 }

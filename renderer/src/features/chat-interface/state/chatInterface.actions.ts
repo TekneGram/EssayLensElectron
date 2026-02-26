@@ -6,7 +6,6 @@ type UpdateMessageContentAction = {
   type: 'chat/updateMessageContent';
   payload: { messageId: string; content: string; mode: 'append' | 'replace' };
 };
-type SetDraftAction = { type: 'chat/setDraft'; payload: string };
 type SetStatusAction = { type: 'chat/setStatus'; payload: ChatState['status'] };
 type SetErrorAction = { type: 'chat/setError'; payload?: string };
 
@@ -22,10 +21,6 @@ export function updateChatMessageContent(payload: UpdateMessageContentAction['pa
   return { type: 'chat/updateMessageContent', payload };
 }
 
-export function setChatDraft(payload: string): SetDraftAction {
-  return { type: 'chat/setDraft', payload };
-}
-
 export function setChatStatus(payload: ChatState['status']): SetStatusAction {
   return { type: 'chat/setStatus', payload };
 }
@@ -38,6 +33,5 @@ export type ChatInterfaceAction =
   | SetMessagesAction
   | AddMessageAction
   | UpdateMessageContentAction
-  | SetDraftAction
   | SetStatusAction
   | SetErrorAction;

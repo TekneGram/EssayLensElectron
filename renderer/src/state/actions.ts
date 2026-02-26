@@ -2,7 +2,6 @@ import type {
   AssessmentTopTab,
   CommentsTab,
   EntityId,
-  Theme,
   WorkspaceAction
 } from './types';
 import type { ChatInterfaceAction } from '../features/chat-interface/state/chatInterface.actions';
@@ -21,7 +20,6 @@ export type RubricAction =
 export type UiAction =
   | { type: 'ui/setTopTab'; payload: AssessmentTopTab }
   | { type: 'ui/setCommentsTab'; payload: CommentsTab }
-  | { type: 'ui/setTheme'; payload: Theme }
   | { type: 'ui/setChatCollapsed'; payload: boolean }
   | { type: 'ui/setAssessmentSplitRatio'; payload: number };
 

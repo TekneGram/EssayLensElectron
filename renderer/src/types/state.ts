@@ -1,4 +1,4 @@
-import type { AssessmentTopTab, CommentsTab, EntityId, Theme } from './primitives';
+import type { AssessmentTopTab, CommentsTab, EntityId } from './primitives';
 import type { ChatState } from '../features/chat-interface/domain';
 import type { WorkspaceState } from '../features/workspace/domain/workspace.types';
 
@@ -16,7 +16,6 @@ export interface RubricState {
 export interface UiState {
   activeTopTab: AssessmentTopTab;
   activeCommentsTab: CommentsTab;
-  theme: Theme;
   isChatCollapsed: boolean;
   assessmentSplitRatio: number;
 }

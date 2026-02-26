@@ -9,10 +9,8 @@ export type {
 } from './domain';
 export {
   addChatMessage,
-  selectChatDraft,
   selectChatError,
   selectChatStatus,
-  setChatDraft,
   setChatError,
   setChatStatus,
   updateChatMessageContent

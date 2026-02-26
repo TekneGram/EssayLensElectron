@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { usePorts } from '../../../../../ports';
-import { matrixToRubricSourceData } from '../domain';
+import { matrixToRubricSourceData } from '../../../../rubric-data/domain/rubricMatrixMapper';
 import { rubricForReactQueryKeys } from '../infrastructure/queryKeys';
 
 export function useRubricForReactData(rubricId: string | null, enabled = true) {

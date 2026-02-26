@@ -1,43 +1,21 @@
 import { createContext, useContext, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
 
-export interface RubricTabListItem {
-  entityUuid: string;
-  name: string;
-  isActive: boolean;
-  isArchived: boolean;
-}
-
 export interface RubricTabState {
-  rubricList: RubricTabListItem[];
   selectedEditingRubricId: string | null;
   interactionMode: 'editing' | 'viewing';
-  activeMatrix: null;
-  status: 'idle' | 'loading' | 'error';
-  error?: string;
 }
 
 export type RubricTabAction =
-  | { type: 'rubricTab/setList'; payload: RubricTabListItem[] }
   | { type: 'rubricTab/selectEditing'; payload: string | null }
-  | { type: 'rubricTab/setInteractionMode'; payload: RubricTabState['interactionMode'] }
-  | { type: 'rubricTab/setStatus'; payload: RubricTabState['status'] }
-  | { type: 'rubricTab/setError'; payload?: string };
+  | { type: 'rubricTab/setInteractionMode'; payload: RubricTabState['interactionMode'] };
 
 const initialRubricTabState: RubricTabState = {
-  rubricList: [],
   selectedEditingRubricId: null,
-  interactionMode: 'viewing',
-  activeMatrix: null,
-  status: 'idle'
+  interactionMode: 'viewing'
 };
 
 function rubricTabReducer(state: RubricTabState, action: RubricTabAction): RubricTabState {
   switch (action.type) {
-    case 'rubricTab/setList':
-      return {
-        ...state,
-        rubricList: action.payload
-      };
     case 'rubricTab/selectEditing':
       return {
         ...state,
@@ -47,16 +25,6 @@ function rubricTabReducer(state: RubricTabState, action: RubricTabAction): Rubri
       return {
         ...state,
         interactionMode: action.payload
-      };
-    case 'rubricTab/setStatus':
-      return {
-        ...state,
-        status: action.payload
-      };
-    case 'rubricTab/setError':
-      return {
-        ...state,
-        error: action.payload
       };
     default:
       return state;

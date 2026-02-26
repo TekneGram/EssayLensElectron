@@ -1,6 +1,5 @@
 export {
   addChatMessage,
-  setChatDraft,
   setChatError,
   setChatMessages,
   setChatStatus,
@@ -9,4 +8,4 @@ export {
 export type { ChatInterfaceAction } from './chatInterface.actions';
 export { initialChatState } from './chatInterface.initialState';
 export { chatReducer } from './chatInterface.reducer';
-export { selectChatDraft, selectChatError, selectChatStatus } from './chatInterface.selectors';
+export { selectChatError, selectChatStatus } from './chatInterface.selectors';

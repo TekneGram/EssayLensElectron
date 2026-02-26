@@ -49,11 +49,8 @@ describe('useRubricTabController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseRubricTabState.mockReturnValue({
-      rubricList: [{ entityUuid: 'r1', name: 'Rubric 1', isActive: false, isArchived: false }],
       selectedEditingRubricId: 'r1',
-      interactionMode: 'viewing',
-      activeMatrix: null,
-      status: 'idle'
+      interactionMode: 'viewing'
     });
     mockUseRubricTabDispatch.mockReturnValue(vi.fn());
     mockUseRubricListQuery.mockReturnValue({
