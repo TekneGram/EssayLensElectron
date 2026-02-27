@@ -103,6 +103,7 @@ describe('registerChatHandlers', () => {
         contextText: undefined,
         message: 'Teacher prompt',
         clientRequestId: 'client-1',
+        sessionId: 'file:file-1',
         settings: expect.objectContaining({
           llm_server_url: 'http://127.0.0.1:8080/v1/chat/completions'
         })
@@ -136,6 +137,39 @@ describe('registerChatHandlers', () => {
         ]
       }
     });
+  });
+
+  it('passes explicit sessionId to orchestrator payload', async () => {
+    const harness = createHarness();
+    const repository = new ChatRepository();
+    const requestAction = vi.fn().mockResolvedValue({
+      requestId: 'req-1',
+      ok: true,
+      data: { reply: 'Assistant reply' },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    });
+
+    registerChatHandlers(
+      { handle: harness.handle },
+      {
+        repository,
+        llmOrchestrator: { requestAction } as never,
+        llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(readySettings) } as never,
+        fileExists: vi.fn().mockResolvedValue(true),
+        isExecutable: vi.fn().mockResolvedValue(true)
+      }
+    );
+
+    const sendMessageHandler = harness.getHandler(CHAT_CHANNELS.sendMessage);
+    const sendResult = await sendMessageHandler({}, { message: 'Teacher prompt', sessionId: 'sess-123' });
+    expect(sendResult).toEqual({ ok: true, data: { reply: 'Assistant reply' } });
+    expect(requestAction).toHaveBeenCalledWith(
+      'llm.chat',
+      expect.objectContaining({
+        message: 'Teacher prompt',
+        sessionId: 'sess-123'
+      })
+    );
   });
 
   it('returns mapped orchestrator failures and does not persist messages', async () => {

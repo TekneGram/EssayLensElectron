@@ -33,6 +33,59 @@ describe('LlmOrchestrator', () => {
     });
   });
 
+  it('accepts llm.server.start as a supported action', async () => {
+    const orchestrator = buildOrchestrator(async (request) => ({
+      requestId: request.requestId,
+      ok: true,
+      data: { warmed: true, serverRunning: true },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    }));
+
+    const result = await orchestrator.requestAction('llm.server.start', { settings: {} });
+
+    expect(result).toEqual({
+      requestId: 'req-123',
+      ok: true,
+      data: { warmed: true, serverRunning: true },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    });
+  });
+
+  it('accepts llm.evaluate.simple as a supported action', async () => {
+    const orchestrator = buildOrchestrator(async (request) => ({
+      requestId: request.requestId,
+      ok: false,
+      error: { code: 'PY_ACTION_FAILED', message: 'Action not implemented yet: evaluate-simple' },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    }));
+
+    const result = await orchestrator.requestAction('llm.evaluate.simple', { input: 'essay' });
+
+    expect(result).toMatchObject({
+      requestId: 'req-123',
+      ok: false,
+      error: { code: 'PY_ACTION_FAILED', message: 'Action not implemented yet: evaluate-simple' }
+    });
+  });
+
+  it('accepts llm.session.clear as a supported action', async () => {
+    const orchestrator = buildOrchestrator(async (request) => ({
+      requestId: request.requestId,
+      ok: true,
+      data: { sessionId: 'sess-1', cleared: true },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    }));
+
+    const result = await orchestrator.requestAction('llm.session.clear', { sessionId: 'sess-1' });
+
+    expect(result).toEqual({
+      requestId: 'req-123',
+      ok: true,
+      data: { sessionId: 'sess-1', cleared: true },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    });
+  });
+
   it('maps worker-declared action failures to PY_ACTION_FAILED', async () => {
     const orchestrator = buildOrchestrator(async (request) => ({
       requestId: request.requestId,

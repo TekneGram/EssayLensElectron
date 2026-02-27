@@ -100,8 +100,19 @@ function normalizeSendMessageRequest(request: unknown): SendChatMessageRequest |
     fileId: typeof candidate.fileId === 'string' ? candidate.fileId : undefined,
     contextText: typeof candidate.contextText === 'string' ? candidate.contextText : undefined,
     message,
-    clientRequestId: typeof candidate.clientRequestId === 'string' ? candidate.clientRequestId : undefined
+    clientRequestId: typeof candidate.clientRequestId === 'string' ? candidate.clientRequestId : undefined,
+    sessionId: typeof candidate.sessionId === 'string' ? candidate.sessionId : undefined
   };
+}
+
+function resolveSessionId(request: SendChatMessageRequest): string | undefined {
+  if (typeof request.sessionId === 'string' && request.sessionId.trim()) {
+    return request.sessionId.trim();
+  }
+  if (typeof request.fileId === 'string' && request.fileId.trim()) {
+    return `file:${request.fileId}`;
+  }
+  return undefined;
 }
 
 function makeMessageId(): string {
@@ -202,6 +213,7 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
 
     const llmPayload: LlmChatPayload = {
       ...normalizedRequest,
+      sessionId: resolveSessionId(normalizedRequest),
       settings
     };
 

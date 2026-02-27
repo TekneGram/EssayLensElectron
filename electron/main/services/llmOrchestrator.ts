@@ -10,7 +10,15 @@ const SUPPORTED_ACTIONS = new Set<LlmAction>([
   'llm.assessEssay',
   'llm.chat',
   'llm.chatStream',
-  'llm.generateFeedbackSummary'
+  'llm.generateFeedbackSummary',
+  'llm.evaluate.simple',
+  'llm.evaluate.withRubric',
+  'llm.evaluate.bulk',
+  'llm.session.create',
+  'llm.session.clear',
+  'llm.server.start',
+  'llm.server.stop',
+  'llm.server.status'
 ]);
 
 export interface LlmFailure {

@@ -54,6 +54,23 @@ class RuntimeLifecycle:
     def shutdown(self) -> None:
         self._teardown_cached_runtime()
 
+    def get_status(self) -> dict[str, Any]:
+        server_running = False
+        runtime_key = self._cached_runtime_key
+        if self._cached_runtime is not None:
+            proc = self._cached_runtime.get("server_proc")
+            is_running = getattr(proc, "is_running", None)
+            if callable(is_running):
+                try:
+                    server_running = bool(is_running())
+                except Exception:
+                    server_running = False
+        return {
+            "hasRuntime": self._cached_runtime is not None,
+            "runtimeKey": list(runtime_key) if runtime_key is not None else None,
+            "serverRunning": server_running,
+        }
+
     def _teardown_cached_runtime(self) -> None:
         if self._cached_runtime is None:
             self._cached_runtime_key = None

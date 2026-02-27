@@ -1,150 +1,187 @@
 # Enhance Chat Plan
 
-## Context recap (current architecture)
+## Scope
+This plan addresses five changes across Electron main services, shared IPC contracts, and `electron-llm`:
+1. Split `electron-llm/main.py` into an entrypoint and a simple-chat pipeline module.
+2. Keep the LLM server warm once chat begins.
+3. Add a manual Python-side server switch-off entrypoint and shared contract file `electron/shared/llm-server.ts`.
+4. Add placeholder Python entrypoints for `evaluate-simple`, `evaluate-with-rubric`, and `bulk-evaluate`.
+5. Design chat-session memory so multi-turn context persists.
 
-### Electron ↔ Python communication path
-1. `electron/main/ipc/chatHandlers.ts` receives `chat/sendMessage`, validates payload/settings, and calls `LlmOrchestrator` using `llm.chatStream` (or `llm.chat` fallback).
-2. `electron/main/services/llmOrchestrator.ts` wraps each request with `requestId/timestamp`, enforces a supported action list, and delegates to `PythonWorkerClient`.
-3. `electron/main/services/pythonWorkerClient.ts` maintains a long-lived Python subprocess (`python3 -u electron-llm/main.py` in dev), writes JSON-lines requests to stdin, and reads JSON-lines responses/events from stdout.
-4. `electron-llm/main.py` parses each request and dispatches action handlers (`llm.chat`, `llm.chatStream`, placeholders for assess/summary).
-5. Runtime model/server setup currently happens via `_build_runtime(...)` inside `main.py`, which pulls config, asks `RuntimeLifecycle` for cached runtime, and calls `server_proc.ensure_running()` before sending prompt tasks.
+## Current Flow (Observed)
+- Electron `chat/sendMessage` in `electron/main/ipc/chatHandlers.ts` calls `LlmOrchestrator`.
+- `LlmOrchestrator` (`electron/main/services/llmOrchestrator.ts`) sends action requests over stdio to one long-lived Python worker (`PythonWorkerClient`).
+- `PythonWorkerClient` (`electron/main/services/pythonWorkerClient.ts`) keeps a spawned Python process alive and reuses it across requests.
+- `electron-llm/main.py` processes newline-delimited JSON requests in a loop and dispatches `llm.chat` / `llm.chatStream`.
+- Runtime/model startup is managed through `RuntimeLifecycle.get_or_create_llm_runtime(...)` and `LlmServerProcess.ensure_running()`.
 
-### Current Python behavior relevant to the request
-- `main.py` currently mixes protocol parsing, request dispatch, runtime build, simple chat execution, stream handling, and helper extraction functions in one file.
-- `RuntimeLifecycle` already supports process-level caching by `runtime_identity`, so warm-runtime behavior is partially present. However, there is no explicit protocol-level action for “manual server shutdown,” and no chat-session memory abstraction for multi-turn history.
+## Key Finding About “Warm Server”
+- The Python worker is already long-lived.
+- Warmth currently depends on runtime cache identity and lazy startup during each chat request.
+- Practical gaps:
+  - No explicit runtime start/stop API.
+  - No explicit server status channel.
+  - Warm behavior is implicit inside chat actions.
 
----
+## Target Architecture
+- `main.py` becomes a thin router/entrypoint only.
+- Action pipelines move under `electron-llm/app/`:
+  - `pipeline_simple.py` (current simple chat behavior)
+  - future: `pipeline_evaluate_simple.py`, `pipeline_evaluate_with_rubric.py`, `pipeline_bulk_evaluate.py`
+- Introduce explicit runtime lifecycle actions:
+  - start/warm runtime
+  - stop runtime
+  - optional runtime status
+- Introduce chat sessions with session-scoped memory held in Python process memory.
 
-## Requested changes mapped to a delivery plan
+## Implementation Plan
 
-## Phase 1 — Refactor `main.py` into entry-point router + pipeline module
-**Goal:** turn `main.py` into a dispatcher and move simple-chat logic to a dedicated pipeline file.
+### Phase 1: Refactor `main.py` into an action router
+Files:
+- `electron-llm/main.py`
+- `electron-llm/app/pipeline_simple.py` (new)
+- `electron-llm/app/pipeline_registry.py` (new, optional)
 
-1. Create a new pipeline module under `electron-llm/app/` (requested name: `pipeline-simple.py`).
-   - Because hyphens are not import-friendly in Python modules, use one of:
-     - `pipeline_simple.py` as the true module + optional compatibility wrapper/file docs, or
-     - dynamic import loader if strict filename `pipeline-simple.py` is mandatory.
-   - Move existing simple chat helpers and handlers from `main.py` into this module:
-     - message extraction
-     - fake reply extraction
-     - runtime build helper usage
-     - simple chat sync + stream flow
-2. Keep `main.py` focused on:
-   - stdin loop + JSONL protocol envelope
+Steps:
+1. Move simple-chat helpers and execution logic out of `main.py` into `app/pipeline_simple.py`.
+2. Keep `main.py` responsible for:
+   - request parsing/validation
+   - response envelope helpers
    - action routing
-   - error mapping + response writing
-3. Add an internal action-to-handler router in `main.py` so new modes are entry-point-first and easy to extend.
+   - top-level error handling
+   - lifecycle shutdown in `finally`
+3. Add route mapping in `main.py`:
+   - `llm.chat` and `llm.chatStream` route to pipeline key `simple-chat`.
 
-Deliverables:
-- Smaller `main.py` with routing only.
-- New simple-chat pipeline module with migrated logic.
-- No renderer changes.
+Acceptance:
+- Existing chat + chatStream behavior is unchanged.
+- `main.py` is small and pipeline-agnostic.
 
----
+### Phase 2: Explicit warm runtime controls
+Files:
+- `electron-llm/main.py`
+- `electron-llm/app/pipeline_simple.py`
+- `electron/shared/llmContracts.ts`
+- `electron/main/services/llmOrchestrator.ts`
 
-## Phase 2 — Add strategy-style entry points in Python
-**Goal:** support mode selection for current/future workflows.
+Steps:
+1. Add new Python actions in shared contracts (e.g. `llm.server.start`, `llm.server.stop`, optional `llm.server.status`).
+2. Implement handlers in Python router:
+   - `llm.server.start`: build/ensure runtime without sending chat.
+   - `llm.server.stop`: call `RuntimeLifecycle.shutdown()` and clear active runtime.
+3. Keep lazy `ensure_running()` in simple-chat as fallback, but allow proactive warm-up via start action.
+4. Extend Electron orchestrator supported actions set to include new server actions.
 
-1. Add a mode key in Python payload handling (e.g., `pipeline`, `mode`, or `chatMode`) with values:
-   - `simple-chat`
+Acceptance:
+- App can explicitly warm model server before first prompt.
+- App can explicitly stop server without killing Python worker process.
+
+### Phase 3: Add dedicated shared contract `electron/shared/llm-server.ts`
+Files:
+- `electron/shared/llm-server.ts` (new)
+- `electron/preload/apiTypes.ts`
+- `electron/preload/index.ts`
+- `electron/main/ipc/registerHandlers.ts`
+- `electron/main/ipc/llmServerHandlers.ts` (new)
+
+Steps:
+1. Define canonical IPC request/response types for server lifecycle in `electron/shared/llm-server.ts`.
+2. Add an `llmServer` preload module (do not touch renderer usage yet).
+3. Add main IPC handlers that call orchestrator server actions.
+4. Register new IPC channels in `registerHandlers.ts`.
+
+Acceptance:
+- Shared contract exists and is wired main+preload.
+- Renderer remains untouched, but API surface is ready.
+
+### Phase 4: Add placeholder entrypoints for future chat styles
+Files:
+- `electron-llm/main.py`
+- optionally new placeholder files under `electron-llm/app/`
+
+Steps:
+1. Add router keys and action mappings for:
    - `evaluate-simple`
    - `evaluate-with-rubric`
    - `bulk-evaluate`
-2. Route `simple-chat` to the extracted simple pipeline.
-3. Add placeholder handlers for the three evaluate modes:
-   - return structured `PY_ACTION_FAILED` / “not implemented yet” responses
-   - keep contract shape stable for future wiring.
-4. Ensure backward compatibility:
-   - if mode is omitted for current `llm.chat`/`llm.chatStream`, default to `simple-chat`.
+2. Return typed “not implemented yet” failures from these entrypoints.
+3. Keep response envelope consistent with current `PY_ACTION_FAILED` behavior.
 
-Deliverables:
-- Extensible mode router in `main.py`.
-- Stubs for additional evaluate entry points (without full implementation).
+Acceptance:
+- Entry points exist and are routable.
+- No feature logic implemented yet.
 
----
+### Phase 5: Chat session memory design + rollout
+Files:
+- `electron/shared/chatContracts.ts`
+- `electron/shared/llmContracts.ts`
+- `electron/main/ipc/chatHandlers.ts`
+- `electron-llm/main.py`
+- `electron-llm/app/pipeline_simple.py`
+- optional `electron-llm/app/session_store.py` (new)
 
-## Phase 3 — Keep server warm and observable
-**Goal:** prevent unnecessary runtime teardown and make warm-state behavior explicit.
+Steps:
+1. Add `sessionId` to chat payload contract (`SendChatMessageRequest` and Python payload typing).
+2. In Python, add in-memory session store keyed by `sessionId`.
+3. For simple-chat pipeline:
+   - append teacher message to session history
+   - construct request context from history
+   - append assistant response back into same session
+4. Add lifecycle actions (optional but recommended):
+   - `llm.session.create`
+   - `llm.session.clear`
+5. Define bounds to prevent memory growth:
+   - max turns per session or token-window truncation.
 
-1. Verify lifecycle persistence behavior in practice:
-   - Python worker process stays alive across requests.
-   - Runtime lifecycle cache is reused when `runtime_identity` doesn’t change.
-2. Harden warm behavior in pipeline logic:
-   - avoid creating ad hoc per-request runtime objects.
-   - always go through `RuntimeLifecycle.get_or_create_llm_runtime`.
-3. Add lightweight diagnostics/logging hooks (stderr-safe, never stdout JSON channel) for:
-   - runtime cache hit/miss
-   - server ensured running
-   - shutdown reason.
-4. Add tests (Python-side unit tests where practical) to assert repeated chats with unchanged config do not recreate runtime.
+Acceptance:
+- Multi-turn chats retain context within a live app session.
+- Session can be reset explicitly.
 
-Deliverables:
-- Confirmed/preserved warm server between chat turns.
-- Tests covering cache reuse expectations.
+## Proposed Request/Action Naming
+- Keep existing:
+  - `llm.chat`
+  - `llm.chatStream`
+- Add:
+  - `llm.server.start`
+  - `llm.server.stop`
+  - `llm.server.status` (optional)
+  - `llm.session.create` (optional)
+  - `llm.session.clear` (optional)
 
----
+## Testing Plan
 
-## Phase 4 — Manual server switch-off action + shared contract
-**Goal:** expose explicit shutdown capability on Python side and formalize contract in Electron shared layer.
+### Python tests
+- Add/extend unit tests for:
+  - router dispatch to `pipeline_simple`
+  - server start/stop actions
+  - placeholder action responses
+  - session memory append/retrieve/clear
 
-1. Add new Python action entry point (example: `llm.serverControl`) with command payload supporting at least:
-   - `shutdown`
-2. Implement shutdown behavior:
-   - call `runtime_lifecycle.shutdown()`
-   - return success response indicating server/runtime stopped.
-3. Add a new shared contract file in Electron:
-   - `electron/shared/llm-server.ts`
-   - include typed request/response envelopes for server control commands.
-4. Wire orchestrator/shared types only (no renderer work):
-   - extend allowed action union/types as needed.
-   - keep existing chat contracts untouched.
+### Electron tests
+- Update/add tests for:
+  - orchestrator supported actions
+  - new IPC handler wiring for `llmServer`
+  - preload API typing/contract alignment
 
-Deliverables:
-- Python manual shutdown action.
-- `electron/shared/llm-server.ts` contract types.
-- Electron service types updated to recognize server-control action.
+### Manual verification
+1. Start chat once and confirm first-turn latency (cold start).
+2. Send second/third message in same runtime and confirm reduced latency (warm).
+3. Call server stop and verify next message incurs startup latency again.
+4. Use same `sessionId` across turns and verify prior context influences responses.
+5. Clear session and verify memory reset.
 
----
+## Risks and Mitigations
+- Risk: contract drift across shared/preload/main.
+  - Mitigation: update shared contracts first, then preload/main in same change.
+- Risk: memory growth with long sessions.
+  - Mitigation: enforce history truncation policy.
+- Risk: confusion between Python worker lifecycle and llama-server lifecycle.
+  - Mitigation: expose explicit status fields (`workerAlive`, `serverReady`, `runtimeKey`).
 
-## Phase 5 — Session memory design for simple-chat
-**Goal:** evolve from one-shot prompt/response to persistent chat session memory.
+## Sequencing Recommendation
+1. Refactor `main.py` and extract `pipeline_simple.py`.
+2. Add server lifecycle actions and shared `llm-server.ts` contract + IPC wiring.
+3. Add placeholder evaluation entrypoints.
+4. Implement session memory.
+5. Add/refresh tests after each phase.
 
-1. Introduce session concept in payload:
-   - `sessionId` optional input
-   - server returns/echoes canonical session id.
-2. Add in-process session store in Python pipeline (initial in-memory map):
-   - key: `(runtime_identity, sessionId)`
-   - value: ordered message history (role/content).
-3. On each turn:
-   - append user message
-   - build prompt/context from session history
-   - append assistant reply
-4. Add lifecycle hooks:
-   - explicit clear session command (future-compatible)
-   - global session cleanup when runtime is manually shut down.
-5. Guardrails:
-   - configurable max turns/tokens retained
-   - eviction policy (LRU or TTL) for memory safety.
-
-Deliverables:
-- Technical design + implementation path for warm conversational memory.
-- Backward compatibility for single-turn calls without `sessionId`.
-
----
-
-## Suggested implementation sequence
-1. Phase 1 refactor (extract pipeline + router).
-2. Phase 2 mode entry points/stubs.
-3. Phase 4 server shutdown contract + action (unblocks ops control early).
-4. Phase 3 warm-runtime verification/tests.
-5. Phase 5 session-memory implementation skeleton + tests.
-
----
-
-## Validation checklist after implementation
-- Electron chat still works for existing single-message flow.
-- Streaming (`llm.chatStream`) still emits ordered `stream_start/chunk/done` events.
-- Repeated requests with same config do not reinitialize runtime unnecessarily.
-- Manual server shutdown action returns success and next chat reboots runtime cleanly.
-- `evaluate-*` modes resolve to explicit “not implemented yet” without crashing.
-- Shared contracts compile (`tsc`) with no renderer changes.

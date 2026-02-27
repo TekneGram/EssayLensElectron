@@ -1,5 +1,9 @@
 import { toChatViewMessageItems } from '../application/chatView.service';
 import { useChatViewState } from '../hooks/useChatViewState';
+import { ChatScreen } from './ChatScreen';
+import { ChatControl } from './ChatControl';
+import { ChatListScreen } from './ChatListScreen';
+import { ActionsView } from './ActionsView';
 
 interface ChatViewProps {
   onCollapse: () => void;
@@ -16,6 +20,12 @@ export function ChatView({ onCollapse }: ChatViewProps) {
         <button className="chat-toggle chat-toggle-collapse" type="button" aria-label="Collapse chat panel" onClick={onCollapse}>
           ‹
         </button>
+      </div>
+      <div>
+        {/* Place <ChatControl />
+        <ChatListScreen />
+        <ChatScreen />
+        <ActionsView /> here */}
       </div>
       {items.length > 0 ? (
         <ul className="chat-log">

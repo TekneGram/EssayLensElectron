@@ -19,6 +19,7 @@ export interface SendChatMessageRequest {
   message: string;
   contextText?: string;
   clientRequestId?: string;
+  sessionId?: string;
 }
 
 export interface SendChatMessageResponse {
