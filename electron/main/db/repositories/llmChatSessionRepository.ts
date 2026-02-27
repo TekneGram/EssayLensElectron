@@ -7,6 +7,14 @@ export interface LlmSessionTurn {
   content: string;
 }
 
+export interface LlmSessionListItem {
+  sessionId: string;
+  fileEntityUuid: string;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt: string;
+}
+
 interface LlmChatSessionRepositoryOptions {
   db?: SQLiteClient;
   now?: () => string;
@@ -17,6 +25,14 @@ interface TurnRow {
   role: 'teacher' | 'assistant' | 'system';
   content: string;
   seq: number;
+}
+
+interface SessionRow {
+  session_id: string;
+  file_entity_uuid: string;
+  created_at: string;
+  updated_at: string;
+  last_used_at: string;
 }
 
 const DEFAULT_PIPELINE_KEY = 'simple-chat';
@@ -167,6 +183,24 @@ export class LlmChatSessionRepository {
       await this.db.exec('ROLLBACK;');
       throw error;
     }
+  }
+
+  async listSessionsByFile(fileEntityUuid: string): Promise<LlmSessionListItem[]> {
+    const normalizedFileEntityUuid = this.normalizeFileEntityUuid(fileEntityUuid);
+    const rows = await this.db.all<SessionRow>(
+      `SELECT session_id, file_entity_uuid, created_at, updated_at, last_used_at
+       FROM llm_chat_sessions
+       WHERE file_entity_uuid = ?
+       ORDER BY last_used_at DESC, created_at DESC, session_id ASC;`,
+      [normalizedFileEntityUuid]
+    );
+    return rows.map((row) => ({
+      sessionId: row.session_id,
+      fileEntityUuid: row.file_entity_uuid,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastUsedAt: row.last_used_at
+    }));
   }
 
   private normalizeSessionId(sessionId: string): string {

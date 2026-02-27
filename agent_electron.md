@@ -66,6 +66,7 @@ Defined in `electron/preload/index.ts` + `electron/preload/apiTypes.ts`.
 - `llmSession`
 - `create({ sessionId, fileEntityUuid })`
 - `getTurns({ sessionId, fileEntityUuid })`
+- `listByFile({ fileEntityUuid })`
 - `clear({ sessionId })`
 
 ### 1.3 IPC channels
@@ -78,7 +79,7 @@ Registered by `electron/main/ipc/registerHandlers.ts`.
 - Chat: `chat/listMessages`, `chat/sendMessage`
 - LLM manager: `llmManager/listCatalogModels`, `llmManager/listDownloadedModels`, `llmManager/getActiveModel`, `llmManager/downloadModel`, `llmManager/deleteDownloadedModel`, `llmManager/selectModel`, `llmManager/getSettings`, `llmManager/updateSettings`, `llmManager/resetSettingsToDefaults`
 - LLM server: `llmServer/start`, `llmServer/stop`, `llmServer/status`
-- LLM session: `llmSession/create`, `llmSession/getTurns`, `llmSession/clear`
+- LLM session: `llmSession/create`, `llmSession/getTurns`, `llmSession/listByFile`, `llmSession/clear`
 
 Event channels sent from main to renderer:
 - Chat stream: `chat/streamChunk`

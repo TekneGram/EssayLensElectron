@@ -6,7 +6,7 @@
 - Default theme: `data-theme="system"`.
 - `AppProviders` composes:
 - `QueryClientProvider`
-- `PortsProvider` (workspace/assessment/chat/rubric/llmManager ports, backed by electron adapters by default)
+- `PortsProvider` (workspace/assessment/chat/rubric/llmManager/llmSession ports, backed by electron adapters by default)
 - `AppStateProvider`
 - `ToastContainer`
 - Query defaults (`renderer/src/app/queryClient.ts`):
@@ -21,7 +21,8 @@ Global reducer state shape (`renderer/src/types/state.ts`): `workspace`, `chat`,
 - `currentFolder`, `files`, `status`, `error`
 - `selectedFile` (`fileId`, `status`)
 - `chat`:
-- `messages`, `status`, `error`
+- `messages`, `status`, `error` (`messages` may carry optional `sessionId` for simple-chat session scoping)
+- `activeSessionIdByFileId`, `sessionsByFileId`, `sessionsStatusByFileId`, `sessionsErrorByFileId`, `sessionSyncNonceByFileId`
 - `rubric`:
 - `selectedGradingRubricIdByFileId`
 - `lockedGradingRubricId`
@@ -76,6 +77,9 @@ App
       LlmConfiguration
 
   ChatView OR ChatCollapsedRail
+    ChatControl
+    ChatListScreen OR ChatScreen
+    ActionsView
   ChatInterface
     CommandDisplay
     CommandDropdown
@@ -89,6 +93,7 @@ Important orchestration contract:
 - `AssessmentTab` owns `activeCommand`, `pendingSelection`, `chatMode`, `activeCommentId`, and `draftText` in local feature state.
 - It exports these handlers/state to bottom `ChatInterface` through `onChatBindingsChange`.
 - `ChatInterface` is globally rendered, but functionally driven by `AssessmentTab` bindings.
+- `chat-view/ChatView.tsx` is composition-only. Session workflows (`load/list/create`) live in `chat-view/application`, policy/error mapping lives in `chat-view/domain`, and React lifecycle/state orchestration lives in `chat-view/hooks/useChatViewController.ts`.
 
 ## 3) Layout and style contracts
 

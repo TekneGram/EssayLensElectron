@@ -547,7 +547,7 @@
 
 .chat {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 3fr) minmax(0, 1fr);
   gap: 8px;
   background: var(--chat-surface);
 }
@@ -557,6 +557,27 @@
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+}
+
+.chat-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-main,
+.chat-actions {
+  min-height: 0;
+}
+
+.chat-main .chat-log,
+.chat-actions .chat-log {
+  height: 100%;
+}
+
+.chat-actions .chat-log {
+  padding: 8px;
+  gap: 6px;
 }
 
 .chat-log {
@@ -588,6 +609,13 @@
 
 .msg.assistant {
   background: var(--bg-surface);
+}
+
+.chat-session-item {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
 }
 
 .chat-interface {

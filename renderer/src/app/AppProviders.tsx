@@ -5,6 +5,7 @@ import { ToastContainer } from 'react-toastify';
 import { createElectronAssessmentAdapter } from '../adapters/assessment';
 import { createElectronChatAdapter } from '../adapters/chat';
 import { createElectronLlmManagerAdapter } from '../adapters/llm-manager';
+import { createElectronLlmSessionAdapter } from '../adapters/llm-session';
 import { createElectronRubricAdapter } from '../adapters/rubric';
 import { createElectronWorkspaceAdapter } from '../adapters/workspace';
 import { PortsProvider, type AppPorts } from '../ports';
@@ -23,7 +24,8 @@ export function AppProviders({ queryClient, children, ports }: AppProvidersProps
       assessment: createElectronAssessmentAdapter(),
       chat: createElectronChatAdapter(),
       rubric: createElectronRubricAdapter(),
-      llmManager: createElectronLlmManagerAdapter()
+      llmManager: createElectronLlmManagerAdapter(),
+      llmSession: createElectronLlmSessionAdapter()
     }),
     []
   );
@@ -34,9 +36,10 @@ export function AppProviders({ queryClient, children, ports }: AppProvidersProps
       assessment: ports?.assessment ?? defaultPorts.assessment,
       chat: ports?.chat ?? defaultPorts.chat,
       rubric: ports?.rubric ?? defaultPorts.rubric,
-      llmManager: ports?.llmManager ?? defaultPorts.llmManager
+      llmManager: ports?.llmManager ?? defaultPorts.llmManager,
+      llmSession: ports?.llmSession ?? defaultPorts.llmSession
     }),
-    [defaultPorts, ports?.assessment, ports?.chat, ports?.llmManager, ports?.rubric, ports?.workspace]
+    [defaultPorts, ports?.assessment, ports?.chat, ports?.llmManager, ports?.llmSession, ports?.rubric, ports?.workspace]
   );
 
   return (

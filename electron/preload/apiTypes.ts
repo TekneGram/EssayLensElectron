@@ -5,7 +5,9 @@ import type {
   CreateLlmSessionRequest,
   CreateLlmSessionResponse,
   GetLlmSessionTurnsRequest,
-  GetLlmSessionTurnsResponse
+  GetLlmSessionTurnsResponse,
+  ListLlmSessionsByFileRequest,
+  ListLlmSessionsByFileResponse
 } from '../shared/llm-session';
 import type {
   GetLlmServerStatusResponse,
@@ -140,6 +142,7 @@ export interface EssayLensApi {
     create(request: CreateLlmSessionRequest): Promise<ApiResult<CreateLlmSessionResponse>>;
     clear(request: ClearLlmSessionRequest): Promise<ApiResult<ClearLlmSessionResponse>>;
     getTurns(request: GetLlmSessionTurnsRequest): Promise<ApiResult<GetLlmSessionTurnsResponse>>;
+    listByFile(request: ListLlmSessionsByFileRequest): Promise<ApiResult<ListLlmSessionsByFileResponse>>;
   };
 }
 

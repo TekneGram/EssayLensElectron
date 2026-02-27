@@ -2,6 +2,8 @@ import { appErr, appOk } from '../../shared/appResult';
 import type {
   ClearLlmSessionResponse,
   CreateLlmSessionResponse,
+  ListLlmSessionsByFileResponse,
+  LlmSessionListItemDto,
   GetLlmSessionTurnsResponse,
   LlmSessionTurnDto
 } from '../../shared/llm-session';
@@ -11,11 +13,15 @@ import type { IpcMainLike } from './types';
 export const LLM_SESSION_CHANNELS = {
   create: 'llmSession/create',
   clear: 'llmSession/clear',
-  getTurns: 'llmSession/getTurns'
+  getTurns: 'llmSession/getTurns',
+  listByFile: 'llmSession/listByFile'
 } as const;
 
 interface LlmSessionHandlerDeps {
-  llmChatSessionRepository: Pick<LlmChatSessionRepository, 'createSession' | 'clearSession' | 'listRecentTurns'>;
+  llmChatSessionRepository: Pick<
+    LlmChatSessionRepository,
+    'createSession' | 'clearSession' | 'listRecentTurns' | 'listSessionsByFile'
+  >;
 }
 
 function getDefaultDeps(): LlmSessionHandlerDeps {
@@ -50,6 +56,17 @@ function normalizeSessionFileRequest(payload: unknown): { sessionId: string; fil
     sessionId: candidate.sessionId.trim(),
     fileEntityUuid: candidate.fileEntityUuid.trim()
   };
+}
+
+function normalizeFileRequest(payload: unknown): { fileEntityUuid: string } | null {
+  if (typeof payload !== 'object' || payload === null) {
+    return null;
+  }
+  const candidate = payload as Record<string, unknown>;
+  if (typeof candidate.fileEntityUuid !== 'string' || !candidate.fileEntityUuid.trim()) {
+    return null;
+  }
+  return { fileEntityUuid: candidate.fileEntityUuid.trim() };
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -93,6 +110,26 @@ function isTurnsResponse(value: unknown): value is GetLlmSessionTurnsResponse {
       isObjectRecord(turn) &&
       (turn.role === 'teacher' || turn.role === 'assistant' || turn.role === 'system') &&
       typeof turn.content === 'string'
+  );
+}
+
+function isSessionListResponse(value: unknown): value is ListLlmSessionsByFileResponse {
+  if (!isObjectRecord(value)) {
+    return false;
+  }
+  if (typeof value.fileEntityUuid !== 'string' || !value.fileEntityUuid.trim() || !Array.isArray(value.sessions)) {
+    return false;
+  }
+  return value.sessions.every(
+    (item): item is LlmSessionListItemDto =>
+      isObjectRecord(item) &&
+      typeof item.sessionId === 'string' &&
+      item.sessionId.trim().length > 0 &&
+      typeof item.fileEntityUuid === 'string' &&
+      item.fileEntityUuid.trim().length > 0 &&
+      typeof item.createdAt === 'string' &&
+      typeof item.updatedAt === 'string' &&
+      typeof item.lastUsedAt === 'string'
   );
 }
 
@@ -190,6 +227,38 @@ export function registerLlmSessionHandlers(
       return appErr({
         code: 'LLM_SESSION_GET_TURNS_FAILED',
         message: 'Could not load chat session turns.',
+        details: error
+      });
+    }
+  });
+
+  ipcMain.handle(LLM_SESSION_CHANNELS.listByFile, async (_event, payload) => {
+    const normalizedPayload = normalizeFileRequest(payload);
+    if (!normalizedPayload) {
+      return appErr({
+        code: 'LLM_SESSION_LIST_BY_FILE_INVALID_PAYLOAD',
+        message: 'List-by-file payload must include a non-empty fileEntityUuid string.'
+      });
+    }
+
+    try {
+      const sessions = await deps.llmChatSessionRepository.listSessionsByFile(normalizedPayload.fileEntityUuid);
+      const response: ListLlmSessionsByFileResponse = {
+        fileEntityUuid: normalizedPayload.fileEntityUuid,
+        sessions
+      };
+      if (!isSessionListResponse(response)) {
+        return appErr({
+          code: 'LLM_SESSION_LIST_BY_FILE_INVALID_RESPONSE',
+          message: 'Session repository returned invalid list-by-file payload.',
+          details: response
+        });
+      }
+      return appOk<ListLlmSessionsByFileResponse>(response);
+    } catch (error) {
+      return appErr({
+        code: 'LLM_SESSION_LIST_BY_FILE_FAILED',
+        message: 'Could not load chat sessions for file.',
         details: error
       });
     }

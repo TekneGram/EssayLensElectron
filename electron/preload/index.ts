@@ -15,7 +15,8 @@ import type { ChatStreamChunkEvent, SendChatMessageRequest } from '../shared/cha
 import type {
   ClearLlmSessionRequest,
   CreateLlmSessionRequest,
-  GetLlmSessionTurnsRequest
+  GetLlmSessionTurnsRequest,
+  ListLlmSessionsByFileRequest
 } from '../shared/llm-session';
 import type {
   GetLlmServerStatusRequest,
@@ -135,7 +136,8 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     llmSession: {
       create: (request: CreateLlmSessionRequest) => invokeApi('llmSession/create', request),
       clear: (request: ClearLlmSessionRequest) => invokeApi('llmSession/clear', request),
-      getTurns: (request: GetLlmSessionTurnsRequest) => invokeApi('llmSession/getTurns', request)
+      getTurns: (request: GetLlmSessionTurnsRequest) => invokeApi('llmSession/getTurns', request),
+      listByFile: (request: ListLlmSessionsByFileRequest) => invokeApi('llmSession/listByFile', request)
     }
   };
 }

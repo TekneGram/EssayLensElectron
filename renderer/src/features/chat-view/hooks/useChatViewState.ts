@@ -1,11 +1,30 @@
 import { useAppState } from '../../../state';
+import {
+  selectActiveSessionIdForFile,
+  selectSessionListErrorForFile,
+  selectSessionListStatusForFile,
+  selectSessionMessagesForFile,
+  selectSessionSyncNonceForFile,
+  selectSessionsForFile
+} from '../../chat-interface/state';
 import { selectChatMessages, selectIsChatCollapsed } from '../state';
 
 export function useChatViewState() {
   const state = useAppState();
+  const selectedFileId = state.workspace.selectedFile.fileId;
   return {
     isCollapsed: selectIsChatCollapsed(state),
-    messages: selectChatMessages(state)
+    messages: selectChatMessages(state),
+    selectedFile: state.workspace.files.find((file) => file.id === selectedFileId) ?? null,
+    activeSessionId: selectActiveSessionIdForFile(state, selectedFileId),
+    sessions: selectSessionsForFile(state, selectedFileId),
+    sessionsStatus: selectSessionListStatusForFile(state, selectedFileId),
+    sessionsError: selectSessionListErrorForFile(state, selectedFileId),
+    sessionSyncNonce: selectSessionSyncNonceForFile(state, selectedFileId),
+    sessionMessages: selectSessionMessagesForFile(
+      state,
+      selectedFileId,
+      selectActiveSessionIdForFile(state, selectedFileId)
+    )
   };
 }
-

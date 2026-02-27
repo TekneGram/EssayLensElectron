@@ -9,9 +9,22 @@ export type {
 } from './domain';
 export {
   addChatMessage,
+  bumpSessionSyncForFile,
+  clearTransientSessionDrafts,
+  setActiveSessionForFile,
   selectChatError,
   selectChatStatus,
+  selectActiveSessionIdForFile,
+  selectSessionListErrorForFile,
+  selectSessionListStatusForFile,
+  selectSessionMessagesForFile,
+  selectSessionSyncNonceForFile,
+  selectSessionsForFile,
   setChatError,
+  setSessionListErrorForFile,
+  setSessionListStatusForFile,
+  setSessionTranscript,
+  setSessionsForFile,
   setChatStatus,
   updateChatMessageContent
 } from './state';

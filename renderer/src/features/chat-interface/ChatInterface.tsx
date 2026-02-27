@@ -16,6 +16,7 @@ export function ChatInterface({
   chatMode = 'comment',
   draftText = '',
   isModeLockedToChat = false,
+  isChatSendDisabled = false,
   onChatIntent,
   onDraftChange,
   onModeChange,
@@ -24,7 +25,11 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const submitAriaLabel = chatMode === 'comment' ? 'Send comment' : 'Send chat message';
   const hasActiveCommand = Boolean(activeCommand?.id);
+  const isSubmitDisabled = chatMode === 'chat' && isChatSendDisabled;
   const handleSubmit = () => {
+    if (isSubmitDisabled) {
+      return;
+    }
     void executeChatInterfaceSubmit({ chatMode, onChatIntent, onSubmit });
   };
 
@@ -45,7 +50,7 @@ export function ChatInterface({
         <div className="middle-row">
           <CommandDropdown activeCommand={activeCommand} onCommandSelected={onCommandSelected} />
           <ChatInput draftText={draftText} onDraftChange={onDraftChange} onSubmit={handleSubmit} />
-          <button className="chat-send" type="button" aria-label={submitAriaLabel} onClick={handleSubmit}>
+          <button className="chat-send" type="button" aria-label={submitAriaLabel} disabled={isSubmitDisabled} onClick={handleSubmit}>
             {chatMode === 'comment' ? (
               <svg className="chat-send-icon chat-send-icon--comment" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M4 7h8M4 11h6M4 15h4" />

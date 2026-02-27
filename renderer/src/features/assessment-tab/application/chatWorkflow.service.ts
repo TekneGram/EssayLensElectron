@@ -16,6 +16,7 @@ interface SubmitChatMessageWorkflowParams {
   dispatch: Dispatch<AppAction>;
   message: string;
   selectedFileId: string | null;
+  activeSessionId?: string;
   pendingSelection: PendingSelection | null;
   streamMessageByClientRequestId: Map<string, string>;
   streamSeqByClientRequestId: Map<string, number>;
@@ -26,6 +27,7 @@ export async function submitChatMessageWorkflow({
   dispatch,
   message,
   selectedFileId,
+  activeSessionId,
   pendingSelection,
   streamMessageByClientRequestId,
   streamSeqByClientRequestId
@@ -44,6 +46,7 @@ export async function submitChatMessageWorkflow({
       role: 'teacher',
       content: message,
       relatedFileId: selectedFileId ?? undefined,
+      sessionId: activeSessionId,
       createdAt
     })
   );
@@ -53,6 +56,7 @@ export async function submitChatMessageWorkflow({
       role: 'assistant',
       content: '',
       relatedFileId: selectedFileId ?? undefined,
+      sessionId: activeSessionId,
       createdAt
     })
   );
@@ -62,6 +66,7 @@ export async function submitChatMessageWorkflow({
   try {
     const result = await chatApi.sendMessage({
       fileId: selectedFileId ?? undefined,
+      sessionId: activeSessionId,
       message,
       contextText: pendingSelection?.exactQuote,
       clientRequestId

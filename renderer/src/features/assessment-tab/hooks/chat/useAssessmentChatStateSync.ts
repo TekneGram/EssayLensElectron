@@ -5,6 +5,7 @@ import type { AssessmentTabLocalState } from '../../state';
 interface UseAssessmentChatStateSyncParams {
   localState: AssessmentTabLocalState;
   isModeLockedToChat: boolean;
+  isChatSendDisabled: boolean;
   setDraftText: (text: string) => void;
   handleSubmit: () => Promise<void>;
   handleModeChange: (mode: AssessmentTabChatBindings['chatMode']) => void;
@@ -15,6 +16,7 @@ interface UseAssessmentChatStateSyncParams {
 export function useAssessmentChatStateSync({
   localState,
   isModeLockedToChat,
+  isChatSendDisabled,
   setDraftText,
   handleSubmit,
   handleModeChange,
@@ -29,6 +31,7 @@ export function useAssessmentChatStateSync({
       pendingSelection,
       chatMode,
       isModeLockedToChat,
+      isChatSendDisabled,
       draftText,
       onDraftChange: setDraftText,
       onSubmit: handleSubmit,
@@ -40,6 +43,7 @@ export function useAssessmentChatStateSync({
       pendingSelection,
       chatMode,
       isModeLockedToChat,
+      isChatSendDisabled,
       draftText,
       setDraftText,
       handleSubmit,

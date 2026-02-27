@@ -22,6 +22,7 @@ export interface ChatInterfaceBindings {
   pendingSelection: PendingSelection | null;
   chatMode: ChatMode;
   isModeLockedToChat: boolean;
+  isChatSendDisabled: boolean;
   draftText: string;
   onDraftChange: (text: string) => void;
   onSubmit: () => void;

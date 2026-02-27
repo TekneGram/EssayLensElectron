@@ -21,17 +21,27 @@ describe('registerLlmSessionHandlers', () => {
       { role: 'teacher', content: 'hello' },
       { role: 'assistant', content: 'hi there' }
     ]);
+    const listSessionsByFile = vi.fn().mockResolvedValue([
+      {
+        sessionId: 'sess-1',
+        fileEntityUuid: 'file-1',
+        createdAt: '2026-02-27T00:00:00.000Z',
+        updatedAt: '2026-02-27T00:10:00.000Z',
+        lastUsedAt: '2026-02-27T00:10:00.000Z'
+      }
+    ]);
     const clearSession = vi.fn().mockResolvedValue({ sessionId: 'sess-1', cleared: true });
 
     registerLlmSessionHandlers(
       { handle: harness.handle },
       {
-        llmChatSessionRepository: { createSession, listRecentTurns, clearSession } as never
+        llmChatSessionRepository: { createSession, listRecentTurns, listSessionsByFile, clearSession } as never
       }
     );
 
     const createHandler = harness.getHandler(LLM_SESSION_CHANNELS.create);
     const getTurnsHandler = harness.getHandler(LLM_SESSION_CHANNELS.getTurns);
+    const listByFileHandler = harness.getHandler(LLM_SESSION_CHANNELS.listByFile);
     const clearHandler = harness.getHandler(LLM_SESSION_CHANNELS.clear);
 
     await expect(createHandler({}, { sessionId: 'sess-1', fileEntityUuid: 'file-1' })).resolves.toEqual({
@@ -49,6 +59,21 @@ describe('registerLlmSessionHandlers', () => {
         ]
       }
     });
+    await expect(listByFileHandler({}, { fileEntityUuid: 'file-1' })).resolves.toEqual({
+      ok: true,
+      data: {
+        fileEntityUuid: 'file-1',
+        sessions: [
+          {
+            sessionId: 'sess-1',
+            fileEntityUuid: 'file-1',
+            createdAt: '2026-02-27T00:00:00.000Z',
+            updatedAt: '2026-02-27T00:10:00.000Z',
+            lastUsedAt: '2026-02-27T00:10:00.000Z'
+          }
+        ]
+      }
+    });
     await expect(clearHandler({}, { sessionId: 'sess-1' })).resolves.toEqual({
       ok: true,
       data: { sessionId: 'sess-1', cleared: true }
@@ -56,6 +81,7 @@ describe('registerLlmSessionHandlers', () => {
 
     expect(createSession).toHaveBeenNthCalledWith(1, 'sess-1', 'file-1');
     expect(listRecentTurns).toHaveBeenNthCalledWith(1, 'sess-1', 'file-1');
+    expect(listSessionsByFile).toHaveBeenNthCalledWith(1, 'file-1');
     expect(clearSession).toHaveBeenNthCalledWith(1, 'sess-1');
   });
 
@@ -63,17 +89,21 @@ describe('registerLlmSessionHandlers', () => {
     const harness = createHarness();
     const createSession = vi.fn().mockResolvedValue({ sessionId: '', fileEntityUuid: '' });
     const listRecentTurns = vi.fn().mockResolvedValue([{ role: 'x', content: 'bad' }]);
+    const listSessionsByFile = vi.fn().mockResolvedValue([
+      { sessionId: '', fileEntityUuid: '', createdAt: 1, updatedAt: 2, lastUsedAt: 3 }
+    ]);
     const clearSession = vi.fn();
 
     registerLlmSessionHandlers(
       { handle: harness.handle },
       {
-        llmChatSessionRepository: { createSession, listRecentTurns, clearSession } as never
+        llmChatSessionRepository: { createSession, listRecentTurns, listSessionsByFile, clearSession } as never
       }
     );
 
     const createHandler = harness.getHandler(LLM_SESSION_CHANNELS.create);
     const getTurnsHandler = harness.getHandler(LLM_SESSION_CHANNELS.getTurns);
+    const listByFileHandler = harness.getHandler(LLM_SESSION_CHANNELS.listByFile);
     const clearHandler = harness.getHandler(LLM_SESSION_CHANNELS.clear);
 
     await expect(createHandler({}, {})).resolves.toEqual({
@@ -97,6 +127,13 @@ describe('registerLlmSessionHandlers', () => {
         message: 'Get turns payload must include non-empty sessionId and fileEntityUuid strings.'
       }
     });
+    await expect(listByFileHandler({}, { fileEntityUuid: ' ' })).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'LLM_SESSION_LIST_BY_FILE_INVALID_PAYLOAD',
+        message: 'List-by-file payload must include a non-empty fileEntityUuid string.'
+      }
+    });
     await expect(createHandler({}, { sessionId: 'sess-1', fileEntityUuid: 'file-1' })).resolves.toEqual({
       ok: false,
       error: {
@@ -114,6 +151,17 @@ describe('registerLlmSessionHandlers', () => {
           sessionId: 'sess-1',
           fileEntityUuid: 'file-1',
           turns: [{ role: 'x', content: 'bad' }]
+        }
+      }
+    });
+    await expect(listByFileHandler({}, { fileEntityUuid: 'file-1' })).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'LLM_SESSION_LIST_BY_FILE_INVALID_RESPONSE',
+        message: 'Session repository returned invalid list-by-file payload.',
+        details: {
+          fileEntityUuid: 'file-1',
+          sessions: [{ sessionId: '', fileEntityUuid: '', createdAt: 1, updatedAt: 2, lastUsedAt: 3 }]
         }
       }
     });

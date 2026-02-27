@@ -46,13 +46,19 @@
 
 ### 6) Chat message round-trip (with streaming)
 
-1. User switches `ChatInterface` mode to chat and submits a message.
-2. Renderer optimistically appends teacher + empty assistant messages, then calls `chat/sendMessage` with `clientRequestId`.
-3. Main validates LLM runtime readiness and sends request to orchestrator (`llm.chatStream` when available, fallback `llm.chat`).
-4. Stream chunks are emitted over `chat/streamChunk`; renderer appends chunk text to the assistant message.
-5. On completion, renderer marks chat status idle and finalizes assistant content.
-6. Main also persists teacher/assistant messages in `ChatRepository`.
-7. If runtime is not ready, main returns `LLM_NOT_READY` and renderer surfaces the error.
+1. User selects a file; `ChatView` loads sessions with `llmSession/listByFile({ fileEntityUuid })`.
+2. User chooses a session in `ChatListScreen`; renderer loads turns via `llmSession/getTurns({ sessionId, fileEntityUuid })`.
+3. User switches `ChatInterface` mode to chat and submits a message.
+4. Renderer blocks chat send when no file is selected.
+5. Renderer optimistically appends teacher + empty assistant messages, then calls `chat/sendMessage` with `fileId`, active `sessionId`, and `clientRequestId`.
+6. Main validates LLM runtime readiness and sends request to orchestrator (`llm.chatStream` when available, fallback `llm.chat`).
+7. Stream chunks are emitted over `chat/streamChunk`; renderer appends chunk text to the assistant message.
+8. On completion, renderer marks chat status idle and finalizes assistant content.
+9. Renderer writes optimistic send/stream messages with active `sessionId` into chat state and bumps a per-file session sync nonce.
+10. `ChatView` refreshes `listByFile` ordering and `getTurns` for the active session, replacing that session transcript in state.
+11. On session switch/new-chat, transient empty assistant draft messages for the previous session are cleared.
+12. Main also persists teacher/assistant messages in `ChatRepository`.
+13. If runtime is not ready, main returns `LLM_NOT_READY` and renderer surfaces the error.
 
 ### 7) Generate annotated feedback DOCX
 

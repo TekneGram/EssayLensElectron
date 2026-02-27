@@ -6,10 +6,13 @@ import type {
   AddInlineFeedbackRequest
 } from '../../../../../../electron/shared/assessmentContracts';
 import { usePorts } from '../../../../ports';
+import { useAppState } from '../../../../state';
 import type { FeedbackItem } from '../../../feedback/domain';
 import { toChatErrorMessage } from '../../domain/assessmentTab.logic';
 import { handleChatStreamChunkWorkflow, submitChatMessageWorkflow } from '../../application/chatWorkflow.service';
 import { submitCommentFeedbackWorkflow } from '../../application/commentsWorkflow.service';
+import { bumpSessionSyncForFile, selectActiveSessionIdForFile, setChatError } from '../../../chat-interface/state';
+import { resolveSessionIdForSend } from '../../../chat-interface/domain';
 import { selectIsModeLockedToChat } from '../../state';
 import type { AssessmentTabAction, AssessmentTabLocalState } from '../../state';
 import type { AppAction } from '../../../../state/actions';
@@ -30,6 +33,7 @@ interface UseAssessmentChatActionsResult {
   handleSubmit: () => Promise<void>;
   setDraftText: (text: string) => void;
   isModeLockedToChat: boolean;
+  isChatSendDisabled: boolean;
 }
 
 export function useAssessmentChatActions({
@@ -40,8 +44,12 @@ export function useAssessmentChatActions({
   addFeedback
 }: UseAssessmentChatActionsParams): UseAssessmentChatActionsResult {
   const { chat: chatApi } = usePorts();
+  const appState = useAppState();
   const { pendingSelection, chatMode, draftText } = localState;
   const isModeLockedToChat = selectIsModeLockedToChat(localState);
+  const activeSessionId = selectActiveSessionIdForFile(appState, selectedFileId);
+  const resolvedSessionId = selectedFileId ? resolveSessionIdForSend(selectedFileId, activeSessionId) : undefined;
+  const isChatSendDisabled = !selectedFileId;
 
   const streamMessageByClientRequestId = useRef(new Map<string, string>());
   const streamSeqByClientRequestId = useRef(new Map<string, number>());
@@ -86,6 +94,13 @@ export function useAssessmentChatActions({
       return;
     }
 
+    if (!selectedFileId) {
+      const message = 'Select a file before sending chat messages.';
+      appDispatch(setChatError(message));
+      toast.error(message);
+      return;
+    }
+
     try {
       localDispatch({ type: 'assessmentTab/setDraftText', payload: '' });
       await submitChatMessageWorkflow({
@@ -93,15 +108,17 @@ export function useAssessmentChatActions({
         dispatch: appDispatch,
         message,
         selectedFileId,
+        activeSessionId: resolvedSessionId,
         pendingSelection,
         streamMessageByClientRequestId: streamMessageByClientRequestId.current,
         streamSeqByClientRequestId: streamSeqByClientRequestId.current
       });
+      appDispatch(bumpSessionSyncForFile({ fileId: selectedFileId }));
     } catch (error) {
       const errorMessage = toChatErrorMessage(error, 'Unable to send chat message.');
       toast.error(errorMessage);
     }
-  }, [addFeedback, appDispatch, chatApi, chatMode, draftText, localDispatch, pendingSelection, selectedFileId]);
+  }, [addFeedback, appDispatch, chatApi, chatMode, draftText, localDispatch, pendingSelection, resolvedSessionId, selectedFileId]);
 
   useEffect(() => {
     if (typeof chatApi.onStreamChunk !== 'function') {
@@ -126,6 +143,7 @@ export function useAssessmentChatActions({
     handleModeChange,
     handleSubmit,
     setDraftText,
-    isModeLockedToChat
+    isModeLockedToChat,
+    isChatSendDisabled
   };
 }

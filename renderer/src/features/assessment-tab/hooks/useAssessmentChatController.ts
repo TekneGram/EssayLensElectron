@@ -25,6 +25,7 @@ interface UseAssessmentChatControllerParams {
 interface UseAssessmentChatControllerResult {
   chatMode: AssessmentTabChatBindings['chatMode'];
   isModeLockedToChat: boolean;
+  isChatSendDisabled: boolean;
 }
 
 export function useAssessmentChatController({
@@ -36,7 +37,7 @@ export function useAssessmentChatController({
   onChatBindingsChange,
   setActiveCommandWithModeRule
 }: UseAssessmentChatControllerParams): UseAssessmentChatControllerResult {
-  const { handleModeChange, handleSubmit, setDraftText, isModeLockedToChat } = useAssessmentChatActions({
+  const { handleModeChange, handleSubmit, setDraftText, isModeLockedToChat, isChatSendDisabled } = useAssessmentChatActions({
     appDispatch,
     localState,
     localDispatch,
@@ -47,6 +48,7 @@ export function useAssessmentChatController({
   useAssessmentChatStateSync({
     localState,
     isModeLockedToChat,
+    isChatSendDisabled,
     setDraftText,
     handleSubmit,
     handleModeChange,
@@ -56,6 +58,7 @@ export function useAssessmentChatController({
 
   return {
     chatMode: localState.chatMode,
-    isModeLockedToChat
+    isModeLockedToChat,
+    isChatSendDisabled
   };
 }

@@ -32,3 +32,20 @@ export interface GetLlmSessionTurnsResponse {
   fileEntityUuid: string;
   turns: LlmSessionTurnDto[];
 }
+
+export interface ListLlmSessionsByFileRequest {
+  fileEntityUuid: string;
+}
+
+export interface LlmSessionListItemDto {
+  sessionId: string;
+  fileEntityUuid: string;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt: string;
+}
+
+export interface ListLlmSessionsByFileResponse {
+  fileEntityUuid: string;
+  sessions: LlmSessionListItemDto[];
+}
