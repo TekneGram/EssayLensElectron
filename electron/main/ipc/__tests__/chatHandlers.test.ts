@@ -81,6 +81,10 @@ describe('registerChatHandlers', () => {
       {
         repository,
         llmOrchestrator: { requestActionStream } as never,
+        llmChatSessionRepository: {
+          listRecentTurns: vi.fn().mockResolvedValue([{ role: 'teacher', content: 'prior turn' }]),
+          appendTurnPair: vi.fn().mockResolvedValue(undefined)
+        } as never,
         llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(readySettings) } as never,
         fileExists: vi.fn().mockResolvedValue(true),
         isExecutable: vi.fn().mockResolvedValue(true)
@@ -104,6 +108,7 @@ describe('registerChatHandlers', () => {
         message: 'Teacher prompt',
         clientRequestId: 'client-1',
         sessionId: 'file:file-1',
+        sessionTurns: [{ role: 'teacher', content: 'prior turn' }],
         settings: expect.objectContaining({
           llm_server_url: 'http://127.0.0.1:8080/v1/chat/completions'
         })
@@ -154,6 +159,10 @@ describe('registerChatHandlers', () => {
       {
         repository,
         llmOrchestrator: { requestAction } as never,
+        llmChatSessionRepository: {
+          listRecentTurns: vi.fn().mockResolvedValue([]),
+          appendTurnPair: vi.fn().mockResolvedValue(undefined)
+        } as never,
         llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(readySettings) } as never,
         fileExists: vi.fn().mockResolvedValue(true),
         isExecutable: vi.fn().mockResolvedValue(true)
@@ -190,6 +199,10 @@ describe('registerChatHandlers', () => {
       {
         repository,
         llmOrchestrator: { requestAction } as never,
+        llmChatSessionRepository: {
+          listRecentTurns: vi.fn().mockResolvedValue([]),
+          appendTurnPair: vi.fn().mockResolvedValue(undefined)
+        } as never,
         llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(readySettings) } as never,
         fileExists: vi.fn().mockResolvedValue(true),
         isExecutable: vi.fn().mockResolvedValue(true)
@@ -274,6 +287,10 @@ describe('registerChatHandlers', () => {
       {
         repository,
         llmOrchestrator: { requestAction } as never,
+        llmChatSessionRepository: {
+          listRecentTurns: vi.fn().mockResolvedValue([]),
+          appendTurnPair: vi.fn().mockResolvedValue(undefined)
+        } as never,
         llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(settings) } as never,
         fileExists: vi.fn().mockResolvedValue(true),
         isExecutable: vi.fn().mockResolvedValue(true)
@@ -338,6 +355,10 @@ describe('registerChatHandlers', () => {
       {
         repository,
         llmOrchestrator: { requestAction } as never,
+        llmChatSessionRepository: {
+          listRecentTurns: vi.fn().mockResolvedValue([]),
+          appendTurnPair: vi.fn().mockResolvedValue(undefined)
+        } as never,
         llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(settings) } as never,
         fileExists,
         isExecutable: vi.fn().mockResolvedValue(true)
@@ -404,6 +425,10 @@ describe('registerChatHandlers', () => {
       {
         repository,
         llmOrchestrator: { requestAction } as never,
+        llmChatSessionRepository: {
+          listRecentTurns: vi.fn().mockResolvedValue([]),
+          appendTurnPair: vi.fn().mockResolvedValue(undefined)
+        } as never,
         llmSettingsRepository: llmSettingsRepository as never,
         llmSelectionRepository: llmSelectionRepository as never,
         resolveLlmServerPath: () => '/runtime/llama-server',

@@ -8,8 +8,6 @@ from typing import Any
 
 from app.pipeline_simple import (
     WorkerActionError,
-    clear_session,
-    create_session,
     run_chat,
     run_chat_stream,
     warm_runtime,
@@ -113,9 +111,17 @@ def _handle_request(req: dict[str, Any], lifecycle: RuntimeLifecycle) -> dict[st
         if action == SERVER_STATUS_ACTION:
             return _success(request_id, lifecycle.get_status())
         if action == SESSION_CREATE_ACTION:
-            return _success(request_id, create_session(payload))
+            return _failure(
+                request_id,
+                "PY_ACTION_FAILED",
+                "Action deprecated: llm.session.create is now handled by Electron session repository.",
+            )
         if action == SESSION_CLEAR_ACTION:
-            return _success(request_id, clear_session(payload))
+            return _failure(
+                request_id,
+                "PY_ACTION_FAILED",
+                "Action deprecated: llm.session.clear is now handled by Electron session repository.",
+            )
 
         route = ACTION_TO_PIPELINE.get(action)
         if route is not None:

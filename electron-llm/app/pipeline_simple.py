@@ -4,7 +4,6 @@ from typing import Any, Callable
 
 from app.container import build_container
 from app.runtime_lifecycle import RuntimeLifecycle
-from app.session_store import SessionStore
 from app.settings import build_settings_from_payload
 
 
@@ -15,11 +14,25 @@ class WorkerActionError(Exception):
         self.details = details
 
 
-def _extract_session_id(payload: dict[str, Any]) -> str | None:
-    session_id = payload.get("sessionId")
-    if isinstance(session_id, str) and session_id.strip():
-        return session_id.strip()
-    return None
+def _extract_session_turns(payload: dict[str, Any]) -> list[dict[str, str]]:
+    raw_turns = payload.get("sessionTurns")
+    if raw_turns is None:
+        return []
+    if not isinstance(raw_turns, list):
+        raise WorkerActionError("payload.sessionTurns must be an array when provided.")
+
+    turns: list[dict[str, str]] = []
+    for item in raw_turns:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role")
+        content = item.get("content")
+        if role not in {"teacher", "assistant", "system"}:
+            continue
+        if not isinstance(content, str) or not content.strip():
+            continue
+        turns.append({"role": role, "content": content.strip()})
+    return turns
 
 
 def _extract_context_text(payload: dict[str, Any]) -> str | None:
@@ -95,9 +108,14 @@ def _compose_prompt(message: str, context_text: str | None, session_turns: list[
         for turn in session_turns:
             role = turn.get("role")
             content = turn.get("content")
-            if role not in {"teacher", "assistant"} or not isinstance(content, str):
+            if role not in {"teacher", "assistant", "system"} or not isinstance(content, str):
                 continue
-            prefix = "Teacher" if role == "teacher" else "Assistant"
+            if role == "teacher":
+                prefix = "Teacher"
+            elif role == "assistant":
+                prefix = "Assistant"
+            else:
+                prefix = "System"
             history_lines.append(f"{prefix}: {content}")
         if history_lines:
             blocks.append("Conversation History:\n" + "\n".join(history_lines))
@@ -134,10 +152,10 @@ def run_chat(payload: dict[str, Any], lifecycle: RuntimeLifecycle) -> str:
 
     message = _extract_message(payload)
     context_text = _extract_context_text(payload)
-    session_id = _extract_session_id(payload)
+    session_turns = _extract_session_turns(payload)
     prompt_text = message
-    if session_id is not None:
-        prompt_text = _compose_prompt(message, context_text, _SESSION_STORE.get_turns(session_id))
+    if session_turns:
+        prompt_text = _compose_prompt(message, context_text, session_turns)
     elif context_text:
         prompt_text = _compose_prompt(message, context_text, [])
     app_cfg, llm_task_service = _build_runtime(payload, lifecycle)
@@ -169,10 +187,7 @@ def run_chat(payload: dict[str, Any], lifecycle: RuntimeLifecycle) -> str:
     if not reply or not reply.strip():
         raise WorkerActionError("LLM request failed: task did not return textual content.")
 
-    final_reply = reply.strip()
-    if session_id is not None:
-        _SESSION_STORE.append_turn_pair(session_id, message, final_reply)
-    return final_reply
+    return reply.strip()
 
 
 def run_chat_stream(
@@ -185,10 +200,10 @@ def run_chat_stream(
     client_request_id = _extract_client_request_id(payload)
     message = _extract_message(payload)
     context_text = _extract_context_text(payload)
-    session_id = _extract_session_id(payload)
+    session_turns = _extract_session_turns(payload)
     prompt_text = message
-    if session_id is not None:
-        prompt_text = _compose_prompt(message, context_text, _SESSION_STORE.get_turns(session_id))
+    if session_turns:
+        prompt_text = _compose_prompt(message, context_text, session_turns)
     elif context_text:
         prompt_text = _compose_prompt(message, context_text, [])
     seq = 1
@@ -284,25 +299,4 @@ def run_chat_stream(
         },
     )
 
-    if session_id is not None:
-        _SESSION_STORE.append_turn_pair(session_id, message, reply)
     return success_response_factory(request_id, {"reply": reply})
-
-
-def create_session(payload: dict[str, Any]) -> dict[str, Any]:
-    requested_session_id = payload.get("sessionId")
-    if not isinstance(requested_session_id, str) or not requested_session_id.strip():
-        raise WorkerActionError("payload.sessionId must be a non-empty string for llm.session.create.")
-    session_id = _SESSION_STORE.create_session(requested_session_id)
-    return {"sessionId": session_id}
-
-
-def clear_session(payload: dict[str, Any]) -> dict[str, Any]:
-    requested_session_id = payload.get("sessionId")
-    if not isinstance(requested_session_id, str) or not requested_session_id.strip():
-        raise WorkerActionError("payload.sessionId must be a non-empty string for llm.session.clear.")
-    cleared = _SESSION_STORE.clear_session(requested_session_id)
-    return {"sessionId": requested_session_id.strip(), "cleared": cleared}
-
-
-_SESSION_STORE = SessionStore(max_turns=12)

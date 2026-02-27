@@ -14,70 +14,73 @@ function createHarness() {
 }
 
 describe('registerLlmSessionHandlers', () => {
-  it('creates and clears sessions through orchestrator', async () => {
+  it('creates, gets turns, and clears sessions through repository', async () => {
     const harness = createHarness();
-    const requestAction = vi
-      .fn()
-      .mockResolvedValueOnce({
-        requestId: 'create-1',
-        ok: true,
-        data: { sessionId: 'sess-1' },
-        timestamp: '2026-02-27T00:00:00.000Z'
-      })
-      .mockResolvedValueOnce({
-        requestId: 'clear-1',
-        ok: true,
-        data: { sessionId: 'sess-1', cleared: true },
-        timestamp: '2026-02-27T00:00:00.000Z'
-      });
+    const createSession = vi.fn().mockResolvedValue({ sessionId: 'sess-1', fileEntityUuid: 'file-1' });
+    const listRecentTurns = vi.fn().mockResolvedValue([
+      { role: 'teacher', content: 'hello' },
+      { role: 'assistant', content: 'hi there' }
+    ]);
+    const clearSession = vi.fn().mockResolvedValue({ sessionId: 'sess-1', cleared: true });
 
     registerLlmSessionHandlers(
       { handle: harness.handle },
       {
-        llmOrchestrator: { requestAction } as never
+        llmChatSessionRepository: { createSession, listRecentTurns, clearSession } as never
       }
     );
 
     const createHandler = harness.getHandler(LLM_SESSION_CHANNELS.create);
+    const getTurnsHandler = harness.getHandler(LLM_SESSION_CHANNELS.getTurns);
     const clearHandler = harness.getHandler(LLM_SESSION_CHANNELS.clear);
 
-    await expect(createHandler({}, { sessionId: 'sess-1' })).resolves.toEqual({
+    await expect(createHandler({}, { sessionId: 'sess-1', fileEntityUuid: 'file-1' })).resolves.toEqual({
       ok: true,
-      data: { sessionId: 'sess-1' }
+      data: { sessionId: 'sess-1', fileEntityUuid: 'file-1' }
+    });
+    await expect(getTurnsHandler({}, { sessionId: 'sess-1', fileEntityUuid: 'file-1' })).resolves.toEqual({
+      ok: true,
+      data: {
+        sessionId: 'sess-1',
+        fileEntityUuid: 'file-1',
+        turns: [
+          { role: 'teacher', content: 'hello' },
+          { role: 'assistant', content: 'hi there' }
+        ]
+      }
     });
     await expect(clearHandler({}, { sessionId: 'sess-1' })).resolves.toEqual({
       ok: true,
       data: { sessionId: 'sess-1', cleared: true }
     });
 
-    expect(requestAction).toHaveBeenNthCalledWith(1, 'llm.session.create', { sessionId: 'sess-1' });
-    expect(requestAction).toHaveBeenNthCalledWith(2, 'llm.session.clear', { sessionId: 'sess-1' });
+    expect(createSession).toHaveBeenNthCalledWith(1, 'sess-1', 'file-1');
+    expect(listRecentTurns).toHaveBeenNthCalledWith(1, 'sess-1', 'file-1');
+    expect(clearSession).toHaveBeenNthCalledWith(1, 'sess-1');
   });
 
   it('rejects invalid payload and invalid response', async () => {
     const harness = createHarness();
-    const requestAction = vi.fn().mockResolvedValue({
-      requestId: 'create-invalid',
-      ok: true,
-      data: { sessionId: '' },
-      timestamp: '2026-02-27T00:00:00.000Z'
-    });
+    const createSession = vi.fn().mockResolvedValue({ sessionId: '', fileEntityUuid: '' });
+    const listRecentTurns = vi.fn().mockResolvedValue([{ role: 'x', content: 'bad' }]);
+    const clearSession = vi.fn();
 
     registerLlmSessionHandlers(
       { handle: harness.handle },
       {
-        llmOrchestrator: { requestAction } as never
+        llmChatSessionRepository: { createSession, listRecentTurns, clearSession } as never
       }
     );
 
     const createHandler = harness.getHandler(LLM_SESSION_CHANNELS.create);
+    const getTurnsHandler = harness.getHandler(LLM_SESSION_CHANNELS.getTurns);
     const clearHandler = harness.getHandler(LLM_SESSION_CHANNELS.clear);
 
     await expect(createHandler({}, {})).resolves.toEqual({
       ok: false,
       error: {
         code: 'LLM_SESSION_CREATE_INVALID_PAYLOAD',
-        message: 'Create session payload must include a non-empty sessionId string.'
+        message: 'Create session payload must include non-empty sessionId and fileEntityUuid strings.'
       }
     });
     await expect(clearHandler({}, { sessionId: ' ' })).resolves.toEqual({
@@ -87,12 +90,31 @@ describe('registerLlmSessionHandlers', () => {
         message: 'Clear session payload must include a non-empty sessionId string.'
       }
     });
-    await expect(createHandler({}, { sessionId: 'sess-1' })).resolves.toEqual({
+    await expect(getTurnsHandler({}, { sessionId: ' ', fileEntityUuid: 'file-1' })).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'LLM_SESSION_GET_TURNS_INVALID_PAYLOAD',
+        message: 'Get turns payload must include non-empty sessionId and fileEntityUuid strings.'
+      }
+    });
+    await expect(createHandler({}, { sessionId: 'sess-1', fileEntityUuid: 'file-1' })).resolves.toEqual({
       ok: false,
       error: {
         code: 'LLM_SESSION_CREATE_INVALID_RESPONSE',
-        message: 'Python worker returned invalid session create payload.',
-        details: { sessionId: '' }
+        message: 'Session repository returned invalid create payload.',
+        details: { sessionId: '', fileEntityUuid: '' }
+      }
+    });
+    await expect(getTurnsHandler({}, { sessionId: 'sess-1', fileEntityUuid: 'file-1' })).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'LLM_SESSION_GET_TURNS_INVALID_RESPONSE',
+        message: 'Session repository returned invalid turns payload.',
+        details: {
+          sessionId: 'sess-1',
+          fileEntityUuid: 'file-1',
+          turns: [{ role: 'x', content: 'bad' }]
+        }
       }
     });
   });

@@ -244,6 +244,29 @@ CREATE TABLE llm_selection (
 );
 ```
 
+### LLM session memory tables
+```sql
+CREATE TABLE llm_chat_sessions (
+  session_id TEXT PRIMARY KEY,
+  file_entity_uuid TEXT,
+  pipeline_key TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  last_used_at TEXT NOT NULL,
+  FOREIGN KEY (file_entity_uuid) REFERENCES filename(entity_uuid) ON DELETE CASCADE
+);
+
+CREATE TABLE llm_chat_session_turns (
+  uuid TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('teacher', 'assistant', 'system')),
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (session_id) REFERENCES llm_chat_sessions(session_id) ON DELETE CASCADE
+);
+```
+
 ### Indexes and triggers (current)
 ```sql
 CREATE INDEX idx_chats_entity ON chats(entity_uuid);
@@ -258,6 +281,10 @@ CREATE INDEX idx_feedback_anchor_lookup ON feedback_anchors(part, paragraph_inde
 CREATE INDEX idx_rubric_instances_file ON file_rubric_instances(file_entity_uuid);
 CREATE INDEX idx_rubric_instances_rubric ON file_rubric_instances(rubric_entity_uuid);
 CREATE INDEX idx_rubric_scores_instance ON file_rubric_scores(rubric_instance_uuid);
+CREATE INDEX idx_llm_chat_sessions_file ON llm_chat_sessions(file_entity_uuid);
+CREATE INDEX idx_llm_chat_sessions_last_used ON llm_chat_sessions(last_used_at);
+CREATE UNIQUE INDEX idx_llm_chat_session_turns_session_seq ON llm_chat_session_turns(session_id, seq);
+CREATE INDEX idx_llm_chat_session_turns_session_created ON llm_chat_session_turns(session_id, created_at);
 CREATE INDEX idx_rubric_scores_detail ON file_rubric_scores(rubric_detail_uuid);
 CREATE UNIQUE INDEX idx_unique_instance_detail ON file_rubric_scores(rubric_instance_uuid, rubric_detail_uuid);
 CREATE INDEX idx_rubrics_archived_name ON rubrics(is_archived, name COLLATE NOCASE);

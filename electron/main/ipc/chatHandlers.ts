@@ -10,6 +10,7 @@ import type {
   SendChatMessageResponse
 } from '../../shared/chatContracts';
 import { ChatRepository } from '../db/repositories/chatRepository';
+import { LlmChatSessionRepository, type LlmSessionTurn } from '../db/repositories/llmChatSessionRepository';
 import { LlmSelectionRepository } from '../db/repositories/llmSelectionRepository';
 import { LlmSettingsRepository, type LlmRuntimeSettings } from '../db/repositories/llmSettingsRepository';
 import { LlmOrchestrator } from '../services/llmOrchestrator';
@@ -30,6 +31,7 @@ interface ChatHandlerDeps {
   repository: ChatRepository;
   llmOrchestrator: LlmOrchestrator;
   llmSettingsRepository?: LlmSettingsRepository;
+  llmChatSessionRepository?: Pick<LlmChatSessionRepository, 'listRecentTurns' | 'appendTurnPair'>;
   llmSelectionRepository?: Pick<LlmSelectionRepository, 'getActiveModel' | 'resetSettingsToDefaults'>;
   fileExists?: (targetPath: string) => Promise<boolean>;
   isExecutable?: (targetPath: string) => Promise<boolean>;
@@ -37,6 +39,7 @@ interface ChatHandlerDeps {
 }
 
 interface LlmChatPayload extends SendChatMessageRequest {
+  sessionTurns?: LlmSessionTurn[];
   settings: LlmRuntimeSettings;
 }
 
@@ -75,6 +78,7 @@ function getDefaultDeps(): ChatHandlerDeps {
     repository: new ChatRepository(),
     llmOrchestrator: new LlmOrchestrator(),
     llmSettingsRepository: new LlmSettingsRepository(),
+    llmChatSessionRepository: new LlmChatSessionRepository(),
     llmSelectionRepository: new LlmSelectionRepository(),
     fileExists,
     isExecutable,
@@ -216,6 +220,19 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
       sessionId: resolveSessionId(normalizedRequest),
       settings
     };
+    const resolvedSessionId = llmPayload.sessionId;
+    const llmChatSessionRepository = deps.llmChatSessionRepository ?? new LlmChatSessionRepository();
+    if (resolvedSessionId) {
+      try {
+        llmPayload.sessionTurns = await llmChatSessionRepository.listRecentTurns(resolvedSessionId);
+      } catch (error) {
+        return appErr({
+          code: 'CHAT_SESSION_LOAD_FAILED',
+          message: 'Could not load chat session context.',
+          details: error
+        });
+      }
+    }
 
     const emitToRenderer = (payload: ChatStreamChunkEvent) => {
       if (!isEventWithSender(event)) {
@@ -273,6 +290,14 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
 
     const createdAt = new Date().toISOString();
     try {
+      if (resolvedSessionId) {
+        await llmChatSessionRepository.appendTurnPair(
+          resolvedSessionId,
+          normalizedRequest.message,
+          reply,
+          normalizedRequest.fileId
+        );
+      }
       await deps.repository.addMessage({
         id: makeMessageId(),
         role: 'teacher',

@@ -64,7 +64,8 @@ Defined in `electron/preload/index.ts` + `electron/preload/apiTypes.ts`.
 - `status()`
 
 - `llmSession`
-- `create({ sessionId })`
+- `create({ sessionId, fileEntityUuid })`
+- `getTurns({ sessionId, fileEntityUuid })`
 - `clear({ sessionId })`
 
 ### 1.3 IPC channels
@@ -77,7 +78,7 @@ Registered by `electron/main/ipc/registerHandlers.ts`.
 - Chat: `chat/listMessages`, `chat/sendMessage`
 - LLM manager: `llmManager/listCatalogModels`, `llmManager/listDownloadedModels`, `llmManager/getActiveModel`, `llmManager/downloadModel`, `llmManager/deleteDownloadedModel`, `llmManager/selectModel`, `llmManager/getSettings`, `llmManager/updateSettings`, `llmManager/resetSettingsToDefaults`
 - LLM server: `llmServer/start`, `llmServer/stop`, `llmServer/status`
-- LLM session: `llmSession/create`, `llmSession/clear`
+- LLM session: `llmSession/create`, `llmSession/getTurns`, `llmSession/clear`
 
 Event channels sent from main to renderer:
 - Chat stream: `chat/streamChunk`
@@ -133,8 +134,10 @@ Event channels sent from main to renderer:
 ### 2.5 Chat flow (`chatHandlers.ts`)
 
 - `sendMessage` normalizes request (supports legacy `content` fallback), loads runtime settings, and validates LLM readiness before calling Python.
+- Session context is persisted in SQLite using `LlmChatSessionRepository` (`llm_chat_sessions` + `llm_chat_session_turns`).
+- `sendMessage` resolves `sessionId` from request (`sessionId` or fallback `file:<fileId>`), loads recent turns, and passes them to Python in `sessionTurns`.
 - When streaming is available, it uses `llm.chatStream` and emits `chat/streamChunk` events (`start`/`chunk`/`done`/`error`) back to renderer; otherwise it falls back to `llm.chat`.
-- On success it persists both teacher and assistant messages in `ChatRepository` and returns `reply`.
+- On success it persists both teacher and assistant UI messages in `ChatRepository`, appends turn-pairs to `LlmChatSessionRepository`, and returns `reply`.
 - `listMessages` returns all messages or file-scoped messages.
 - If runtime prerequisites are missing, it returns `LLM_NOT_READY` with actionable detail payload.
 
@@ -150,7 +153,7 @@ Event channels sent from main to renderer:
 - Python worker entrypoint (`electron-llm/main.py`) now routes chat actions to the simple pipeline module (`electron-llm/app/pipeline_simple.py`) instead of keeping simple-chat logic inline.
 - Enforces timeout and requestId matching.
 - Supports stream event envelopes (`stream_start`, `stream_chunk`, `stream_done`, `stream_error`) for chat streaming.
-- Supported actions: `llm.assessEssay`, `llm.chat`, `llm.chatStream`, `llm.generateFeedbackSummary`, `llm.evaluate.simple`, `llm.evaluate.withRubric`, `llm.evaluate.bulk`, `llm.session.create`, `llm.session.clear`, `llm.server.start`, `llm.server.stop`, `llm.server.status`.
+- Supported actions: `llm.assessEssay`, `llm.chat`, `llm.chatStream`, `llm.generateFeedbackSummary`, `llm.evaluate.simple`, `llm.evaluate.withRubric`, `llm.evaluate.bulk`, `llm.session.create` (deprecated), `llm.session.clear` (deprecated), `llm.server.start`, `llm.server.stop`, `llm.server.status`.
 - Error mapping: `PY_TIMEOUT`, `PY_PROCESS_DOWN`, `PY_INVALID_RESPONSE`, `PY_ACTION_FAILED`.
 
 ### 2.7 LLM manager flow (`llmManagerHandlers.ts`)
