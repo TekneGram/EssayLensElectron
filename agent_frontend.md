@@ -97,6 +97,8 @@ Important orchestration contract:
 - `ChatInterface` is globally rendered, but functionally driven by `AssessmentTab` bindings.
 - `chat-view/ChatView.tsx` is composition-only. Session workflows (`load/list/create`) live in `chat-view/application`, policy/error mapping lives in `chat-view/domain`, and React lifecycle/state orchestration lives in `chat-view/hooks/useChatViewController.ts`.
 - While a chat send is in-flight (`chat.status === sending` or session send phase is set), `useChatViewController` must not refresh session turns/list from `llmSession`; this preserves optimistic teacher/assistant messages and stream updates in `ChatScreen` until persistence catches up.
+- `chat-view/components/ChatScreen.tsx` owns stream-follow scroll behavior: it auto-scrolls to the latest message while the user is near bottom, pauses auto-follow if the user scrolls up, and resumes when the user returns near bottom.
+- `chat-view/components/ChatBubble.tsx` renders chat message markdown (`react-markdown` + `remark-gfm` + `rehype-sanitize`) and must preserve safe link handling and code-block formatting.
 - `chat-view/components/ChatListScreen.tsx` renders temporary session labels (`Chat 1`, `Chat 2`, ...) by list index and exposes per-row delete actions; it should not display raw `sessionId` values in UI labels.
 
 ## 3) Layout and style contracts

@@ -1,4 +1,7 @@
 import type { ChatViewMessageItem } from '../application/chatView.service';
+import { toLatestAssistantIndex, toStreamRenderKey } from '../application/chatScreen.service';
+import { useChatScreenAutoScroll } from '../hooks/useChatScreenAutoScroll';
+import { ChatBubble } from './ChatBubble';
 
 interface ChatScreenProps {
   items: ChatViewMessageItem[];
@@ -8,6 +11,9 @@ interface ChatScreenProps {
 }
 
 export function ChatScreen({ items, isLoading, error, showThinking = false }: ChatScreenProps) {
+  const streamRenderKey = toStreamRenderKey(items);
+  const { listRef, bottomRef, handleScroll } = useChatScreenAutoScroll({ streamRenderKey, showThinking });
+
   if (isLoading) {
     return <p className="content-block">Loading chat messages...</p>;
   }
@@ -20,20 +26,14 @@ export function ChatScreen({ items, isLoading, error, showThinking = false }: Ch
     return <p className="content-block">No messages in this chat yet.</p>;
   }
 
-  const latestAssistantIndex = [...items]
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.roleClassName === 'assistant')
-    .map(({ index }) => index)
-    .pop();
+  const latestAssistantIndex = toLatestAssistantIndex(items);
 
   return (
-    <ul className="chat-log" data-testid="chat-screen">
+    <ul ref={listRef} className="chat-log" data-testid="chat-screen" onScroll={handleScroll}>
       {items.map((item, index) => (
-        <li key={item.id} className={`msg ${item.roleClassName}`}>
-          {item.text}
-          {showThinking && latestAssistantIndex === index ? <div>-----thinking-----</div> : null}
-        </li>
+        <ChatBubble key={item.id} item={item} showThinking={showThinking} isLatestAssistant={latestAssistantIndex === index} />
       ))}
+      <li ref={bottomRef} aria-hidden="true" className="chat-log-end" data-testid="chat-screen-end" />
     </ul>
   );
 }

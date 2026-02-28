@@ -276,7 +276,7 @@ describe('ChatView session orchestration', () => {
       expect(getTurns).toHaveBeenCalledWith({ sessionId: 'session-b', fileEntityUuid: 'file-1' });
     });
     expect(await screen.findByTestId('chat-screen')).toBeTruthy();
-    expect(screen.getByText('[assistant] Session B turn')).toBeTruthy();
+    expect(screen.getByText('Session B turn')).toBeTruthy();
   });
 
   it('creates a new chat session and refreshes session list', async () => {
@@ -531,7 +531,7 @@ describe('ChatView session orchestration', () => {
       expect(sessionMocks.listByFile.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
-    expect(await screen.findByText('[assistant] Session B refreshed turn')).toBeTruthy();
+    expect(await screen.findByText('Session B refreshed turn')).toBeTruthy();
     expect(getTurns).toHaveBeenCalledWith({ sessionId: 'session-b', fileEntityUuid: 'file-1' });
   });
 
@@ -579,7 +579,7 @@ describe('ChatView session orchestration', () => {
       expect(sendMessage).toHaveBeenCalledTimes(1);
     });
     expect(await screen.findByTestId('chat-screen')).toBeTruthy();
-    expect(screen.getByText('[teacher] First prompt')).toBeTruthy();
+    expect(screen.getByText('First prompt')).toBeTruthy();
 
     const payload = sendMessage.mock.calls[0]?.[0] as { clientRequestId?: string } | undefined;
     const clientRequestId = payload?.clientRequestId;
@@ -598,7 +598,7 @@ describe('ChatView session orchestration', () => {
     }
 
     await waitFor(() => {
-      expect(screen.getByText('[assistant] Partial stream')).toBeTruthy();
+      expect(screen.getByText('Partial stream')).toBeTruthy();
     });
 
     const currentResolveSend = resolveSend;

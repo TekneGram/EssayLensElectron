@@ -11,7 +11,7 @@ export function toChatViewMessageItems(messages: ChatMessage[]): ChatViewMessage
   return messages.map((message) => ({
     id: message.id,
     roleClassName: message.role,
-    text: `[${message.role}] ${message.content}`
+    text: message.content
   }));
 }
 
