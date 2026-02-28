@@ -1,4 +1,5 @@
 export { RubricForReact } from './RubricForReact';
-export { RubricTab } from './RubricTab';
-export { RubricTable } from './RubricTable';
-export { RubricToolbar } from './RubricToolbar';
+export { RubricForReactPanel } from './RubricForReactPanel';
+export { RubricSelection } from './RubricSelection';
+export { RubricTable } from './RubricForReact/components/RubricTable';
+export { RubricToolbar } from './RubricForReact/components/RubricToolbar';

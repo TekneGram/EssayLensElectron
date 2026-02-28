@@ -78,78 +78,85 @@ If only Electron/renderer TypeScript/CSS/UI changed (and Python did not), you ca
 npm run package
 ```
 
-## Build `llama-server` (llama.cpp) For Dev + Packaging
+## Build + Stage `llama-server` (llama.cpp) For Dev + Packaging
 
-This project keeps llama.cpp source in:
+Build happens in llama.cpp. `vendor/llama-server/darwin-arm64` is a staged runtime bundle.
 
-- `electron-llm/third_party/llama.cpp`
-
-Build output is copied to:
-
-- `vendor/llama-server/darwin-arm64/llama-server`
-
-The `vendor` path is the shared runtime source for:
-
+- Source/build root: `electron-llm/third_party/llama.cpp`
+- Staged runtime bundle: `vendor/llama-server/darwin-arm64/`
+- The staged bundle is used by:
 - Dev mode (directly from repo)
-- Packaged mode (copied into app `Resources` by `electron-builder`)
+- Packaged mode (copied to app `Resources` by `electron-builder`)
 
-Step-by-step on Apple Silicon macOS:
+On Apple Silicon macOS:
 
 1. Go to repo root
 
 ```bash
-cd /Users/danielmikaleola/Documents/Development/EssayLensElectron
+cd /Users/danielparsons/Documents/Development/EssayLensElectron
 ```
 
-2. Confirm llama.cpp source exists
-
-```bash
-ls -la electron-llm/third_party/llama.cpp
-```
-
-3. Create build directory
+2. Build `llama-server` in llama.cpp
 
 ```bash
 mkdir -p electron-llm/third_party/llama.cpp/build-darwin-arm64
-```
-
-4. Configure CMake
-
-```bash
 cmake -S electron-llm/third_party/llama.cpp -B electron-llm/third_party/llama.cpp/build-darwin-arm64 -DCMAKE_BUILD_TYPE=Release
-```
-
-5. Build `llama-server`
-
-```bash
 cmake --build electron-llm/third_party/llama.cpp/build-darwin-arm64 --config Release --target llama-server
 ```
 
-6. Create runtime destination
+3. Stage runtime payload (binary + dylibs)
 
 ```bash
 mkdir -p vendor/llama-server/darwin-arm64
-```
-
-7. Copy built binary
-
-```bash
-cp electron-llm/third_party/llama.cpp/build-darwin-arm64/bin/llama-server vendor/llama-server/darwin-arm64/llama-server
-```
-
-8. Ensure executable permission
-
-```bash
+cp electron-llm/third_party/llama.cpp/build-darwin-arm64/bin/llama-server vendor/llama-server/darwin-arm64/
+cp electron-llm/third_party/llama.cpp/build-darwin-arm64/bin/*.dylib vendor/llama-server/darwin-arm64/
 chmod +x vendor/llama-server/darwin-arm64/llama-server
 ```
 
-9. Verify binary runs
+4. Patch runtime linkage so bundled files are resolved relative to executable location
+
+```bash
+install_name_tool -delete_rpath "$(pwd)/electron-llm/third_party/llama.cpp/build-darwin-arm64/bin" vendor/llama-server/darwin-arm64/llama-server 2>/dev/null || true
+install_name_tool -add_rpath "@executable_path" vendor/llama-server/darwin-arm64/llama-server
+
+for lib in vendor/llama-server/darwin-arm64/*.dylib; do
+  base="$(basename "$lib")"
+  install_name_tool -id "@rpath/$base" "$lib"
+done
+```
+
+5. Verify dylib references before packaging
+
+```bash
+otool -L vendor/llama-server/darwin-arm64/llama-server
+otool -l vendor/llama-server/darwin-arm64/llama-server | grep -A2 LC_RPATH
+```
+
+Expected:
+- `@rpath/lib*.dylib` entries resolve to files present in `vendor/llama-server/darwin-arm64`
+- `LC_RPATH` includes `@executable_path`
+- No stale absolute build-machine path remains in rpath
+
+6. Quick run check
 
 ```bash
 vendor/llama-server/darwin-arm64/llama-server --help | head -n 20
 ```
 
-10. Ensure packaging includes this folder in `package.json` `build.extraResources`:
+7. Package app
+
+```bash
+npm run package
+```
+
+8. Confirm packaged copy includes staged dylibs
+
+```bash
+ls -la dist/mac-arm64/essaylens-electron.app/Contents/Resources/llama-server/darwin-arm64
+otool -L dist/mac-arm64/essaylens-electron.app/Contents/Resources/llama-server/darwin-arm64/llama-server
+```
+
+`package.json` already includes:
 
 ```json
 {
@@ -157,12 +164,6 @@ vendor/llama-server/darwin-arm64/llama-server --help | head -n 20
   "to": "llama-server",
   "filter": ["**/*"]
 }
-```
-
-Quick check:
-
-```bash
-grep -nE '"from": "vendor/llama-server"|"to": "llama-server"' package.json
 ```
 
 ## Fake LLM Test

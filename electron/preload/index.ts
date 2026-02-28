@@ -13,6 +13,18 @@ import type {
 } from '../shared/assessmentContracts';
 import type { ChatStreamChunkEvent, SendChatMessageRequest } from '../shared/chatContracts';
 import type {
+  ClearLlmSessionRequest,
+  CreateLlmSessionRequest,
+  DeleteLlmSessionRequest,
+  GetLlmSessionTurnsRequest,
+  ListLlmSessionsByFileRequest
+} from '../shared/llm-session';
+import type {
+  GetLlmServerStatusRequest,
+  StartLlmServerRequest,
+  StopLlmServerRequest
+} from '../shared/llm-server';
+import type {
   DeleteDownloadedModelRequest,
   DownloadModelRequest,
   DownloadProgressEvent,
@@ -116,6 +128,18 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
       getSettings: () => invokeApi('llmManager/getSettings'),
       updateSettings: (request: UpdateSettingsRequest) => invokeApi('llmManager/updateSettings', request),
       resetSettingsToDefaults: () => invokeApi('llmManager/resetSettingsToDefaults')
+    },
+    llmServer: {
+      start: () => invokeApi('llmServer/start', {} as StartLlmServerRequest),
+      stop: () => invokeApi('llmServer/stop', {} as StopLlmServerRequest),
+      status: () => invokeApi('llmServer/status', {} as GetLlmServerStatusRequest)
+    },
+    llmSession: {
+      create: (request: CreateLlmSessionRequest) => invokeApi('llmSession/create', request),
+      clear: (request: ClearLlmSessionRequest) => invokeApi('llmSession/clear', request),
+      delete: (request: DeleteLlmSessionRequest) => invokeApi('llmSession/delete', request),
+      getTurns: (request: GetLlmSessionTurnsRequest) => invokeApi('llmSession/getTurns', request),
+      listByFile: (request: ListLlmSessionsByFileRequest) => invokeApi('llmSession/listByFile', request)
     }
   };
 }

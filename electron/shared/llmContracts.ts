@@ -1,4 +1,17 @@
-export type LlmAction = 'llm.assessEssay' | 'llm.chat' | 'llm.chatStream' | 'llm.generateFeedbackSummary';
+export type LlmAction =
+  | 'llm.assessEssay'
+  | 'llm.chat'
+  | 'llm.chatStream'
+  | 'llm.generateFeedbackSummary'
+  | 'llm.evaluate.simple'
+  | 'llm.evaluate.withRubric'
+  | 'llm.evaluate.bulk'
+  | 'llm.session.create'
+  | 'llm.session.clear'
+  | 'llm.simpleChat.clearSessionCache'
+  | 'llm.server.start'
+  | 'llm.server.stop'
+  | 'llm.server.status';
 
 export interface PythonRequest<TPayload = unknown> {
   requestId: string;

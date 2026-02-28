@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { AssessmentTopTab } from '../../../state';
+import { usePorts } from '../../../ports';
 import { useActiveLlmModelQuery } from '../../llm-manager/hooks/useActiveLlmModelQuery';
 
 interface AssessmentWindowProps {
@@ -17,7 +18,8 @@ export function AssessmentWindow({
   rubricPanel,
   llmPanel
 }: AssessmentWindowProps) {
-  const hasLlmManagerApi = Boolean((window as Window & { api?: { llmManager?: unknown } }).api?.llmManager);
+  const { llmManager } = usePorts();
+  const hasLlmManagerApi = llmManager.isAvailable();
   const { data: activeModel } = useActiveLlmModelQuery(hasLlmManagerApi);
   const llmStatusText = activeModel?.displayName ?? 'No LLM installed.';
 

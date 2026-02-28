@@ -1,23 +1,15 @@
 import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
-import { renderAsync } from 'docx-preview';
-import { extractDocument } from '../../../hooks/feedbackApi';
-import { buildTextMapFromDocx } from '../services/docxTextMap';
-import { buildRenderBridge, type RenderBridge } from '../services/renderBridge';
-import type { WordTextMap } from '../services/textMapTypes';
-
-export interface LoadedTextViewDocument {
-  fileId: string;
-  fileName: string;
-  buffer: ArrayBuffer;
-  textMap: WordTextMap;
-}
-
-export type TextViewStatusKind = 'idle' | 'loading' | 'loaded' | 'unsupported' | 'error';
+import { usePorts } from '../../../../../ports';
+import { renderDocxIntoContainer } from '../adapters/docxRenderer';
+import { buildRenderBridge, type RenderBridge } from '../adapters/renderBridge';
+import { loadTextViewDocument, type LoadedTextViewDocument, type TextViewStatusKind } from '../application/textViewDocument.workflows';
+export type { LoadedTextViewDocument, TextViewStatusKind } from '../application/textViewDocument.workflows';
 
 interface UseTextViewDocumentArgs {
   selectedFileId: string | null;
   containerRef: RefObject<HTMLDivElement>;
   onSelectionCleared: () => void;
+  onDocumentTextChange?: (text: string | null) => void;
 }
 
 interface UseTextViewDocumentResult {
@@ -28,20 +20,13 @@ interface UseTextViewDocumentResult {
   isLoading: boolean;
 }
 
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
 export function useTextViewDocument({
   selectedFileId,
   containerRef,
-  onSelectionCleared
+  onSelectionCleared,
+  onDocumentTextChange
 }: UseTextViewDocumentArgs): UseTextViewDocumentResult {
+  const { assessment } = usePorts();
   const [document, setDocument] = useState<LoadedTextViewDocument | null>(null);
   const [statusMessage, setStatusMessage] = useState('Select a .docx file to begin.');
   const [statusKind, setStatusKind] = useState<TextViewStatusKind>('idle');
@@ -77,39 +62,16 @@ export function useTextViewDocument({
       setStatusKind('loading');
 
       try {
-        const response = await extractDocument(selectedFileId);
+        const result = await loadTextViewDocument(selectedFileId, assessment);
         if (requestId !== requestIdRef.current) {
           return;
         }
-
-        if (response.format !== 'docx' || !response.dataBase64) {
-          setDocument(null);
-          bridgeRef.current = null;
-          setStatusMessage('This view currently supports .docx files only.');
-          setStatusKind('unsupported');
-          if (containerRef.current) {
-            containerRef.current.innerHTML = '';
-          }
-          return;
+        setDocument(result.document);
+        setStatusKind(result.statusKind);
+        setStatusMessage(result.statusMessage);
+        if (!result.document && containerRef.current) {
+          containerRef.current.innerHTML = '';
         }
-
-        const buffer = base64ToArrayBuffer(response.dataBase64);
-        const textMap = await buildTextMapFromDocx(buffer);
-
-        if (requestId !== requestIdRef.current) {
-          return;
-        }
-
-        const nextDocument: LoadedTextViewDocument = {
-          fileId: selectedFileId,
-          fileName: response.fileName ?? selectedFileId.split(/[\\/]/).pop() ?? selectedFileId,
-          buffer,
-          textMap
-        };
-
-        setDocument(nextDocument);
-        setStatusMessage(`Loaded ${nextDocument.fileName}. Select text to add comments.`);
-        setStatusKind('loaded');
       } catch {
         if (requestId !== requestIdRef.current) {
           return;
@@ -129,7 +91,19 @@ export function useTextViewDocument({
     };
 
     void load();
-  }, [containerRef, selectedFileId]);
+  }, [assessment, containerRef, selectedFileId]);
+
+  useEffect(() => {
+    if (!onDocumentTextChange) {
+      return;
+    }
+    if (!document) {
+      onDocumentTextChange(null);
+      return;
+    }
+    const fullText = document.textMap.paragraphs.map((paragraph) => paragraph.text).join('\n');
+    onDocumentTextChange(fullText);
+  }, [document, onDocumentTextChange]);
 
   useEffect(() => {
     if (!document || !containerRef.current) {
@@ -141,13 +115,7 @@ export function useTextViewDocument({
       if (!containerRef.current) {
         return;
       }
-
-      containerRef.current.innerHTML = '';
-      await renderAsync(document.buffer, containerRef.current, undefined, {
-        className: 'docx',
-        ignoreWidth: false,
-        ignoreHeight: false
-      });
+      await renderDocxIntoContainer(document.buffer, containerRef.current);
 
       if (!containerRef.current) {
         return;

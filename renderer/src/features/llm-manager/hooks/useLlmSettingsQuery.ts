@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { getSettings } from '../services/llmManagerApi';
-import { llmManagerQueryKeys } from './queryKeys';
+import { usePorts } from '../../../ports';
+import { getSettings } from '../application/llmManager.service';
+import { llmManagerQueryKeys } from '../infrastructure/queryKeys';
 
 export function useLlmSettingsQuery(enabled = true) {
+  const { llmManager } = usePorts();
+
   return useQuery({
     queryKey: llmManagerQueryKeys.settings(),
-    queryFn: getSettings,
+    queryFn: async () => getSettings(llmManager),
     enabled
   });
 }

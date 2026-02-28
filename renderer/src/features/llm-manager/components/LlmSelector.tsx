@@ -1,10 +1,10 @@
-import type { DownloadedLlmModelDto, LlmModelKey } from '../../../../../electron/shared/llmManagerContracts';
+import type { LlmDownloadedModel, LlmKey } from '../domain/llmManager.types';
 
 interface LlmSelectorProps {
-  downloadedModels: DownloadedLlmModelDto[];
-  activeModelKey: LlmModelKey | null;
+  downloadedModels: LlmDownloadedModel[];
+  activeModelKey: LlmKey | null;
   isSelecting: boolean;
-  onSelect: (key: LlmModelKey) => Promise<unknown>;
+  onSelect: (key: LlmKey) => Promise<unknown>;
   errorMessage?: string;
 }
 
@@ -26,7 +26,7 @@ export function LlmSelector({ downloadedModels, activeModelKey, isSelecting, onS
           disabled={!hasDownloadedModels || isSelecting}
           value={activeModelKey ?? ''}
           onChange={(event) => {
-            const key = event.target.value as LlmModelKey;
+            const key = event.target.value as LlmKey;
             if (!key) {
               return;
             }

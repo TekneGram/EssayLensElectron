@@ -1,27 +1,22 @@
 export type {
   AppState,
   AssessmentTopTab,
-  ChatDataArray,
-  ChatMessage,
   ChatRole,
-  ChatState,
   CommentKind,
   CommentsTab,
-  DocumentTextModel,
   EntityId,
-  FileKind,
-  FeedbackItem,
-  RubricGradingSelection,
-  FeedbackState,
   ISODateString,
-  RubricMatrix,
   RubricState,
-  RubricSummary,
-  SelectedFileState,
   SelectedFileType,
-  Theme,
   UiState,
-  WorkspaceFile,
-  WorkspaceFolder,
   WorkspaceState
 } from '../types';
+export type { ChatDataArray, ChatMessage, ChatState } from '../features/chat-interface/domain';
+export type { RubricGradingSelection } from '../types';
+export type {
+  FileKind,
+  SelectedFileState,
+  WorkspaceFile,
+  WorkspaceFolder
+} from '../features/workspace/domain/workspace.types';
+export type { WorkspaceAction } from '../features/workspace/state/workspace.actions';

@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { listDownloadedModels } from '../services/llmManagerApi';
-import { llmManagerQueryKeys } from './queryKeys';
+import { usePorts } from '../../../ports';
+import { listDownloadedModels } from '../application/llmManager.service';
+import { llmManagerQueryKeys } from '../infrastructure/queryKeys';
 
 export function useDownloadedLlmModelsQuery(enabled = true) {
+  const { llmManager } = usePorts();
+
   return useQuery({
     queryKey: llmManagerQueryKeys.downloaded(),
-    queryFn: listDownloadedModels,
+    queryFn: async () => listDownloadedModels(llmManager),
     enabled
   });
 }

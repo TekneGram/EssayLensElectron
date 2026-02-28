@@ -1,6 +1,6 @@
 export { AppStateProvider, useAppDispatch, useAppState } from './AppStateProvider';
-export { initialAppState, initialChatState, initialFeedbackState, initialRubricState, initialUiState, initialWorkspaceState } from './initialState';
-export { appReducer, chatReducer, feedbackReducer, rubricReducer, uiReducer, workspaceReducer } from './reducers';
+export { initialAppState, initialChatState, initialRubricState, initialUiState, initialWorkspaceState } from './initialState';
+export { appReducer, chatReducer, rubricReducer, uiReducer, workspaceReducer } from './reducers';
 export {
   selectActiveCommentsTab,
   selectActiveTopTab,
@@ -15,7 +15,6 @@ export type {
   ChatMessage,
   ChatState,
   CommentsTab,
-  FeedbackState,
   RubricState,
   SelectedFileType,
   UiState,

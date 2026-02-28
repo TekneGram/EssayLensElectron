@@ -5,9 +5,9 @@ import type {
   AddFeedbackRequest,
   AddInlineFeedbackRequest
 } from '../../../../../electron/shared/assessmentContracts';
-import { useAppDispatch } from '../../../state';
-import type { FeedbackItem } from '../../../types';
-import { addFeedback } from './feedbackApi';
+import type { FeedbackItem } from '../../feedback/domain';
+import { usePorts } from '../../../ports';
+import { addAssessmentFeedback } from '../application/assessmentApi.service';
 import { assessmentQueryKeys } from './queryKeys';
 
 type AddInlineFeedbackDraft = Omit<AddInlineFeedbackRequest, 'fileId'>;
@@ -21,7 +21,7 @@ interface UseAddFeedbackMutationResult {
 }
 
 export function useAddFeedbackMutation(selectedFileId: string | null): UseAddFeedbackMutationResult {
-  const dispatch = useAppDispatch();
+  const { assessment } = usePorts();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -30,25 +30,17 @@ export function useAddFeedbackMutation(selectedFileId: string | null): UseAddFee
         throw new Error('Select a file before adding feedback.');
       }
       if (request.kind === 'inline') {
-        return addFeedback({
+        return addAssessmentFeedback(assessment, {
           ...request,
           fileId: selectedFileId
         });
       }
-      return addFeedback({
+      return addAssessmentFeedback(assessment, {
         ...request,
         fileId: selectedFileId
       });
     },
-    onMutate: () => {
-      dispatch({ type: 'feedback/setStatus', payload: 'loading' });
-      dispatch({ type: 'feedback/setError', payload: undefined });
-    },
-    onSuccess: async (feedback) => {
-      dispatch({ type: 'feedback/add', payload: feedback });
-      dispatch({ type: 'feedback/setStatus', payload: 'idle' });
-      dispatch({ type: 'feedback/setError', payload: undefined });
-
+    onSuccess: async () => {
       if (selectedFileId) {
         await queryClient.invalidateQueries({
           queryKey: assessmentQueryKeys.feedbackList(selectedFileId)
@@ -57,8 +49,6 @@ export function useAddFeedbackMutation(selectedFileId: string | null): UseAddFee
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'Unable to add feedback.';
-      dispatch({ type: 'feedback/setStatus', payload: 'error' });
-      dispatch({ type: 'feedback/setError', payload: message });
       toast.error(message);
     }
   });

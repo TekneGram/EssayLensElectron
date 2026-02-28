@@ -1,13 +1,21 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DownloadedLlmModelDto, LlmModelKey, LlmRuntimeSettings } from '../../../../../electron/shared/llmManagerContracts';
-import { deleteDownloadedModel, downloadModel, resetSettingsToDefaults, selectModel, updateSettings } from '../services/llmManagerApi';
-import { llmManagerQueryKeys } from './queryKeys';
+import { usePorts } from '../../../ports';
+import {
+  deleteDownloadedModel,
+  downloadModel,
+  resetSettingsToDefaults,
+  selectModel,
+  updateSettings
+} from '../application/llmManager.service';
+import { llmManagerQueryKeys } from '../infrastructure/queryKeys';
 
 export function useLlmManagerMutations() {
   const queryClient = useQueryClient();
+  const { llmManager } = usePorts();
 
   const downloadMutation = useMutation({
-    mutationFn: async (key: LlmModelKey): Promise<DownloadedLlmModelDto> => downloadModel(key),
+    mutationFn: async (key: LlmModelKey): Promise<DownloadedLlmModelDto> => downloadModel(llmManager, key),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: llmManagerQueryKeys.downloaded() });
       await queryClient.invalidateQueries({ queryKey: llmManagerQueryKeys.activeModel() });
@@ -15,7 +23,7 @@ export function useLlmManagerMutations() {
   });
 
   const selectMutation = useMutation({
-    mutationFn: selectModel,
+    mutationFn: async (key: LlmModelKey) => selectModel(llmManager, key),
     onSuccess: async (data) => {
       queryClient.setQueryData(llmManagerQueryKeys.activeModel(), data.activeModel);
       queryClient.setQueryData(llmManagerQueryKeys.settings(), data.settings);
@@ -24,7 +32,7 @@ export function useLlmManagerMutations() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteDownloadedModel,
+    mutationFn: async (key: LlmModelKey) => deleteDownloadedModel(llmManager, key),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: llmManagerQueryKeys.downloaded() });
       await queryClient.invalidateQueries({ queryKey: llmManagerQueryKeys.activeModel() });
@@ -33,14 +41,14 @@ export function useLlmManagerMutations() {
   });
 
   const updateSettingsMutation = useMutation({
-    mutationFn: (settings: Partial<LlmRuntimeSettings>) => updateSettings(settings),
+    mutationFn: (settings: Partial<LlmRuntimeSettings>) => updateSettings(llmManager, settings),
     onSuccess: (settings) => {
       queryClient.setQueryData(llmManagerQueryKeys.settings(), settings);
     }
   });
 
   const resetSettingsMutation = useMutation({
-    mutationFn: resetSettingsToDefaults,
+    mutationFn: async () => resetSettingsToDefaults(llmManager),
     onSuccess: (data) => {
       queryClient.setQueryData(llmManagerQueryKeys.activeModel(), data.activeModel);
       queryClient.setQueryData(llmManagerQueryKeys.settings(), data.settings);

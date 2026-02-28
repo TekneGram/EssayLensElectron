@@ -3,40 +3,14 @@ import { initialRubricState } from '../initialState';
 import { rubricReducer } from '../reducers';
 
 describe('rubricReducer', () => {
-  it('selects a rubric id', () => {
+  it('selects grading rubric id by file', () => {
     const next = rubricReducer(initialRubricState, {
-      type: 'rubric/selectEditing',
-      payload: 'rubric-1'
+      type: 'rubric/selectGradingForFile',
+      payload: { fileId: 'file-1', rubricId: 'rubric-1' }
     });
 
-    expect(next.selectedEditingRubricId).toBe('rubric-1');
-    expect(initialRubricState.selectedEditingRubricId).toBeNull();
-  });
-
-  it('sets active matrix', () => {
-    const next = rubricReducer(initialRubricState, {
-      type: 'rubric/setMatrix',
-      payload: {
-        rubricId: 'rubric-1',
-        rubricName: '6 Traits',
-        categories: [{ id: 'cat-1', name: 'Ideas' }],
-        scores: [{ id: 'score-4', value: 4 }],
-        cells: [{ categoryId: 'cat-1', scoreId: 'score-4', description: 'Strong ideas' }]
-      }
-    });
-
-    expect(next.activeMatrix?.rubricId).toBe('rubric-1');
-    expect(initialRubricState.activeMatrix).toBeNull();
-  });
-
-  it('sets interaction mode', () => {
-    const next = rubricReducer(initialRubricState, {
-      type: 'rubric/setInteractionMode',
-      payload: 'viewing'
-    });
-
-    expect(next.interactionMode).toBe('viewing');
-    expect(initialRubricState.interactionMode).toBe('viewing');
+    expect(next.selectedGradingRubricIdByFileId['file-1']).toBe('rubric-1');
+    expect(initialRubricState.selectedGradingRubricIdByFileId['file-1']).toBeUndefined();
   });
 
   it('stores grading selection for a file', () => {

@@ -1,7 +1,7 @@
-import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { LlmRuntimeSettings } from '../../../../../electron/shared/llmManagerContracts';
+import { AppProviders } from '../../../app/AppProviders';
 import { createAppQueryClient } from '../../../app/queryClient';
 import { LlmManager } from '../LlmManager';
 
@@ -113,9 +113,9 @@ describe('LlmConfiguration flows', () => {
 
     const queryClient = createAppQueryClient();
     render(
-      <QueryClientProvider client={queryClient}>
+      <AppProviders queryClient={queryClient}>
         <LlmManager />
-      </QueryClientProvider>
+      </AppProviders>
     );
 
     const editTemperatureButton = await screen.findByRole('button', { name: 'Edit setting temperature' });

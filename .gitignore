@@ -45,4 +45,5 @@ electron-llm/third_party
 
 # PyInstaller packaged worker artifacts
 vendor/python-worker/**
+vendor/llama-server/**
 !vendor/python-worker/README.md

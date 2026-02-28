@@ -24,6 +24,8 @@ describe('preload api', () => {
     expect(api.rubric).toBeDefined();
     expect(api.chat).toBeDefined();
     expect(api.llmManager).toBeDefined();
+    expect(api.llmServer).toBeDefined();
+    expect(api.llmSession).toBeDefined();
 
     await api.workspace.selectFolder();
     await api.assessment.extractDocument({ fileId: 'file-1' });
@@ -57,6 +59,14 @@ describe('preload api', () => {
     await api.llmManager.getSettings();
     await api.llmManager.updateSettings({ settings: { llm_n_ctx: 4096, temperature: 0.2 } });
     await api.llmManager.resetSettingsToDefaults();
+    await api.llmServer.start();
+    await api.llmServer.status();
+    await api.llmServer.stop();
+    await api.llmSession.create({ sessionId: 'sess-1', fileEntityUuid: 'file-1' });
+    await api.llmSession.getTurns({ sessionId: 'sess-1', fileEntityUuid: 'file-1' });
+    await api.llmSession.listByFile({ fileEntityUuid: 'file-1' });
+    await api.llmSession.clear({ sessionId: 'sess-1' });
+    await api.llmSession.delete({ sessionId: 'sess-1' });
     const progressListener = vi.fn();
     const unsubscribe = api.llmManager.onDownloadProgress(progressListener);
     listeners.get('llmManager/downloadProgress')?.({}, { key: 'qwen3_8b_q8', phase: 'downloading' });
@@ -109,6 +119,17 @@ describe('preload api', () => {
       settings: { llm_n_ctx: 4096, temperature: 0.2 }
     });
     expect(invoke).toHaveBeenCalledWith('llmManager/resetSettingsToDefaults', undefined);
+    expect(invoke).toHaveBeenCalledWith('llmServer/start', {});
+    expect(invoke).toHaveBeenCalledWith('llmServer/status', {});
+    expect(invoke).toHaveBeenCalledWith('llmServer/stop', {});
+    expect(invoke).toHaveBeenCalledWith('llmSession/create', { sessionId: 'sess-1', fileEntityUuid: 'file-1' });
+    expect(invoke).toHaveBeenCalledWith('llmSession/getTurns', {
+      sessionId: 'sess-1',
+      fileEntityUuid: 'file-1'
+    });
+    expect(invoke).toHaveBeenCalledWith('llmSession/listByFile', { fileEntityUuid: 'file-1' });
+    expect(invoke).toHaveBeenCalledWith('llmSession/clear', { sessionId: 'sess-1' });
+    expect(invoke).toHaveBeenCalledWith('llmSession/delete', { sessionId: 'sess-1' });
     expect(progressListener).toHaveBeenCalledWith({ key: 'qwen3_8b_q8', phase: 'downloading' });
     expect(streamListener).toHaveBeenCalledWith(
       expect.objectContaining({

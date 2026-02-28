@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { listCatalogModels } from '../services/llmManagerApi';
-import { llmManagerQueryKeys } from './queryKeys';
+import { usePorts } from '../../../ports';
+import { listCatalogModels } from '../application/llmManager.service';
+import { llmManagerQueryKeys } from '../infrastructure/queryKeys';
 
 export function useLlmCatalogQuery() {
+  const { llmManager } = usePorts();
+
   return useQuery({
     queryKey: llmManagerQueryKeys.catalog(),
-    queryFn: listCatalogModels
+    queryFn: async () => listCatalogModels(llmManager)
   });
 }

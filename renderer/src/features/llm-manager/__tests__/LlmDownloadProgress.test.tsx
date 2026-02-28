@@ -1,6 +1,6 @@
-import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { AppProviders } from '../../../app/AppProviders';
 import { createAppQueryClient } from '../../../app/queryClient';
 import { LlmManager } from '../LlmManager';
 
@@ -77,9 +77,9 @@ describe('LlmDownload progress', () => {
 
     const queryClient = createAppQueryClient();
     render(
-      <QueryClientProvider client={queryClient}>
+      <AppProviders queryClient={queryClient}>
         <LlmManager />
-      </QueryClientProvider>
+      </AppProviders>
     );
 
     await waitFor(() => {

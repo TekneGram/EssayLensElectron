@@ -1,5 +1,22 @@
 import type { AppError, AppResult } from '../shared/appResult';
 import type {
+  ClearLlmSessionRequest,
+  ClearLlmSessionResponse,
+  CreateLlmSessionRequest,
+  CreateLlmSessionResponse,
+  DeleteLlmSessionRequest,
+  DeleteLlmSessionResponse,
+  GetLlmSessionTurnsRequest,
+  GetLlmSessionTurnsResponse,
+  ListLlmSessionsByFileRequest,
+  ListLlmSessionsByFileResponse
+} from '../shared/llm-session';
+import type {
+  GetLlmServerStatusResponse,
+  StartLlmServerResponse,
+  StopLlmServerResponse
+} from '../shared/llm-server';
+import type {
   ApplyFeedbackRequest,
   ApplyFeedbackResponse,
   AddFeedbackRequest,
@@ -117,6 +134,18 @@ export interface EssayLensApi {
     getSettings(): Promise<ApiResult<GetSettingsResponse>>;
     updateSettings(request: UpdateSettingsRequest): Promise<ApiResult<UpdateSettingsResponse>>;
     resetSettingsToDefaults(): Promise<ApiResult<ResetSettingsToDefaultsResponse>>;
+  };
+  llmServer: {
+    start(): Promise<ApiResult<StartLlmServerResponse>>;
+    stop(): Promise<ApiResult<StopLlmServerResponse>>;
+    status(): Promise<ApiResult<GetLlmServerStatusResponse>>;
+  };
+  llmSession: {
+    create(request: CreateLlmSessionRequest): Promise<ApiResult<CreateLlmSessionResponse>>;
+    clear(request: ClearLlmSessionRequest): Promise<ApiResult<ClearLlmSessionResponse>>;
+    delete(request: DeleteLlmSessionRequest): Promise<ApiResult<DeleteLlmSessionResponse>>;
+    getTurns(request: GetLlmSessionTurnsRequest): Promise<ApiResult<GetLlmSessionTurnsResponse>>;
+    listByFile(request: ListLlmSessionsByFileRequest): Promise<ApiResult<ListLlmSessionsByFileResponse>>;
   };
 }
 

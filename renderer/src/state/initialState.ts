@@ -1,42 +1,16 @@
-import type { AppState, ChatState, FeedbackState, RubricState, UiState, WorkspaceState } from './types';
-
-export const initialWorkspaceState: WorkspaceState = {
-  currentFolder: null,
-  files: [],
-  status: 'idle',
-  selectedFile: {
-    fileId: null,
-    status: 'idle'
-  },
-  documentTextByFileId: {}
-};
-
-export const initialChatState: ChatState = {
-  messages: [],
-  draft: '',
-  status: 'idle'
-};
-
-export const initialFeedbackState: FeedbackState = {
-  byFileId: {},
-  status: 'idle'
-};
+import { initialChatState } from '../features/chat-interface/state/chatInterface.initialState';
+import type { AppState, RubricState, UiState } from './types';
+import { initialWorkspaceState } from '../features/workspace/state/workspace.reducer';
 
 export const initialRubricState: RubricState = {
-  rubricList: [],
-  selectedEditingRubricId: null,
   selectedGradingRubricIdByFileId: {},
   lockedGradingRubricId: null,
-  activeMatrix: null,
-  interactionMode: 'viewing',
-  gradingSelectionByFileId: {},
-  status: 'idle'
+  gradingSelectionByFileId: {}
 };
 
 export const initialUiState: UiState = {
   activeTopTab: 'assessment',
   activeCommentsTab: 'comments',
-  theme: 'system',
   isChatCollapsed: false,
   assessmentSplitRatio: 0.66
 };
@@ -44,7 +18,9 @@ export const initialUiState: UiState = {
 export const initialAppState: AppState = {
   workspace: initialWorkspaceState,
   chat: initialChatState,
-  feedback: initialFeedbackState,
   rubric: initialRubricState,
   ui: initialUiState
 };
+
+export { initialChatState };
+export { initialWorkspaceState };

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { MutableRefObject } from 'react';
 import type { PendingSelection } from '../../../types';
 import type { LoadedTextViewDocument } from './useTextViewDocument';
-import { selectionToAnchors, type RenderBridge } from '../services/renderBridge';
+import { getActiveWindowSelection, selectionToAnchors, type RenderBridge } from '../adapters';
 
 interface UseTextViewSelectionArgs {
   document: LoadedTextViewDocument | null;
@@ -33,20 +33,19 @@ export function useTextViewSelection({
       return;
     }
 
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    const activeSelection = getActiveWindowSelection();
+    if (!activeSelection) {
       onSelectionCaptured(null);
       return;
     }
 
-    const anchors = selectionToAnchors(selection, bridgeRef.current, document.textMap);
+    const anchors = selectionToAnchors(activeSelection.selection, bridgeRef.current, document.textMap);
     if (!anchors) {
       onSelectionCaptured(null);
       return;
     }
 
-    const range = selection.getRangeAt(0);
-    const preview = getRangePreview(range);
+    const preview = getRangePreview(activeSelection.range);
     if (!preview.quote) {
       onSelectionCaptured(null);
       return;

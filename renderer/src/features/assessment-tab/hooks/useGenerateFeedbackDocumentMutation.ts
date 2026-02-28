@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { generateFeedbackDocument } from './feedbackApi';
+import { usePorts } from '../../../ports';
+import { generateAssessmentFeedbackDocument } from '../application/assessmentApi.service';
 
 interface UseGenerateFeedbackDocumentMutationResult {
   generateFeedbackDocumentForFile: () => Promise<{ fileId: string; outputPath: string }>;
@@ -10,12 +11,14 @@ interface UseGenerateFeedbackDocumentMutationResult {
 export function useGenerateFeedbackDocumentMutation(
   selectedFileId: string | null
 ): UseGenerateFeedbackDocumentMutationResult {
+  const { assessment } = usePorts();
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!selectedFileId) {
         throw new Error('No file selected.');
       }
-      return generateFeedbackDocument(selectedFileId);
+      return generateAssessmentFeedbackDocument(assessment, selectedFileId);
     }
   });
 

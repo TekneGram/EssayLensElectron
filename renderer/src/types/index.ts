@@ -4,34 +4,14 @@ export type {
   CommentKind,
   CommentsTab,
   EntityId,
-  FileKind,
-  ISODateString,
-  Theme
+  ISODateString
 } from './primitives';
+export type { AppState, ChatState, RubricGradingSelection, RubricState, SelectedFileType, UiState, WorkspaceState } from './state';
 export type {
-  ChatDataArray,
-  ChatMessage,
-  DocumentTextModel,
-  FeedbackAnchor,
-  FeedbackItem,
-  RubricCategory,
-  RubricCell,
-  RubricGradingSelection,
-  RubricMatrix,
-  RubricScoreLevel,
-  RubricSummary,
+  FileKind,
   SelectedFileState,
   WorkspaceFile,
   WorkspaceFolder
-} from './models';
-export type { AppState, ChatState, FeedbackState, RubricState, SelectedFileType, UiState, WorkspaceState } from './state';
-export type {
-  AddBlockFeedbackCommand,
-  AddFeedbackCommand,
-  AddInlineFeedbackCommand,
-  RequestLlmAssessmentCommand,
-  SelectFileCommand,
-  SelectFolderCommand,
-  SendChatMessageCommand
-} from './commands';
+} from '../features/workspace/domain/workspace.types';
+export type { SelectFileCommand, SelectFolderCommand } from '../features/workspace/domain/workspace.commands';
 export { fileKindFromExtension, isImageFileKind } from './fileKind';

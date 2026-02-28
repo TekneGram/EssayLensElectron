@@ -16,11 +16,11 @@ type GuardrailsConfig = {
 
 const filesToGuard = [
   {
-    file: 'renderer/src/features/assessment-tab/components/AssessmentTab.tsx',
+    file: 'renderer/src/features/assessment-tab/AssessmentTab.tsx',
     allowedTopLevelComponents: new Set(['AssessmentTab'])
   },
   {
-    file: 'renderer/src/features/layout/components/ChatInterface/ChatInterface.tsx',
+    file: 'renderer/src/features/chat-interface/ChatInterface.tsx',
     allowedTopLevelComponents: new Set(['ChatInterface'])
   }
 ] as const;
