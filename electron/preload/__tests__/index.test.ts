@@ -66,6 +66,7 @@ describe('preload api', () => {
     await api.llmSession.getTurns({ sessionId: 'sess-1', fileEntityUuid: 'file-1' });
     await api.llmSession.listByFile({ fileEntityUuid: 'file-1' });
     await api.llmSession.clear({ sessionId: 'sess-1' });
+    await api.llmSession.delete({ sessionId: 'sess-1' });
     const progressListener = vi.fn();
     const unsubscribe = api.llmManager.onDownloadProgress(progressListener);
     listeners.get('llmManager/downloadProgress')?.({}, { key: 'qwen3_8b_q8', phase: 'downloading' });
@@ -128,6 +129,7 @@ describe('preload api', () => {
     });
     expect(invoke).toHaveBeenCalledWith('llmSession/listByFile', { fileEntityUuid: 'file-1' });
     expect(invoke).toHaveBeenCalledWith('llmSession/clear', { sessionId: 'sess-1' });
+    expect(invoke).toHaveBeenCalledWith('llmSession/delete', { sessionId: 'sess-1' });
     expect(progressListener).toHaveBeenCalledWith({ key: 'qwen3_8b_q8', phase: 'downloading' });
     expect(streamListener).toHaveBeenCalledWith(
       expect.objectContaining({

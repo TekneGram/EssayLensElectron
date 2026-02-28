@@ -69,8 +69,9 @@ function resolveDefaultLlmServerPath(): string {
   return resolveLlamaServerPath({ mode: runtimeMode });
 }
 
-function canRecoverMissingServerPath(details: LlmNotReadyErrorDetails): boolean {
-  return details.issues.length === 1 && details.issues[0]?.code === 'MISSING_SERVER_PATH';
+function canRecoverServerPathIssues(details: LlmNotReadyErrorDetails): boolean {
+  const recoverableCodes = new Set(['MISSING_SERVER_PATH', 'SERVER_FILE_NOT_FOUND', 'SERVER_NOT_EXECUTABLE']);
+  return details.issues.length > 0 && details.issues.every((issue) => recoverableCodes.has(issue.code));
 }
 
 function getDefaultDeps(): ChatHandlerDeps {
@@ -102,6 +103,7 @@ function normalizeSendMessageRequest(request: unknown): SendChatMessageRequest |
 
   return {
     fileId: typeof candidate.fileId === 'string' ? candidate.fileId : undefined,
+    essay: typeof candidate.essay === 'string' ? candidate.essay : undefined,
     contextText: typeof candidate.contextText === 'string' ? candidate.contextText : undefined,
     message,
     clientRequestId: typeof candidate.clientRequestId === 'string' ? candidate.clientRequestId : undefined,
@@ -144,7 +146,12 @@ function isEventWithSender(
   return typeof (sender as { send?: unknown }).send === 'function';
 }
 
-export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps = getDefaultDeps()): void {
+export function registerChatHandlers(ipcMain: IpcMainLike, deps: Partial<ChatHandlerDeps> = {}): void {
+  const resolvedDeps: ChatHandlerDeps = {
+    ...getDefaultDeps(),
+    ...deps
+  };
+
   ipcMain.handle(CHAT_CHANNELS.listMessages, async (_event, request) => {
     const fileId =
       typeof request === 'object' && request && 'fileId' in request && typeof request.fileId === 'string'
@@ -152,7 +159,7 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
         : undefined;
 
     try {
-      const messages = await deps.repository.listMessages(fileId);
+      const messages = await resolvedDeps.repository.listMessages(fileId);
       return appOk<ListMessagesResponse>({ messages });
     } catch (error) {
       return appErr({
@@ -172,7 +179,7 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
       });
     }
 
-    const llmSettingsRepository = deps.llmSettingsRepository ?? new LlmSettingsRepository();
+    const llmSettingsRepository = resolvedDeps.llmSettingsRepository ?? new LlmSettingsRepository();
     let settings: LlmRuntimeSettings;
     try {
       settings = await llmSettingsRepository.getRuntimeSettings();
@@ -184,17 +191,17 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
       });
     }
 
-    const validateFileExists = deps.fileExists ?? fileExists;
-    const validateExecutable = deps.isExecutable ?? isExecutable;
+    const validateFileExists = resolvedDeps.fileExists ?? fileExists;
+    const validateExecutable = resolvedDeps.isExecutable ?? isExecutable;
     let notReadyDetails = await getLlmNotReadyDetails(settings, {
       fileExists: validateFileExists,
       isExecutable: validateExecutable
     });
-    if (notReadyDetails && canRecoverMissingServerPath(notReadyDetails)) {
-      const llmSelectionRepository = deps.llmSelectionRepository ?? new LlmSelectionRepository();
+    if (notReadyDetails && canRecoverServerPathIssues(notReadyDetails)) {
+      const llmSelectionRepository = resolvedDeps.llmSelectionRepository ?? new LlmSelectionRepository();
       const activeModel = await llmSelectionRepository.getActiveModel();
       if (activeModel) {
-        const llmServerPath = (deps.resolveLlmServerPath ?? resolveDefaultLlmServerPath)();
+        const llmServerPath = (resolvedDeps.resolveLlmServerPath ?? resolveDefaultLlmServerPath)();
         const reset = await llmSelectionRepository.resetSettingsToDefaults(llmServerPath);
         if (reset?.settings) {
           settings = reset.settings;
@@ -221,7 +228,7 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
       settings
     };
     const resolvedSessionId = llmPayload.sessionId;
-    const llmChatSessionRepository = deps.llmChatSessionRepository ?? new LlmChatSessionRepository();
+    const llmChatSessionRepository = resolvedDeps.llmChatSessionRepository ?? new LlmChatSessionRepository();
     if (resolvedSessionId) {
       try {
         llmPayload.sessionTurns = await llmChatSessionRepository.listRecentTurns(resolvedSessionId);
@@ -243,38 +250,36 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
 
     const fallbackClientRequestId = makeMessageId();
     const clientRequestId = normalizedRequest.clientRequestId ?? fallbackClientRequestId;
-    let llmResult;
-    if (typeof deps.llmOrchestrator.requestActionStream === 'function') {
-      llmResult = await deps.llmOrchestrator.requestActionStream<
-        LlmChatPayload,
-        SendChatMessageResponse
-      >('llm.chatStream', llmPayload, (streamEvent) => {
-        const mappedType =
-          streamEvent.type === 'stream_start'
-            ? 'start'
-            : streamEvent.type === 'stream_chunk'
-              ? 'chunk'
-              : streamEvent.type === 'stream_done'
-                ? 'done'
-                : 'error';
-        emitToRenderer({
-          requestId: streamEvent.requestId,
-          clientRequestId: streamEvent.data.clientRequestId ?? clientRequestId,
-          fileId: normalizedRequest.fileId,
-          type: mappedType,
-          seq: streamEvent.data.seq,
-          channel: streamEvent.data.channel,
-          text: streamEvent.data.text,
-          done: streamEvent.data.done,
-          error: streamEvent.data.error
-        });
+    if (typeof resolvedDeps.llmOrchestrator.requestActionStream !== 'function') {
+      return appErr({
+        code: 'PY_ACTION_FAILED',
+        message: 'Streaming chat is unavailable in the current LLM orchestrator.'
       });
-    } else {
-      llmResult = await deps.llmOrchestrator.requestAction<
-        LlmChatPayload,
-        SendChatMessageResponse
-      >('llm.chat', llmPayload);
     }
+    const llmResult = await resolvedDeps.llmOrchestrator.requestActionStream<
+      LlmChatPayload,
+      SendChatMessageResponse
+    >('llm.chatStream', llmPayload, (streamEvent) => {
+      const mappedType =
+        streamEvent.type === 'stream_start'
+          ? 'start'
+          : streamEvent.type === 'stream_chunk'
+            ? 'chunk'
+            : streamEvent.type === 'stream_done'
+              ? 'done'
+              : 'error';
+      emitToRenderer({
+        requestId: streamEvent.requestId,
+        clientRequestId: streamEvent.data.clientRequestId ?? clientRequestId,
+        fileId: normalizedRequest.fileId,
+        type: mappedType,
+        seq: streamEvent.data.seq,
+        channel: streamEvent.data.channel,
+        text: streamEvent.data.text,
+        done: streamEvent.data.done,
+        error: streamEvent.data.error
+      });
+    });
     if (!llmResult.ok) {
       return appErr(llmResult.error);
     }
@@ -298,14 +303,14 @@ export function registerChatHandlers(ipcMain: IpcMainLike, deps: ChatHandlerDeps
           normalizedRequest.fileId
         );
       }
-      await deps.repository.addMessage({
+      await resolvedDeps.repository.addMessage({
         id: makeMessageId(),
         role: 'teacher',
         content: normalizedRequest.message,
         relatedFileId: normalizedRequest.fileId,
         createdAt
       });
-      await deps.repository.addMessage({
+      await resolvedDeps.repository.addMessage({
         id: makeMessageId(),
         role: 'assistant',
         content: reply,

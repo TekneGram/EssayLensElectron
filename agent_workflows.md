@@ -47,18 +47,25 @@
 ### 6) Chat message round-trip (with streaming)
 
 1. User selects a file; `ChatView` loads sessions with `llmSession/listByFile({ fileEntityUuid })`.
-2. User chooses a session in `ChatListScreen`; renderer loads turns via `llmSession/getTurns({ sessionId, fileEntityUuid })`.
-3. User switches `ChatInterface` mode to chat and submits a message.
-4. Renderer blocks chat send when no file is selected.
-5. Renderer optimistically appends teacher + empty assistant messages, then calls `chat/sendMessage` with `fileId`, active `sessionId`, and `clientRequestId`.
-6. Main validates LLM runtime readiness and sends request to orchestrator (`llm.chatStream` when available, fallback `llm.chat`).
-7. Stream chunks are emitted over `chat/streamChunk`; renderer appends chunk text to the assistant message.
-8. On completion, renderer marks chat status idle and finalizes assistant content.
-9. Renderer writes optimistic send/stream messages with active `sessionId` into chat state and bumps a per-file session sync nonce.
-10. `ChatView` refreshes `listByFile` ordering and `getTurns` for the active session, replacing that session transcript in state.
-11. On session switch/new-chat, transient empty assistant draft messages for the previous session are cleared.
-12. Main also persists teacher/assistant messages in `ChatRepository`.
-13. If runtime is not ready, main returns `LLM_NOT_READY` and renderer surfaces the error.
+2. `ChatListScreen` shows temporary labels (`Chat 1`, `Chat 2`, ...) based on session list order.
+3. User chooses a session in `ChatListScreen`; renderer loads turns via `llmSession/getTurns({ sessionId, fileEntityUuid })`.
+4. User can delete a session from `ChatListScreen`; renderer calls `llmSession/delete({ sessionId })` and refreshes `listByFile`.
+5. Main deletes from `llm_chat_sessions`; `llm_chat_session_turns` are removed by FK cascade.
+6. User switches `ChatInterface` mode to chat and submits a message.
+7. Renderer blocks chat send when no file is selected.
+8. Renderer optimistically appends teacher + empty assistant messages, then calls `chat/sendMessage` with `fileId`, active `sessionId`, and `clientRequestId`.
+9. Renderer includes `essay` only on the first send for a session id; subsequent sends in the same session omit `essay`.
+10. Main validates LLM runtime readiness and sends request to orchestrator with `llm.chatStream`.
+11. Python simple-chat builds a session-scoped system prompt from `essay` on first turn and reuses it for later turns in that session.
+12. Stream chunks are emitted over `chat/streamChunk`; renderer appends chunk text to the assistant message.
+13. While waiting for stream start, `ActionsView` shows "Loading LLM, please wait a moment"; after stream start (before content), `ChatScreen` shows `-----thinking-----` under the latest assistant bubble.
+14. On first content chunk, thinking indicator is cleared; on completion, renderer marks chat status idle and finalizes assistant content.
+15. Renderer writes optimistic send/stream messages with active `sessionId` into chat state and bumps a per-file session sync nonce.
+16. `ChatView` refreshes `listByFile` ordering and `getTurns` for the active session, replacing that session transcript in state.
+17. On session switch/new-chat, transient empty assistant draft messages for the previous session are cleared.
+18. Main also persists teacher/assistant messages in `ChatRepository`.
+19. If runtime is not ready, main returns `LLM_NOT_READY` and renderer surfaces the error.
+20. `llmSession/clear` and `llmSession/delete` clear Python simple-chat session cache via `llm.simpleChat.clearSessionCache`.
 
 ### 7) Generate annotated feedback DOCX
 

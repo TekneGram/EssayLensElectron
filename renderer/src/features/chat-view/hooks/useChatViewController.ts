@@ -5,7 +5,12 @@ import { createTimestampSessionId } from '../../chat-interface/domain';
 import { usePorts } from '../../../ports';
 import { useAppDispatch } from '../../../state';
 import { toActionMessageItems, toChatViewMessageItems } from '../application/chatView.service';
-import { createAndActivateSession, loadSessionsForFile, loadTurnsForSession } from '../application/chatViewWorkflow.service';
+import {
+  createAndActivateSession,
+  deleteSessionAndRefresh,
+  loadSessionsForFile,
+  loadTurnsForSession
+} from '../application/chatViewWorkflow.service';
 import { useChatViewState } from './useChatViewState';
 
 export function useChatViewController() {
@@ -13,13 +18,15 @@ export function useChatViewController() {
   const { llmSession } = usePorts();
   const {
     messages,
+    chatStatus,
     selectedFile,
     activeSessionId,
     sessions,
     sessionsStatus,
     sessionsError,
     sessionSyncNonce,
-    sessionMessages
+    sessionMessages,
+    activeSessionSendPhase
   } = useChatViewState();
 
   const [activeScreen, setActiveScreen] = useState<'list' | 'chat'>('list');
@@ -78,10 +85,32 @@ export function useChatViewController() {
     if (!fileEntityUuid || !activeSessionId || activeScreen !== 'chat') {
       return;
     }
+    if (chatStatus === 'sending' || activeSessionSendPhase) {
+      return;
+    }
 
     void handleLoadTurns(activeSessionId, fileEntityUuid);
     void handleLoadSessionsForFile(fileEntityUuid, activeSessionId);
-  }, [activeScreen, activeSessionId, fileEntityUuid, handleLoadSessionsForFile, handleLoadTurns, sessionSyncNonce]);
+  }, [
+    activeScreen,
+    activeSessionId,
+    activeSessionSendPhase,
+    chatStatus,
+    fileEntityUuid,
+    handleLoadSessionsForFile,
+    handleLoadTurns,
+    sessionSyncNonce
+  ]);
+
+  useEffect(() => {
+    if (!fileEntityUuid) {
+      return;
+    }
+    if (chatStatus !== 'sending' && !activeSessionSendPhase) {
+      return;
+    }
+    setActiveScreen('chat');
+  }, [activeSessionSendPhase, chatStatus, fileEntityUuid]);
 
   const onBack = useCallback(() => {
     setActiveScreen('list');
@@ -128,6 +157,34 @@ export function useChatViewController() {
     toast.error(errorMessage);
   }, [activeSessionId, appDispatch, fileEntityUuid, llmSession]);
 
+  const onSessionDelete = useCallback(
+    async (sessionId: string) => {
+      if (!fileEntityUuid) {
+        return;
+      }
+
+      const errorMessage = await deleteSessionAndRefresh({
+        appDispatch,
+        llmSession,
+        fileEntityUuid,
+        sessionIdToDelete: sessionId,
+        activeSessionId: activeSessionId ?? null,
+        setIsSessionTurnsLoading,
+        setSessionTurnsError
+      });
+
+      if (errorMessage) {
+        toast.error(errorMessage);
+        return;
+      }
+
+      if (activeSessionId === sessionId) {
+        setActiveScreen('list');
+      }
+    },
+    [activeSessionId, appDispatch, fileEntityUuid, llmSession]
+  );
+
   return {
     fileEntityUuid,
     activeScreen,
@@ -138,9 +195,12 @@ export function useChatViewController() {
     sessionItems,
     isSessionTurnsLoading,
     sessionTurnsError,
+    showLlmLoading: chatStatus === 'sending' && activeSessionSendPhase !== 'thinking',
+    showThinking: activeSessionSendPhase === 'thinking',
     actionItems,
     onBack,
     onSessionSelect,
-    onNewChat
+    onNewChat,
+    onSessionDelete
   };
 }

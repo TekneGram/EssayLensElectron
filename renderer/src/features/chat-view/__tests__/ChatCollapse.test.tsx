@@ -88,6 +88,7 @@ function installWindowApiMocks() {
       llmSession: {
         create: async () => ({ ok: true, data: { sessionId: 'session-a', fileEntityUuid: 'file-1' } }),
         clear: async () => ({ ok: true, data: { sessionId: 'session-a', cleared: true } }),
+        delete: async () => ({ ok: true, data: { sessionId: 'session-a', deleted: true } }),
         getTurns: async () => ({ ok: true, data: { sessionId: 'session-a', fileEntityUuid: 'file-1', turns: [] } }),
         listByFile: async () =>
           ({

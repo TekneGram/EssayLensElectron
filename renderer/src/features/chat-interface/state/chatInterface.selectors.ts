@@ -43,6 +43,13 @@ export function selectSessionSyncNonceForFile(state: AppState, fileId: string | 
   return state.chat.sessionSyncNonceByFileId[fileId] ?? 0;
 }
 
+export function selectSessionSendPhase(state: AppState, sessionId?: string) {
+  if (!sessionId) {
+    return undefined;
+  }
+  return state.chat.sessionSendPhaseBySessionId[sessionId];
+}
+
 export function selectSessionMessagesForFile(state: AppState, fileId: string | null, sessionId?: string) {
   if (!fileId || !sessionId) {
     return [];

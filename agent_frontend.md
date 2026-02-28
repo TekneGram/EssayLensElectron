@@ -23,6 +23,8 @@ Global reducer state shape (`renderer/src/types/state.ts`): `workspace`, `chat`,
 - `chat`:
 - `messages`, `status`, `error` (`messages` may carry optional `sessionId` for simple-chat session scoping)
 - `activeSessionIdByFileId`, `sessionsByFileId`, `sessionsStatusByFileId`, `sessionsErrorByFileId`, `sessionSyncNonceByFileId`
+- `sessionSendPhaseBySessionId` tracks in-flight UX phase per session (`warming` before stream start, `thinking` after stream start until first content chunk)
+- Assessment-tab chat actions track per-session essay send state so `chat/sendMessage` includes `essay` only on first send for a session.
 - `rubric`:
 - `selectedGradingRubricIdByFileId`
 - `lockedGradingRubricId`
@@ -94,6 +96,8 @@ Important orchestration contract:
 - It exports these handlers/state to bottom `ChatInterface` through `onChatBindingsChange`.
 - `ChatInterface` is globally rendered, but functionally driven by `AssessmentTab` bindings.
 - `chat-view/ChatView.tsx` is composition-only. Session workflows (`load/list/create`) live in `chat-view/application`, policy/error mapping lives in `chat-view/domain`, and React lifecycle/state orchestration lives in `chat-view/hooks/useChatViewController.ts`.
+- While a chat send is in-flight (`chat.status === sending` or session send phase is set), `useChatViewController` must not refresh session turns/list from `llmSession`; this preserves optimistic teacher/assistant messages and stream updates in `ChatScreen` until persistence catches up.
+- `chat-view/components/ChatListScreen.tsx` renders temporary session labels (`Chat 1`, `Chat 2`, ...) by list index and exposes per-row delete actions; it should not display raw `sessionId` values in UI labels.
 
 ## 3) Layout and style contracts
 

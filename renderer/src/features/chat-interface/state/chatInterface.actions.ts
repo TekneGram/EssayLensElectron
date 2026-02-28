@@ -33,6 +33,10 @@ type BumpSessionSyncForFileAction = {
   type: 'chat/bumpSessionSyncForFile';
   payload: { fileId: string };
 };
+type SetSessionSendPhaseAction = {
+  type: 'chat/setSessionSendPhase';
+  payload: { sessionId: string; phase?: ChatState['sessionSendPhaseBySessionId'][string] };
+};
 type ClearTransientSessionDraftsAction = {
   type: 'chat/clearTransientSessionDrafts';
   payload: { sessionId: string };
@@ -86,6 +90,10 @@ export function bumpSessionSyncForFile(payload: BumpSessionSyncForFileAction['pa
   return { type: 'chat/bumpSessionSyncForFile', payload };
 }
 
+export function setSessionSendPhase(payload: SetSessionSendPhaseAction['payload']): SetSessionSendPhaseAction {
+  return { type: 'chat/setSessionSendPhase', payload };
+}
+
 export function clearTransientSessionDrafts(
   payload: ClearTransientSessionDraftsAction['payload']
 ): ClearTransientSessionDraftsAction {
@@ -104,4 +112,5 @@ export type ChatInterfaceAction =
   | SetSessionListStatusForFileAction
   | SetSessionListErrorForFileAction
   | BumpSessionSyncForFileAction
+  | SetSessionSendPhaseAction
   | ClearTransientSessionDraftsAction;

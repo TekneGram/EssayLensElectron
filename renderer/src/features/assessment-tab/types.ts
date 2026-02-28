@@ -14,6 +14,7 @@ export interface OriginalTextViewProps {
   pendingSelection: PendingSelection | null;
   activeCommentId: string | null;
   onSelectionCaptured: (selection: PendingSelection | null) => void;
+  onDocumentTextChange?: (text: string | null) => void;
 }
 
 export interface CommentsViewProps {

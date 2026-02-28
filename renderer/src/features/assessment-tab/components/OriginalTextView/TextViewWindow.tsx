@@ -18,6 +18,7 @@ interface TextViewWindowProps {
   pendingSelection?: PendingSelection | null;
   activeCommentId?: string | null;
   onSelectionCaptured: (selection: PendingSelection | null) => void;
+  onDocumentTextChange?: (text: string | null) => void;
 }
 
 const MIN_ZOOM_PERCENT = 60;
@@ -31,7 +32,8 @@ export function TextViewWindow({
   text,
   pendingSelection = null,
   activeCommentId = null,
-  onSelectionCaptured
+  onSelectionCaptured,
+  onDocumentTextChange
 }: TextViewWindowProps) {
   const paragraphs = text.split(/\n+/).filter((paragraph) => paragraph.trim().length > 0);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -50,7 +52,8 @@ export function TextViewWindow({
   const { document, bridgeRef } = useTextViewDocument({
     selectedFileId,
     containerRef,
-    onSelectionCleared: () => onSelectionCaptured(null)
+    onSelectionCleared: () => onSelectionCaptured(null),
+    onDocumentTextChange
   });
 
   useTextViewDocxLayout({

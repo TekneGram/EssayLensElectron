@@ -9,7 +9,7 @@ import {
 import type { Dispatch } from 'react';
 import type { LlmSessionPort } from '../../../ports/llmSession.port';
 import type { AppAction } from '../../../state';
-import { resolvePreferredSession, toListByFileErrorMessage } from '../domain/chatViewSession.domain';
+import { resolvePreferredSession, toDeleteSessionErrorMessage, toListByFileErrorMessage } from '../domain/chatViewSession.domain';
 import { toSessionChatMessages } from './chatView.service';
 
 interface ChatViewWorkflowDependencies {
@@ -90,7 +90,9 @@ export async function loadSessionsForFile({
     const preferredSession = resolvePreferredSession(result.data.sessions, preferredSessionId);
     if (!preferredSession) {
       if (preferredSessionId) {
-        appDispatch(clearTransientSessionDrafts({ sessionId: preferredSessionId }));
+        // Keep the optimistic in-memory session active while persistence catches up.
+        appDispatch(setActiveSessionForFile({ fileId: fileEntityUuid, sessionId: preferredSessionId }));
+        return undefined;
       }
       appDispatch(setActiveSessionForFile({ fileId: fileEntityUuid, sessionId: null }));
       return undefined;
@@ -159,4 +161,40 @@ export async function createAndActivateSession({
   } finally {
     setIsSessionTurnsLoading(false);
   }
+}
+
+interface DeleteSessionInput extends ChatViewWorkflowDependencies, SessionTurnsUiActions {
+  fileEntityUuid: string;
+  sessionIdToDelete: string;
+  activeSessionId: string | null;
+}
+
+export async function deleteSessionAndRefresh({
+  appDispatch,
+  llmSession,
+  fileEntityUuid,
+  sessionIdToDelete,
+  activeSessionId,
+  setIsSessionTurnsLoading,
+  setSessionTurnsError
+}: DeleteSessionInput): Promise<string | undefined> {
+  try {
+    const result = await llmSession.delete({ sessionId: sessionIdToDelete });
+    if (!result.ok) {
+      return toDeleteSessionErrorMessage(result.error.code, result.error.message);
+    }
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Could not delete chat session.';
+  }
+
+  appDispatch(clearTransientSessionDrafts({ sessionId: sessionIdToDelete }));
+  const preferredSessionId = activeSessionId === sessionIdToDelete ? undefined : activeSessionId ?? undefined;
+  return await loadSessionsForFile({
+    appDispatch,
+    llmSession,
+    fileEntityUuid,
+    preferredSessionId,
+    setIsSessionTurnsLoading,
+    setSessionTurnsError
+  });
 }

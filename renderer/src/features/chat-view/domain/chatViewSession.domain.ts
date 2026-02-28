@@ -13,6 +13,19 @@ export function toListByFileErrorMessage(code: string | undefined, fallbackMessa
   return fallbackMessage || 'Could not load chat sessions.';
 }
 
+export function toDeleteSessionErrorMessage(code: string | undefined, fallbackMessage: string | undefined): string {
+  if (code === 'LLM_SESSION_DELETE_INVALID_PAYLOAD') {
+    return 'Could not delete chat because the session selection was invalid.';
+  }
+  if (code === 'LLM_SESSION_DELETE_FAILED') {
+    return 'Could not delete chat session.';
+  }
+  if (code === 'LLM_SESSION_DELETE_INVALID_RESPONSE') {
+    return 'Session service returned an invalid delete response.';
+  }
+  return fallbackMessage || 'Could not delete chat session.';
+}
+
 export function resolvePreferredSession(
   sessions: LlmSessionListItemDto[],
   preferredSessionId?: string

@@ -16,7 +16,9 @@ describe('main process bootstrap', () => {
     const app = {
       on: vi.fn(),
       quit: vi.fn(),
-      whenReady: vi.fn().mockResolvedValue(undefined)
+      whenReady: vi.fn().mockResolvedValue(undefined),
+      getPath: vi.fn().mockReturnValue('/tmp/essaylens'),
+      setPath: vi.fn()
     };
 
     const ipcMain = {
@@ -32,6 +34,7 @@ describe('main process bootstrap', () => {
     await main.start();
 
     expect(app.whenReady).toHaveBeenCalledTimes(1);
+    expect(app.setPath).not.toHaveBeenCalled();
     expect(BrowserWindow).toHaveBeenCalledTimes(1);
     expect(ipcMain.handle).toHaveBeenCalled();
     expect(loadURL.mock.calls.length + loadFile.mock.calls.length).toBe(1);

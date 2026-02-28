@@ -2,9 +2,14 @@ import type { ChatViewMessageItem } from '../application/chatView.service';
 
 interface ActionsViewProps {
   items: ChatViewMessageItem[];
+  showLlmLoading?: boolean;
 }
 
-export function ActionsView({ items }: ActionsViewProps) {
+export function ActionsView({ items, showLlmLoading = false }: ActionsViewProps) {
+  if (showLlmLoading) {
+    return <p className="content-block">Loading LLM, please wait a moment</p>;
+  }
+
   if (items.length === 0) {
     return <p className="content-block">System actions will appear here.</p>;
   }

@@ -97,6 +97,18 @@ export function chatReducer(state: ChatState = initialChatState, action: AppActi
         }
       };
     }
+    case 'chat/setSessionSendPhase': {
+      const next = { ...state.sessionSendPhaseBySessionId };
+      if (!action.payload.phase) {
+        delete next[action.payload.sessionId];
+      } else {
+        next[action.payload.sessionId] = action.payload.phase;
+      }
+      return {
+        ...state,
+        sessionSendPhaseBySessionId: next
+      };
+    }
     case 'chat/clearTransientSessionDrafts':
       return {
         ...state,

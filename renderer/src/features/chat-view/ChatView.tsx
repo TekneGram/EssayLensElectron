@@ -19,10 +19,13 @@ export function ChatView({ onCollapse }: ChatViewProps) {
     sessionItems,
     isSessionTurnsLoading,
     sessionTurnsError,
+    showLlmLoading,
+    showThinking,
     actionItems,
     onBack,
     onSessionSelect,
-    onNewChat
+    onNewChat,
+    onSessionDelete
   } = useChatViewController();
 
   return (
@@ -47,14 +50,20 @@ export function ChatView({ onCollapse }: ChatViewProps) {
             isLoading={sessionsStatus === 'loading'}
             error={sessionsError}
             onSessionSelect={onSessionSelect}
+            onSessionDelete={onSessionDelete}
           />
         ) : null}
         {fileEntityUuid && activeScreen === 'chat' ? (
-          <ChatScreen items={sessionItems} isLoading={isSessionTurnsLoading} error={sessionTurnsError} />
+          <ChatScreen
+            items={sessionItems}
+            isLoading={isSessionTurnsLoading && sessionItems.length === 0}
+            error={sessionTurnsError}
+            showThinking={showThinking}
+          />
         ) : null}
       </div>
       <div className="chat-actions" data-testid="chat-actions">
-        <ActionsView items={actionItems} />
+        <ActionsView items={actionItems} showLlmLoading={showLlmLoading} />
       </div>
     </section>
   );

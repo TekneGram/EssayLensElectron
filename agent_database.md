@@ -267,6 +267,9 @@ CREATE TABLE llm_chat_session_turns (
 );
 ```
 
+Operational note:
+- Deleting a row in `llm_chat_sessions` must be treated as a hard session delete; `llm_chat_session_turns` rows are removed automatically through the existing `ON DELETE CASCADE` foreign key.
+
 ### Indexes and triggers (current)
 ```sql
 CREATE INDEX idx_chats_entity ON chats(entity_uuid);

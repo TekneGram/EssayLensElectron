@@ -9,6 +9,7 @@ interface UseTextViewDocumentArgs {
   selectedFileId: string | null;
   containerRef: RefObject<HTMLDivElement>;
   onSelectionCleared: () => void;
+  onDocumentTextChange?: (text: string | null) => void;
 }
 
 interface UseTextViewDocumentResult {
@@ -22,7 +23,8 @@ interface UseTextViewDocumentResult {
 export function useTextViewDocument({
   selectedFileId,
   containerRef,
-  onSelectionCleared
+  onSelectionCleared,
+  onDocumentTextChange
 }: UseTextViewDocumentArgs): UseTextViewDocumentResult {
   const { assessment } = usePorts();
   const [document, setDocument] = useState<LoadedTextViewDocument | null>(null);
@@ -90,6 +92,18 @@ export function useTextViewDocument({
 
     void load();
   }, [assessment, containerRef, selectedFileId]);
+
+  useEffect(() => {
+    if (!onDocumentTextChange) {
+      return;
+    }
+    if (!document) {
+      onDocumentTextChange(null);
+      return;
+    }
+    const fullText = document.textMap.paragraphs.map((paragraph) => paragraph.text).join('\n');
+    onDocumentTextChange(fullText);
+  }, [document, onDocumentTextChange]);
 
   useEffect(() => {
     if (!document || !containerRef.current) {

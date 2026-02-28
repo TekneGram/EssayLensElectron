@@ -1,6 +1,12 @@
 import type { Dispatch } from 'react';
 import type { ChatStreamChunkEvent } from '../../../../../electron/shared/chatContracts';
-import { addChatMessage, setChatError, setChatStatus, updateChatMessageContent } from '../../chat-interface/state';
+import {
+  addChatMessage,
+  setChatError,
+  setChatStatus,
+  setSessionSendPhase,
+  updateChatMessageContent
+} from '../../chat-interface/state';
 import type { PendingSelection } from '../../chat-interface/domain';
 import type { AppAction } from '../../../state/actions';
 import type { ChatPort } from '../../../ports';
@@ -15,22 +21,26 @@ interface SubmitChatMessageWorkflowParams {
   chatApi: ChatPort;
   dispatch: Dispatch<AppAction>;
   message: string;
+  essay?: string;
   selectedFileId: string | null;
   activeSessionId?: string;
   pendingSelection: PendingSelection | null;
   streamMessageByClientRequestId: Map<string, string>;
   streamSeqByClientRequestId: Map<string, number>;
+  streamSessionByClientRequestId: Map<string, string>;
 }
 
 export async function submitChatMessageWorkflow({
   chatApi,
   dispatch,
   message,
+  essay,
   selectedFileId,
   activeSessionId,
   pendingSelection,
   streamMessageByClientRequestId,
-  streamSeqByClientRequestId
+  streamSeqByClientRequestId,
+  streamSessionByClientRequestId
 }: SubmitChatMessageWorkflowParams): Promise<void> {
   const clientRequestId = makeLocalId('chatreq');
   const teacherMessageId = makeLocalId('teacher');
@@ -39,6 +49,9 @@ export async function submitChatMessageWorkflow({
 
   streamMessageByClientRequestId.set(clientRequestId, assistantMessageId);
   streamSeqByClientRequestId.set(clientRequestId, -1);
+  if (activeSessionId) {
+    streamSessionByClientRequestId.set(clientRequestId, activeSessionId);
+  }
 
   dispatch(
     addChatMessage({
@@ -62,12 +75,16 @@ export async function submitChatMessageWorkflow({
   );
   dispatch(setChatStatus('sending'));
   dispatch(setChatError(undefined));
+  if (activeSessionId) {
+    dispatch(setSessionSendPhase({ sessionId: activeSessionId, phase: 'warming' }));
+  }
 
   try {
     const result = await chatApi.sendMessage({
       fileId: selectedFileId ?? undefined,
       sessionId: activeSessionId,
       message,
+      essay,
       contextText: pendingSelection?.exactQuote,
       clientRequestId
     });
@@ -85,15 +102,23 @@ export async function submitChatMessageWorkflow({
 
     streamMessageByClientRequestId.delete(clientRequestId);
     streamSeqByClientRequestId.delete(clientRequestId);
+    streamSessionByClientRequestId.delete(clientRequestId);
     if (streamMessageByClientRequestId.size === 0) {
       dispatch(setChatStatus('idle'));
+    }
+    if (activeSessionId) {
+      dispatch(setSessionSendPhase({ sessionId: activeSessionId, phase: undefined }));
     }
   } catch (error) {
     streamMessageByClientRequestId.delete(clientRequestId);
     streamSeqByClientRequestId.delete(clientRequestId);
+    streamSessionByClientRequestId.delete(clientRequestId);
     const errorMessage = toChatErrorMessage(error, 'Unable to send chat message.');
     dispatch(setChatStatus('error'));
     dispatch(setChatError(errorMessage));
+    if (activeSessionId) {
+      dispatch(setSessionSendPhase({ sessionId: activeSessionId, phase: undefined }));
+    }
     throw error;
   }
 }
@@ -103,16 +128,19 @@ interface HandleChatStreamChunkWorkflowParams {
   dispatch: Dispatch<AppAction>;
   streamMessageByClientRequestId: Map<string, string>;
   streamSeqByClientRequestId: Map<string, number>;
+  streamSessionByClientRequestId: Map<string, string>;
 }
 
 export function handleChatStreamChunkWorkflow({
   event,
   dispatch,
   streamMessageByClientRequestId,
-  streamSeqByClientRequestId
+  streamSeqByClientRequestId,
+  streamSessionByClientRequestId
 }: HandleChatStreamChunkWorkflowParams): void {
   const clientRequestId = event.clientRequestId;
   const assistantMessageId = streamMessageByClientRequestId.get(clientRequestId);
+  const activeSessionId = streamSessionByClientRequestId.get(clientRequestId);
   if (!assistantMessageId) {
     return;
   }
@@ -131,14 +159,28 @@ export function handleChatStreamChunkWorkflow({
         mode: 'append'
       })
     );
+    if (activeSessionId && (event.text ?? '').trim().length > 0) {
+      dispatch(setSessionSendPhase({ sessionId: activeSessionId, phase: undefined }));
+    }
+    return;
+  }
+
+  if (event.type === 'start') {
+    if (activeSessionId) {
+      dispatch(setSessionSendPhase({ sessionId: activeSessionId, phase: 'thinking' }));
+    }
     return;
   }
 
   if (event.type === 'done') {
     streamMessageByClientRequestId.delete(clientRequestId);
     streamSeqByClientRequestId.delete(clientRequestId);
+    streamSessionByClientRequestId.delete(clientRequestId);
     if (streamMessageByClientRequestId.size === 0) {
       dispatch(setChatStatus('idle'));
+    }
+    if (activeSessionId) {
+      dispatch(setSessionSendPhase({ sessionId: activeSessionId, phase: undefined }));
     }
     return;
   }
@@ -146,8 +188,12 @@ export function handleChatStreamChunkWorkflow({
   if (event.type === 'error') {
     streamMessageByClientRequestId.delete(clientRequestId);
     streamSeqByClientRequestId.delete(clientRequestId);
+    streamSessionByClientRequestId.delete(clientRequestId);
     const message = event.error?.message || 'Streaming chat request failed.';
     dispatch(setChatStatus('error'));
     dispatch(setChatError(message));
+    if (activeSessionId) {
+      dispatch(setSessionSendPhase({ sessionId: activeSessionId, phase: undefined }));
+    }
   }
 }

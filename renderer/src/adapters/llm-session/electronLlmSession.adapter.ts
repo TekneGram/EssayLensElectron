@@ -14,6 +14,7 @@ export function createElectronLlmSessionAdapter(): LlmSessionPort {
   return {
     create: (request) => getElectronLlmSessionApi().create(request),
     clear: (request) => getElectronLlmSessionApi().clear(request),
+    delete: (request) => getElectronLlmSessionApi().delete(request),
     getTurns: (request) => getElectronLlmSessionApi().getTurns(request),
     listByFile: (request) => getElectronLlmSessionApi().listByFile(request)
   };

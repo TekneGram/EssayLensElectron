@@ -89,4 +89,27 @@ describe('LlmChatSessionRepository', () => {
       expect.objectContaining({ sessionId: 'sess-3', fileEntityUuid: 'file-2' })
     ]);
   });
+
+  it('deletes a session and cascades deletes to session turns', async () => {
+    const db = new SQLiteClient({ dbPath: ':memory:' });
+    const nowIso = '2026-02-27T00:00:00.000Z';
+    await db.run(`INSERT INTO entities (uuid, type, created_at) VALUES (?, 'file', ?);`, ['file-1', nowIso]);
+    await db.run(`INSERT INTO filepath (uuid, path, created_at) VALUES (?, ?, ?);`, ['folder-1', '/tmp/folder', nowIso]);
+    await db.run(
+      `INSERT INTO filename (entity_uuid, filepath_uuid, append_path, file_name, created_at) VALUES (?, ?, NULL, ?, ?);`,
+      ['file-1', 'folder-1', 'essay-1.docx', nowIso]
+    );
+
+    const repository = new LlmChatSessionRepository({ db, now: () => nowIso, maxTurns: 2 });
+    await repository.createSession('sess-delete', 'file-1');
+    await repository.appendTurnPair('sess-delete', 'teacher-1', 'assistant-1', 'file-1');
+
+    await expect(repository.listRecentTurns('sess-delete', 'file-1')).resolves.toHaveLength(2);
+    await expect(repository.deleteSession('sess-delete')).resolves.toEqual({
+      sessionId: 'sess-delete',
+      deleted: true
+    });
+    await expect(repository.listSessionsByFile('file-1')).resolves.toEqual([]);
+    await expect(repository.listRecentTurns('sess-delete', 'file-1')).resolves.toEqual([]);
+  });
 });

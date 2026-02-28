@@ -379,6 +379,7 @@ describe('ChatInterface submit workflow', () => {
     await waitFor(() => {
       expect((screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement).value).toBe('');
     });
+
   });
 
   it('updates assistant message from stream chunks before sendMessage resolves', async () => {

@@ -8,7 +8,9 @@ interface SessionApiMocks {
   listByFile: ReturnType<typeof vi.fn>;
   getTurns: ReturnType<typeof vi.fn>;
   create: ReturnType<typeof vi.fn>;
+  deleteSession: ReturnType<typeof vi.fn>;
   sendMessage: ReturnType<typeof vi.fn>;
+  onStreamChunk: ReturnType<typeof vi.fn>;
 }
 
 function installWindowApiMocks(sessionApiMocks?: Partial<SessionApiMocks>) {
@@ -40,12 +42,24 @@ function installWindowApiMocks(sessionApiMocks?: Partial<SessionApiMocks>) {
         fileEntityUuid: 'file-1'
       }
     });
+  const deleteSession =
+    sessionApiMocks?.deleteSession ??
+    vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        sessionId: 'session-a',
+        deleted: true
+      }
+    });
   const sendMessage =
     sessionApiMocks?.sendMessage ??
     vi.fn().mockResolvedValue({
       ok: true,
       data: { reply: 'stub-reply' }
     });
+  const onStreamChunk =
+    sessionApiMocks?.onStreamChunk ??
+    vi.fn().mockImplementation(() => () => {});
 
   Object.defineProperty(window, 'api', {
     value: {
@@ -104,7 +118,8 @@ function installWindowApiMocks(sessionApiMocks?: Partial<SessionApiMocks>) {
         deleteRubric: async () => ({ ok: true, data: { deleted: true } })
       },
       chat: {
-        sendMessage
+        sendMessage,
+        onStreamChunk
       },
       llmManager: {
         listCatalogModels: async () => ({ ok: true, data: { models: [] } }),
@@ -136,6 +151,7 @@ function installWindowApiMocks(sessionApiMocks?: Partial<SessionApiMocks>) {
       },
       llmSession: {
         create,
+        delete: deleteSession,
         clear: async () => ({ ok: true, data: { sessionId: 'unused', cleared: true } }),
         getTurns,
         listByFile
@@ -144,7 +160,7 @@ function installWindowApiMocks(sessionApiMocks?: Partial<SessionApiMocks>) {
     configurable: true
   });
 
-  return { listByFile, getTurns, create, sendMessage };
+  return { listByFile, getTurns, create, deleteSession, sendMessage, onStreamChunk };
 }
 
 function renderApp() {
@@ -203,8 +219,8 @@ describe('ChatView session orchestration', () => {
       expect(listByFile).toHaveBeenCalledWith({ fileEntityUuid: 'file-1' });
       expect(getTurns).toHaveBeenCalledWith({ sessionId: 'session-a', fileEntityUuid: 'file-1' });
     });
-    expect(screen.getByRole('button', { name: 'Open chat session session-a' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Open chat session session-b' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open Chat 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open Chat 2' })).toBeTruthy();
   });
 
   it('opens selected session in chat screen and loads its turns', async () => {
@@ -254,7 +270,7 @@ describe('ChatView session orchestration', () => {
     renderApp();
 
     await selectFileFromWorkspace();
-    fireEvent.click(await screen.findByRole('button', { name: 'Open chat session session-b' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Chat 2' }));
 
     await waitFor(() => {
       expect(getTurns).toHaveBeenCalledWith({ sessionId: 'session-b', fileEntityUuid: 'file-1' });
@@ -353,6 +369,67 @@ describe('ChatView session orchestration', () => {
     expect((await screen.findAllByText('Session service returned an invalid response.')).length).toBeGreaterThan(0);
   });
 
+  it('deletes a chat session and refreshes sessions for the file', async () => {
+    const listByFile = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          fileEntityUuid: 'file-1',
+          sessions: [
+            {
+              sessionId: 'session-a',
+              fileEntityUuid: 'file-1',
+              createdAt: '2026-02-01T00:00:00.000Z',
+              updatedAt: '2026-02-01T00:00:00.000Z',
+              lastUsedAt: '2026-02-03T00:00:00.000Z'
+            },
+            {
+              sessionId: 'session-b',
+              fileEntityUuid: 'file-1',
+              createdAt: '2026-02-01T00:00:00.000Z',
+              updatedAt: '2026-02-01T00:00:00.000Z',
+              lastUsedAt: '2026-02-02T00:00:00.000Z'
+            }
+          ]
+        }
+      })
+      .mockResolvedValue({
+        ok: true,
+        data: {
+          fileEntityUuid: 'file-1',
+          sessions: [
+            {
+              sessionId: 'session-b',
+              fileEntityUuid: 'file-1',
+              createdAt: '2026-02-01T00:00:00.000Z',
+              updatedAt: '2026-02-01T00:00:00.000Z',
+              lastUsedAt: '2026-02-02T00:00:00.000Z'
+            }
+          ]
+        }
+      });
+    const deleteSession = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        sessionId: 'session-a',
+        deleted: true
+      }
+    });
+
+    installWindowApiMocks({ listByFile, deleteSession });
+    renderApp();
+    await selectFileFromWorkspace();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Chat 1' }));
+
+    await waitFor(() => {
+      expect(deleteSession).toHaveBeenCalledWith({ sessionId: 'session-a' });
+      expect(listByFile).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.queryByRole('button', { name: 'Delete Chat 2' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Delete Chat 1' })).toBeTruthy();
+  });
+
   it('preserves active session and refreshes turns/list after chat send completes', async () => {
     const listByFile = vi
       .fn()
@@ -436,7 +513,7 @@ describe('ChatView session orchestration', () => {
 
     renderApp();
     await selectFileFromWorkspace();
-    fireEvent.click(await screen.findByRole('button', { name: 'Open chat session session-b' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Chat 2' }));
     await screen.findByTestId('chat-screen');
 
     fireEvent.click(screen.getByRole('button', { name: 'Switch to chat mode' }));
@@ -456,5 +533,82 @@ describe('ChatView session orchestration', () => {
 
     expect(await screen.findByText('[assistant] Session B refreshed turn')).toBeTruthy();
     expect(getTurns).toHaveBeenCalledWith({ sessionId: 'session-b', fileEntityUuid: 'file-1' });
+  });
+
+  it('keeps first-send optimistic and streamed messages visible before backend session appears', async () => {
+    const listByFile = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        fileEntityUuid: 'file-1',
+        sessions: []
+      }
+    });
+    const getTurns = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        sessionId: 'simple-chat:file-1',
+        fileEntityUuid: 'file-1',
+        turns: []
+      }
+    });
+    let streamListener: ((event: unknown) => void) | undefined;
+    const onStreamChunk = vi.fn().mockImplementation((listener: (event: unknown) => void) => {
+      streamListener = listener;
+      return () => {
+        streamListener = undefined;
+      };
+    });
+    let resolveSend: ((value: unknown) => void) | undefined;
+    const sendMessage = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        })
+    );
+
+    installWindowApiMocks({ listByFile, getTurns, sendMessage, onStreamChunk });
+    renderApp();
+
+    await selectFileFromWorkspace();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to chat mode' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'First prompt' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send chat message' }));
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByTestId('chat-screen')).toBeTruthy();
+    expect(screen.getByText('[teacher] First prompt')).toBeTruthy();
+
+    const payload = sendMessage.mock.calls[0]?.[0] as { clientRequestId?: string } | undefined;
+    const clientRequestId = payload?.clientRequestId;
+    expect(clientRequestId).toBeTypeOf('string');
+
+    const currentStreamListener = streamListener;
+    if (typeof currentStreamListener === 'function') {
+      currentStreamListener({
+        requestId: 'req-1',
+        clientRequestId,
+        type: 'chunk',
+        seq: 1,
+        channel: 'content',
+        text: 'Partial stream'
+      });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText('[assistant] Partial stream')).toBeTruthy();
+    });
+
+    const currentResolveSend = resolveSend;
+    if (typeof currentResolveSend === 'function') {
+      currentResolveSend({
+        ok: true,
+        data: {
+          reply: 'Final stream reply'
+        }
+      });
+    }
   });
 });

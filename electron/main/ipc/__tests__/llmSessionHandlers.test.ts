@@ -31,11 +31,19 @@ describe('registerLlmSessionHandlers', () => {
       }
     ]);
     const clearSession = vi.fn().mockResolvedValue({ sessionId: 'sess-1', cleared: true });
+    const deleteSession = vi.fn().mockResolvedValue({ sessionId: 'sess-1', deleted: true });
+    const requestAction = vi.fn().mockResolvedValue({
+      requestId: 'req-1',
+      ok: true,
+      data: { sessionId: 'sess-1', cleared: true },
+      timestamp: '2026-02-27T00:10:00.000Z'
+    });
 
     registerLlmSessionHandlers(
       { handle: harness.handle },
       {
-        llmChatSessionRepository: { createSession, listRecentTurns, listSessionsByFile, clearSession } as never
+        llmChatSessionRepository: { createSession, listRecentTurns, listSessionsByFile, clearSession, deleteSession } as never,
+        llmOrchestrator: { requestAction } as never
       }
     );
 
@@ -43,6 +51,7 @@ describe('registerLlmSessionHandlers', () => {
     const getTurnsHandler = harness.getHandler(LLM_SESSION_CHANNELS.getTurns);
     const listByFileHandler = harness.getHandler(LLM_SESSION_CHANNELS.listByFile);
     const clearHandler = harness.getHandler(LLM_SESSION_CHANNELS.clear);
+    const deleteHandler = harness.getHandler(LLM_SESSION_CHANNELS.delete);
 
     await expect(createHandler({}, { sessionId: 'sess-1', fileEntityUuid: 'file-1' })).resolves.toEqual({
       ok: true,
@@ -78,11 +87,18 @@ describe('registerLlmSessionHandlers', () => {
       ok: true,
       data: { sessionId: 'sess-1', cleared: true }
     });
+    await expect(deleteHandler({}, { sessionId: 'sess-1' })).resolves.toEqual({
+      ok: true,
+      data: { sessionId: 'sess-1', deleted: true }
+    });
 
     expect(createSession).toHaveBeenNthCalledWith(1, 'sess-1', 'file-1');
     expect(listRecentTurns).toHaveBeenNthCalledWith(1, 'sess-1', 'file-1');
     expect(listSessionsByFile).toHaveBeenNthCalledWith(1, 'file-1');
     expect(clearSession).toHaveBeenNthCalledWith(1, 'sess-1');
+    expect(deleteSession).toHaveBeenNthCalledWith(1, 'sess-1');
+    expect(requestAction).toHaveBeenNthCalledWith(1, 'llm.simpleChat.clearSessionCache', { sessionId: 'sess-1' });
+    expect(requestAction).toHaveBeenNthCalledWith(2, 'llm.simpleChat.clearSessionCache', { sessionId: 'sess-1' });
   });
 
   it('rejects invalid payload and invalid response', async () => {
@@ -93,11 +109,19 @@ describe('registerLlmSessionHandlers', () => {
       { sessionId: '', fileEntityUuid: '', createdAt: 1, updatedAt: 2, lastUsedAt: 3 }
     ]);
     const clearSession = vi.fn();
+    const deleteSession = vi.fn().mockResolvedValue({ sessionId: '', deleted: true });
+    const requestAction = vi.fn().mockResolvedValue({
+      requestId: 'req-2',
+      ok: true,
+      data: { sessionId: 'sess-1', cleared: true },
+      timestamp: '2026-02-27T00:10:00.000Z'
+    });
 
     registerLlmSessionHandlers(
       { handle: harness.handle },
       {
-        llmChatSessionRepository: { createSession, listRecentTurns, listSessionsByFile, clearSession } as never
+        llmChatSessionRepository: { createSession, listRecentTurns, listSessionsByFile, clearSession, deleteSession } as never,
+        llmOrchestrator: { requestAction } as never
       }
     );
 
@@ -105,6 +129,7 @@ describe('registerLlmSessionHandlers', () => {
     const getTurnsHandler = harness.getHandler(LLM_SESSION_CHANNELS.getTurns);
     const listByFileHandler = harness.getHandler(LLM_SESSION_CHANNELS.listByFile);
     const clearHandler = harness.getHandler(LLM_SESSION_CHANNELS.clear);
+    const deleteHandler = harness.getHandler(LLM_SESSION_CHANNELS.delete);
 
     await expect(createHandler({}, {})).resolves.toEqual({
       ok: false,
@@ -118,6 +143,13 @@ describe('registerLlmSessionHandlers', () => {
       error: {
         code: 'LLM_SESSION_CLEAR_INVALID_PAYLOAD',
         message: 'Clear session payload must include a non-empty sessionId string.'
+      }
+    });
+    await expect(deleteHandler({}, { sessionId: ' ' })).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'LLM_SESSION_DELETE_INVALID_PAYLOAD',
+        message: 'Delete session payload must include a non-empty sessionId string.'
       }
     });
     await expect(getTurnsHandler({}, { sessionId: ' ', fileEntityUuid: 'file-1' })).resolves.toEqual({
@@ -163,6 +195,14 @@ describe('registerLlmSessionHandlers', () => {
           fileEntityUuid: 'file-1',
           sessions: [{ sessionId: '', fileEntityUuid: '', createdAt: 1, updatedAt: 2, lastUsedAt: 3 }]
         }
+      }
+    });
+    await expect(deleteHandler({}, { sessionId: 'sess-1' })).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'LLM_SESSION_DELETE_INVALID_RESPONSE',
+        message: 'Session repository returned invalid delete payload.',
+        details: { sessionId: '', deleted: true }
       }
     });
   });

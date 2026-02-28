@@ -15,6 +15,7 @@ import type { ChatStreamChunkEvent, SendChatMessageRequest } from '../shared/cha
 import type {
   ClearLlmSessionRequest,
   CreateLlmSessionRequest,
+  DeleteLlmSessionRequest,
   GetLlmSessionTurnsRequest,
   ListLlmSessionsByFileRequest
 } from '../shared/llm-session';
@@ -136,6 +137,7 @@ export function createPreloadApi(ipcRenderer: IpcRendererLike): EssayLensApi {
     llmSession: {
       create: (request: CreateLlmSessionRequest) => invokeApi('llmSession/create', request),
       clear: (request: ClearLlmSessionRequest) => invokeApi('llmSession/clear', request),
+      delete: (request: DeleteLlmSessionRequest) => invokeApi('llmSession/delete', request),
       getTurns: (request: GetLlmSessionTurnsRequest) => invokeApi('llmSession/getTurns', request),
       listByFile: (request: ListLlmSessionsByFileRequest) => invokeApi('llmSession/listByFile', request)
     }

@@ -2,6 +2,7 @@ import type { ChatDataArray } from './chatMessage.types';
 import type { LlmSessionListItemDto } from '../../../../../electron/shared/llm-session';
 
 export type SessionListStatus = 'idle' | 'loading' | 'error';
+export type SessionSendPhase = 'warming' | 'thinking';
 
 export interface ChatState {
   messages: ChatDataArray;
@@ -12,4 +13,5 @@ export interface ChatState {
   sessionsStatusByFileId: Record<string, SessionListStatus | undefined>;
   sessionsErrorByFileId: Record<string, string | undefined>;
   sessionSyncNonceByFileId: Record<string, number | undefined>;
+  sessionSendPhaseBySessionId: Record<string, SessionSendPhase | undefined>;
 }

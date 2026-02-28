@@ -1,4 +1,4 @@
-import { useCallback, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { selectAssessmentSplitRatio, useAppDispatch, useAppState } from '../../../state';
 import type { SelectedFileType } from '../../../state';
 import { toChatModeAfterCommandSelection } from '../domain/assessmentTab.logic';
@@ -20,11 +20,16 @@ export function useAssessmentTabController({
   const appState = useAppState();
   const appDispatch = useAppDispatch();
   const [localState, localDispatch] = useReducer(assessmentTabReducer, initialAssessmentTabState);
+  const [selectedEssayText, setSelectedEssayText] = useState<string | null>(null);
 
   const assessmentSplitRatio = selectAssessmentSplitRatio(appState);
   const selectedFile =
     appState.workspace.files.find((file) => file.id === appState.workspace.selectedFile.fileId) ?? null;
   const selectedFileId = selectedFile?.id ?? null;
+
+  useEffect(() => {
+    setSelectedEssayText(null);
+  }, [selectedFileId]);
 
   const { addFeedback, isPending: isAddFeedbackPending, errorMessage: addFeedbackErrorMessage } =
     useAddFeedbackMutation(selectedFileId);
@@ -45,6 +50,7 @@ export function useAssessmentTabController({
     localState,
     localDispatch,
     selectedFileId,
+    selectedEssayText,
     addFeedback,
     onChatBindingsChange,
     setActiveCommandWithModeRule
@@ -113,6 +119,7 @@ export function useAssessmentTabController({
     onSendToLlm,
     onGenerateFeedbackDocument,
     onCommentsTabChange,
+    onDocumentTextChange: setSelectedEssayText,
     setSplitRatio
   };
 }

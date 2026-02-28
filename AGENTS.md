@@ -49,7 +49,7 @@ Infrastructure layer: electron bridge, window.api, how to talk to electron, how 
 - If editing front end through renderer folder, read agent_frontend.md
 - If editing back end through electron folder or electron-llm folder, read agent_electron.md
 - If doing any work with the database, read agent_database.md
-- For any cross-layer feature or debug tasks that span renderer + IPC + main, read agent_workflows.md
+- For any cross-layer feature or debug tasks that span renderer + IPC + main, read agent_workflows.md, agent_electron.md and agent_frontend.md
 
 ## 5) Doc ownership & Doc Updates
 - agent_frontend.md = renderer / UI / state / layout

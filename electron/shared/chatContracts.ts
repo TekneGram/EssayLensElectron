@@ -17,6 +17,7 @@ export interface ListMessagesResponse {
 export interface SendChatMessageRequest {
   fileId?: string;
   message: string;
+  essay?: string;
   contextText?: string;
   clientRequestId?: string;
   sessionId?: string;

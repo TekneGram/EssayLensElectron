@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generator, Sequence
 
 from nlp.llm.llm_types import ChatStreamEvent
+from nlp.llm.tasks.simple_chat import run_stream as run_simple_chat_stream
 from nlp.llm.tasks.prompt_tester import run_parallel_prompt_tester, run_stream_prompt_tester
 
 
@@ -53,4 +54,19 @@ class LlmTaskService:
             llm_service=llm_no_think,
             app_cfg=app_cfg,
             text=text,
+        )
+
+    def simple_chat_stream(
+        self,
+        *,
+        app_cfg: "AppConfig",
+        system_prompt: str,
+        user_text: str,
+    ) -> Generator[ChatStreamEvent, None, str]:
+        llm_no_think = self.llm_service.with_mode("no_think")
+        return run_simple_chat_stream(
+            llm_service=llm_no_think,
+            app_cfg=app_cfg,
+            system_prompt=system_prompt,
+            user_text=user_text,
         )

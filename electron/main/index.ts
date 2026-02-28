@@ -1,6 +1,7 @@
 import type { App, BrowserWindow, BrowserWindowConstructorOptions, IpcMain } from 'electron';
 import path from 'node:path';
-import { registerIpcHandlers } from './ipc/registerHandlers';
+import { registerIpcHandlers, shutdownSharedLlmRuntime } from './ipc/registerHandlers';
+import { reconcileDevLlmServerPath } from './services/llmServerPathReconciler';
 
 interface BrowserWindowCtor {
   new (options: BrowserWindowConstructorOptions): BrowserWindow;
@@ -24,6 +25,8 @@ function getDefaultDeps(): MainProcessDeps {
 export function createMainApp(deps: MainProcessDeps = getDefaultDeps()) {
   let mainWindow: BrowserWindow | null = null;
   let handlersRegistered = false;
+
+  const isDevMode = (): boolean => Boolean(process.env.VITE_DEV_SERVER_URL) || process.env.NODE_ENV === 'development';
 
   const createWindow = (): BrowserWindow => {
     const preloadPath = path.resolve(__dirname, '../preload/index.js');
@@ -64,12 +67,29 @@ export function createMainApp(deps: MainProcessDeps = getDefaultDeps()) {
   };
 
   const start = async (): Promise<void> => {
+    let isQuitting = false;
+
+    if (isDevMode()) {
+      deps.app.setPath('userData', `${deps.app.getPath('userData')}-dev`);
+    }
+
     registerHandlers();
 
     deps.app.on('window-all-closed', () => {
       if (process.platform !== 'darwin') {
         deps.app.quit();
       }
+    });
+
+    deps.app.on('before-quit', (event) => {
+      if (isQuitting) {
+        return;
+      }
+      isQuitting = true;
+      event.preventDefault();
+      void shutdownSharedLlmRuntime().finally(() => {
+        deps.app.quit();
+      });
     });
 
     deps.app.on('activate', () => {
@@ -79,6 +99,7 @@ export function createMainApp(deps: MainProcessDeps = getDefaultDeps()) {
     });
 
     await deps.app.whenReady();
+    await reconcileDevLlmServerPath();
     if (!mainWindow) {
       createWindow();
     }

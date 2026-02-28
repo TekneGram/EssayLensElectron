@@ -17,6 +17,7 @@ interface UseAssessmentChatControllerParams {
   localState: AssessmentTabLocalState;
   localDispatch: Dispatch<AssessmentTabAction>;
   selectedFileId: string | null;
+  selectedEssayText: string | null;
   addFeedback: (request: AddFeedbackDraft) => Promise<FeedbackItem>;
   onChatBindingsChange?: (bindings: AssessmentTabChatBindings) => void;
   setActiveCommandWithModeRule: (command: AssessmentTabChatBindings['activeCommand']) => void;
@@ -33,6 +34,7 @@ export function useAssessmentChatController({
   localState,
   localDispatch,
   selectedFileId,
+  selectedEssayText,
   addFeedback,
   onChatBindingsChange,
   setActiveCommandWithModeRule
@@ -42,6 +44,7 @@ export function useAssessmentChatController({
     localState,
     localDispatch,
     selectedFileId,
+    selectedEssayText,
     addFeedback
   });
 

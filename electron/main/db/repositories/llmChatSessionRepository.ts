@@ -90,6 +90,15 @@ export class LlmChatSessionRepository {
     }
   }
 
+  async deleteSession(sessionId: string): Promise<{ sessionId: string; deleted: boolean }> {
+    const normalizedSessionId = this.normalizeSessionId(sessionId);
+    const result = await this.db.run('DELETE FROM llm_chat_sessions WHERE session_id = ?;', [normalizedSessionId]);
+    return {
+      sessionId: normalizedSessionId,
+      deleted: result.changes > 0
+    };
+  }
+
   async listRecentTurns(sessionId: string, fileEntityUuid?: string): Promise<LlmSessionTurn[]> {
     const normalizedSessionId = this.normalizeSessionId(sessionId);
     const maxEntries = this.maxTurns * 2;

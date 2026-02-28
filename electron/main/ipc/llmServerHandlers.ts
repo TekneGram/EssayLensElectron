@@ -78,12 +78,17 @@ function normalizeResult<T>(
 
 export function registerLlmServerHandlers(
   ipcMain: IpcMainLike,
-  deps: LlmServerHandlerDeps = getDefaultDeps()
+  deps: Partial<LlmServerHandlerDeps> = {}
 ): void {
+  const resolvedDeps: LlmServerHandlerDeps = {
+    ...getDefaultDeps(),
+    ...deps
+  };
+
   ipcMain.handle(LLM_SERVER_CHANNELS.start, async () => {
     let settings: LlmRuntimeSettings;
     try {
-      settings = await deps.llmSettingsRepository.getRuntimeSettings();
+      settings = await resolvedDeps.llmSettingsRepository.getRuntimeSettings();
     } catch (error) {
       return appErr({
         code: 'LLM_SERVER_SETTINGS_LOAD_FAILED',
@@ -92,7 +97,7 @@ export function registerLlmServerHandlers(
       });
     }
 
-    const result = await deps.llmOrchestrator.requestAction<{ settings: LlmRuntimeSettings }, StartLlmServerResponse>(
+    const result = await resolvedDeps.llmOrchestrator.requestAction<{ settings: LlmRuntimeSettings }, StartLlmServerResponse>(
       'llm.server.start',
       { settings }
     );
@@ -111,7 +116,7 @@ export function registerLlmServerHandlers(
   });
 
   ipcMain.handle(LLM_SERVER_CHANNELS.stop, async () => {
-    const result = await deps.llmOrchestrator.requestAction<{}, StopLlmServerResponse>('llm.server.stop', {});
+    const result = await resolvedDeps.llmOrchestrator.requestAction<{}, StopLlmServerResponse>('llm.server.stop', {});
     const normalized = normalizeResult(result);
     if (!normalized.ok) {
       return appErr(normalized.error);
@@ -127,7 +132,7 @@ export function registerLlmServerHandlers(
   });
 
   ipcMain.handle(LLM_SERVER_CHANNELS.status, async () => {
-    const result = await deps.llmOrchestrator.requestAction<{}, GetLlmServerStatusResponse>('llm.server.status', {});
+    const result = await resolvedDeps.llmOrchestrator.requestAction<{}, GetLlmServerStatusResponse>('llm.server.status', {});
     const normalized = normalizeResult(result);
     if (!normalized.ok) {
       return appErr(normalized.error);

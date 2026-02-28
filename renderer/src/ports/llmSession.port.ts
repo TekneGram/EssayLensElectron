@@ -4,6 +4,8 @@ import type {
   ClearLlmSessionResponse,
   CreateLlmSessionRequest,
   CreateLlmSessionResponse,
+  DeleteLlmSessionRequest,
+  DeleteLlmSessionResponse,
   GetLlmSessionTurnsRequest,
   GetLlmSessionTurnsResponse,
   ListLlmSessionsByFileRequest,
@@ -13,6 +15,7 @@ import type {
 export interface LlmSessionPort {
   create(request: CreateLlmSessionRequest): Promise<AppResult<CreateLlmSessionResponse>>;
   clear(request: ClearLlmSessionRequest): Promise<AppResult<ClearLlmSessionResponse>>;
+  delete(request: DeleteLlmSessionRequest): Promise<AppResult<DeleteLlmSessionResponse>>;
   getTurns(request: GetLlmSessionTurnsRequest): Promise<AppResult<GetLlmSessionTurnsResponse>>;
   listByFile(request: ListLlmSessionsByFileRequest): Promise<AppResult<ListLlmSessionsByFileResponse>>;
 }

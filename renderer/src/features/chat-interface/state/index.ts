@@ -9,6 +9,7 @@ export {
   setSessionListErrorForFile,
   setSessionListStatusForFile,
   setSessionsForFile,
+  setSessionSendPhase,
   setChatStatus,
   updateChatMessageContent
 } from './chatInterface.actions';
@@ -22,6 +23,7 @@ export {
   selectSessionListErrorForFile,
   selectSessionListStatusForFile,
   selectSessionMessagesForFile,
+  selectSessionSendPhase,
   selectSessionSyncNonceForFile,
   selectSessionsForFile
 } from './chatInterface.selectors';

@@ -6,7 +6,8 @@ export function OriginalTextView({
   text,
   pendingSelection,
   activeCommentId,
-  onSelectionCaptured
+  onSelectionCaptured,
+  onDocumentTextChange
 }: OriginalTextViewProps) {
   return (
     <section className="original-text-view subpane" data-testid="original-text-view">
@@ -17,6 +18,7 @@ export function OriginalTextView({
         pendingSelection={pendingSelection}
         activeCommentId={activeCommentId}
         onSelectionCaptured={onSelectionCaptured}
+        onDocumentTextChange={onDocumentTextChange}
       />
     </section>
   );

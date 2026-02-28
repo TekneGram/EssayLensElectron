@@ -17,6 +17,15 @@ export interface ClearLlmSessionResponse {
   cleared: boolean;
 }
 
+export interface DeleteLlmSessionRequest {
+  sessionId: string;
+}
+
+export interface DeleteLlmSessionResponse {
+  sessionId: string;
+  deleted: boolean;
+}
+
 export interface GetLlmSessionTurnsRequest {
   sessionId: string;
   fileEntityUuid: string;

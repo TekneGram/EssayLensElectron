@@ -147,7 +147,7 @@ describe('registerChatHandlers', () => {
   it('passes explicit sessionId to orchestrator payload', async () => {
     const harness = createHarness();
     const repository = new ChatRepository();
-    const requestAction = vi.fn().mockResolvedValue({
+    const requestActionStream = vi.fn().mockResolvedValue({
       requestId: 'req-1',
       ok: true,
       data: { reply: 'Assistant reply' },
@@ -158,7 +158,7 @@ describe('registerChatHandlers', () => {
       { handle: harness.handle },
       {
         repository,
-        llmOrchestrator: { requestAction } as never,
+        llmOrchestrator: { requestActionStream } as never,
         llmChatSessionRepository: {
           listRecentTurns: vi.fn().mockResolvedValue([]),
           appendTurnPair: vi.fn().mockResolvedValue(undefined)
@@ -172,19 +172,58 @@ describe('registerChatHandlers', () => {
     const sendMessageHandler = harness.getHandler(CHAT_CHANNELS.sendMessage);
     const sendResult = await sendMessageHandler({}, { message: 'Teacher prompt', sessionId: 'sess-123' });
     expect(sendResult).toEqual({ ok: true, data: { reply: 'Assistant reply' } });
-    expect(requestAction).toHaveBeenCalledWith(
-      'llm.chat',
+    expect(requestActionStream).toHaveBeenCalledWith(
+      'llm.chatStream',
       expect.objectContaining({
         message: 'Teacher prompt',
         sessionId: 'sess-123'
-      })
+      }),
+      expect.any(Function)
+    );
+  });
+
+  it('forwards essay context to orchestrator payload when provided', async () => {
+    const harness = createHarness();
+    const repository = new ChatRepository();
+    const requestActionStream = vi.fn().mockResolvedValue({
+      requestId: 'req-essay',
+      ok: true,
+      data: { reply: 'Assistant reply' },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    });
+
+    registerChatHandlers(
+      { handle: harness.handle },
+      {
+        repository,
+        llmOrchestrator: { requestActionStream } as never,
+        llmChatSessionRepository: {
+          listRecentTurns: vi.fn().mockResolvedValue([]),
+          appendTurnPair: vi.fn().mockResolvedValue(undefined)
+        } as never,
+        llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(readySettings) } as never,
+        fileExists: vi.fn().mockResolvedValue(true),
+        isExecutable: vi.fn().mockResolvedValue(true)
+      }
+    );
+
+    const sendMessageHandler = harness.getHandler(CHAT_CHANNELS.sendMessage);
+    const sendResult = await sendMessageHandler({}, { message: 'Teacher prompt', essay: 'Essay body text.' });
+    expect(sendResult).toEqual({ ok: true, data: { reply: 'Assistant reply' } });
+    expect(requestActionStream).toHaveBeenCalledWith(
+      'llm.chatStream',
+      expect.objectContaining({
+        message: 'Teacher prompt',
+        essay: 'Essay body text.'
+      }),
+      expect.any(Function)
     );
   });
 
   it('returns mapped orchestrator failures and does not persist messages', async () => {
     const harness = createHarness();
     const repository = new ChatRepository();
-    const requestAction = vi.fn().mockResolvedValue({
+    const requestActionStream = vi.fn().mockResolvedValue({
       requestId: 'req-timeout',
       ok: false,
       error: {
@@ -198,7 +237,7 @@ describe('registerChatHandlers', () => {
       { handle: harness.handle },
       {
         repository,
-        llmOrchestrator: { requestAction } as never,
+        llmOrchestrator: { requestActionStream } as never,
         llmChatSessionRepository: {
           listRecentTurns: vi.fn().mockResolvedValue([]),
           appendTurnPair: vi.fn().mockResolvedValue(undefined)
@@ -227,13 +266,13 @@ describe('registerChatHandlers', () => {
 
   it('rejects invalid payloads before orchestrator call', async () => {
     const harness = createHarness();
-    const requestAction = vi.fn();
+    const requestActionStream = vi.fn();
 
     registerChatHandlers(
       { handle: harness.handle },
       {
         repository: new ChatRepository(),
-        llmOrchestrator: { requestAction } as never
+        llmOrchestrator: { requestActionStream } as never
       }
     );
 
@@ -247,13 +286,13 @@ describe('registerChatHandlers', () => {
         message: 'Chat message payload must include a non-empty message.'
       }
     });
-    expect(requestAction).not.toHaveBeenCalled();
+    expect(requestActionStream).not.toHaveBeenCalled();
   });
 
   it('returns LLM_NOT_READY when fake mode is off and gguf path is missing', async () => {
     const harness = createHarness();
     const repository = new ChatRepository();
-    const requestAction = vi.fn();
+    const requestActionStream = vi.fn();
     const settings: LlmRuntimeSettings = {
       llm_server_path: '/usr/local/bin/llama-server',
       llm_gguf_path: null,
@@ -286,7 +325,7 @@ describe('registerChatHandlers', () => {
       { handle: harness.handle },
       {
         repository,
-        llmOrchestrator: { requestAction } as never,
+        llmOrchestrator: { requestActionStream } as never,
         llmChatSessionRepository: {
           listRecentTurns: vi.fn().mockResolvedValue([]),
           appendTurnPair: vi.fn().mockResolvedValue(undefined)
@@ -314,13 +353,13 @@ describe('registerChatHandlers', () => {
         }
       }
     });
-    expect(requestAction).not.toHaveBeenCalled();
+    expect(requestActionStream).not.toHaveBeenCalled();
   });
 
   it('returns LLM_NOT_READY when fake mode is off and server binary is missing', async () => {
     const harness = createHarness();
     const repository = new ChatRepository();
-    const requestAction = vi.fn();
+    const requestActionStream = vi.fn();
     const settings: LlmRuntimeSettings = {
       llm_server_path: '/tmp/missing-llama-server',
       llm_gguf_path: '/tmp/model.gguf',
@@ -350,16 +389,22 @@ describe('registerChatHandlers', () => {
     };
 
     const fileExists = vi.fn(async (targetPath: string) => targetPath !== '/tmp/missing-llama-server');
+    const llmSelectionRepository = {
+      getActiveModel: vi.fn().mockResolvedValue(null),
+      resetSettingsToDefaults: vi.fn()
+    };
+
     registerChatHandlers(
       { handle: harness.handle },
       {
         repository,
-        llmOrchestrator: { requestAction } as never,
+        llmOrchestrator: { requestActionStream } as never,
         llmChatSessionRepository: {
           listRecentTurns: vi.fn().mockResolvedValue([]),
           appendTurnPair: vi.fn().mockResolvedValue(undefined)
         } as never,
         llmSettingsRepository: { getRuntimeSettings: vi.fn().mockResolvedValue(settings) } as never,
+        llmSelectionRepository: llmSelectionRepository as never,
         fileExists,
         isExecutable: vi.fn().mockResolvedValue(true)
       }
@@ -376,13 +421,89 @@ describe('registerChatHandlers', () => {
         }
       }
     });
-    expect(requestAction).not.toHaveBeenCalled();
+    expect(llmSelectionRepository.getActiveModel).toHaveBeenCalledTimes(1);
+    expect(llmSelectionRepository.resetSettingsToDefaults).not.toHaveBeenCalled();
+    expect(requestActionStream).not.toHaveBeenCalled();
+  });
+
+  it('auto-heals server file not found at chat time when an active model exists', async () => {
+    const harness = createHarness();
+    const repository = new ChatRepository();
+    const requestActionStream = vi.fn().mockResolvedValue({
+      requestId: 'req-1',
+      ok: true,
+      data: { reply: 'Recovered reply' },
+      timestamp: '2026-02-18T00:00:00.000Z'
+    });
+    const initialSettings: LlmRuntimeSettings = {
+      ...readySettings,
+      llm_server_path: '/tmp/missing-llama-server'
+    };
+    const llmSettingsRepository = {
+      getRuntimeSettings: vi.fn().mockResolvedValue(initialSettings)
+    };
+    const llmSelectionRepository = {
+      getActiveModel: vi.fn().mockResolvedValue({
+        key: 'qwen3_4b_q8',
+        displayName: 'Qwen3 4B Q8_0',
+        localGgufPath: '/models/Qwen3-4B-Q8_0.gguf',
+        localMmprojPath: null,
+        downloadedAt: '2026-02-22T10:00:00.000Z',
+        isActive: true
+      }),
+      resetSettingsToDefaults: vi.fn().mockResolvedValue({
+        activeModel: {
+          key: 'qwen3_4b_q8',
+          displayName: 'Qwen3 4B Q8_0',
+          localGgufPath: '/models/Qwen3-4B-Q8_0.gguf',
+          localMmprojPath: null,
+          downloadedAt: '2026-02-22T10:00:00.000Z',
+          isActive: true
+        },
+        settings: {
+          ...readySettings,
+          llm_server_path: '/runtime/llama-server'
+        }
+      })
+    };
+    const fileExists = vi.fn(async (targetPath: string) => targetPath !== '/tmp/missing-llama-server');
+
+    registerChatHandlers(
+      { handle: harness.handle },
+      {
+        repository,
+        llmOrchestrator: { requestActionStream } as never,
+        llmChatSessionRepository: {
+          listRecentTurns: vi.fn().mockResolvedValue([]),
+          appendTurnPair: vi.fn().mockResolvedValue(undefined)
+        } as never,
+        llmSettingsRepository: llmSettingsRepository as never,
+        llmSelectionRepository: llmSelectionRepository as never,
+        resolveLlmServerPath: () => '/runtime/llama-server',
+        fileExists,
+        isExecutable: vi.fn().mockResolvedValue(true)
+      }
+    );
+
+    const sendMessageHandler = harness.getHandler(CHAT_CHANNELS.sendMessage);
+    const sendResult = await sendMessageHandler({}, { fileId: 'file-1', message: 'Teacher prompt' });
+    expect(sendResult).toEqual({ ok: true, data: { reply: 'Recovered reply' } });
+    expect(llmSelectionRepository.resetSettingsToDefaults).toHaveBeenCalledWith('/runtime/llama-server');
+    expect(requestActionStream).toHaveBeenCalledWith(
+      'llm.chatStream',
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          llm_server_path: '/runtime/llama-server'
+        })
+      }),
+      expect.any(Function)
+    );
   });
 
   it('auto-heals missing server path at chat time when an active model exists', async () => {
     const harness = createHarness();
     const repository = new ChatRepository();
-    const requestAction = vi.fn().mockResolvedValue({
+    const requestActionStream = vi.fn().mockResolvedValue({
       requestId: 'req-1',
       ok: true,
       data: { reply: 'Recovered reply' },
@@ -424,7 +545,7 @@ describe('registerChatHandlers', () => {
       { handle: harness.handle },
       {
         repository,
-        llmOrchestrator: { requestAction } as never,
+        llmOrchestrator: { requestActionStream } as never,
         llmChatSessionRepository: {
           listRecentTurns: vi.fn().mockResolvedValue([]),
           appendTurnPair: vi.fn().mockResolvedValue(undefined)
@@ -441,13 +562,14 @@ describe('registerChatHandlers', () => {
     const sendResult = await sendMessageHandler({}, { fileId: 'file-1', message: 'Teacher prompt' });
     expect(sendResult).toEqual({ ok: true, data: { reply: 'Recovered reply' } });
     expect(llmSelectionRepository.resetSettingsToDefaults).toHaveBeenCalledWith('/runtime/llama-server');
-    expect(requestAction).toHaveBeenCalledWith(
-      'llm.chat',
+    expect(requestActionStream).toHaveBeenCalledWith(
+      'llm.chatStream',
       expect.objectContaining({
         settings: expect.objectContaining({
           llm_server_path: '/runtime/llama-server'
         })
-      })
+      }),
+      expect.any(Function)
     );
   });
 });

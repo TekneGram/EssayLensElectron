@@ -7,5 +7,6 @@ export const initialChatState: ChatState = {
   sessionsByFileId: {},
   sessionsStatusByFileId: {},
   sessionsErrorByFileId: {},
-  sessionSyncNonceByFileId: {}
+  sessionSyncNonceByFileId: {},
+  sessionSendPhaseBySessionId: {}
 };

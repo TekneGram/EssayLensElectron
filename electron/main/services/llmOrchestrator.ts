@@ -16,6 +16,7 @@ const SUPPORTED_ACTIONS = new Set<LlmAction>([
   'llm.evaluate.bulk',
   'llm.session.create',
   'llm.session.clear',
+  'llm.simpleChat.clearSessionCache',
   'llm.server.start',
   'llm.server.stop',
   'llm.server.status'

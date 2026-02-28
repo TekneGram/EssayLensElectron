@@ -5,6 +5,11 @@ from typing import Any, Callable
 from app.container import build_container
 from app.runtime_lifecycle import RuntimeLifecycle
 from app.settings import build_settings_from_payload
+from nlp.llm.tasks.simple_chat import build_system_prompt
+
+
+DEFAULT_CHAT_SESSION_KEY = "__default_simple_chat_session__"
+_SESSION_SYSTEM_PROMPTS: dict[str, str] = {}
 
 
 class WorkerActionError(Exception):
@@ -69,6 +74,45 @@ def _extract_client_request_id(payload: dict[str, Any]) -> str | None:
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
+
+
+def _extract_session_id(payload: dict[str, Any]) -> str:
+    value = payload.get("sessionId")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return DEFAULT_CHAT_SESSION_KEY
+
+
+def _extract_essay(payload: dict[str, Any]) -> str | None:
+    essay = payload.get("essay")
+    if isinstance(essay, str) and essay.strip():
+        return essay.strip()
+    return None
+
+
+def _get_cached_system_prompt(payload: dict[str, Any]) -> str:
+    session_id = _extract_session_id(payload)
+    cached_prompt = _SESSION_SYSTEM_PROMPTS.get(session_id)
+    if isinstance(cached_prompt, str) and cached_prompt.strip():
+        return cached_prompt
+
+    essay = _extract_essay(payload)
+    if not essay:
+        raise WorkerActionError(
+            "Simple chat session is missing essay context. Provide payload.essay for the first message in a session."
+        )
+    system_prompt = build_system_prompt(essay)
+    _SESSION_SYSTEM_PROMPTS[session_id] = system_prompt
+    return system_prompt
+
+
+def clear_cached_session(payload: dict[str, Any]) -> dict[str, Any]:
+    session_id = _extract_session_id(payload)
+    cleared = _SESSION_SYSTEM_PROMPTS.pop(session_id, None) is not None
+    return {
+        "sessionId": session_id,
+        "cleared": cleared,
+    }
 
 
 def _build_runtime(payload: dict[str, Any], lifecycle: RuntimeLifecycle) -> tuple[Any, Any]:
@@ -198,14 +242,15 @@ def run_chat_stream(
     success_response_factory: Callable[[str, dict[str, Any]], dict[str, Any]],
 ) -> dict[str, Any]:
     client_request_id = _extract_client_request_id(payload)
+    system_prompt = _get_cached_system_prompt(payload)
     message = _extract_message(payload)
     context_text = _extract_context_text(payload)
     session_turns = _extract_session_turns(payload)
-    prompt_text = message
+    user_text = message
     if session_turns:
-        prompt_text = _compose_prompt(message, context_text, session_turns)
+        user_text = _compose_prompt(message, context_text, session_turns)
     elif context_text:
-        prompt_text = _compose_prompt(message, context_text, [])
+        user_text = _compose_prompt(message, context_text, [])
     seq = 1
 
     emit_stream_event(
@@ -246,7 +291,11 @@ def run_chat_stream(
         return success_response_factory(request_id, {"reply": fake_reply})
 
     app_cfg, llm_task_service = _build_runtime(payload, lifecycle)
-    stream = llm_task_service.prompt_tester_stream(app_cfg=app_cfg, text=prompt_text)
+    stream = llm_task_service.simple_chat_stream(
+        app_cfg=app_cfg,
+        system_prompt=system_prompt,
+        user_text=user_text,
+    )
 
     while True:
         try:

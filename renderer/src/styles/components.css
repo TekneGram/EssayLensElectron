@@ -614,8 +614,38 @@
 .chat-session-item {
   width: 100%;
   border: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-session-open {
+  border: 0;
+  background: transparent;
+  color: inherit;
   text-align: left;
+  padding: 0;
+  margin: 0;
+  width: 100%;
   cursor: pointer;
+}
+
+.chat-session-delete {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.chat-session-open:focus-visible,
+.chat-session-delete:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 .chat-interface {

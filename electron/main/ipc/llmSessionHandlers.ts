@@ -2,17 +2,20 @@ import { appErr, appOk } from '../../shared/appResult';
 import type {
   ClearLlmSessionResponse,
   CreateLlmSessionResponse,
+  DeleteLlmSessionResponse,
   ListLlmSessionsByFileResponse,
   LlmSessionListItemDto,
   GetLlmSessionTurnsResponse,
   LlmSessionTurnDto
 } from '../../shared/llm-session';
 import { LlmChatSessionRepository } from '../db/repositories/llmChatSessionRepository';
+import { LlmOrchestrator } from '../services/llmOrchestrator';
 import type { IpcMainLike } from './types';
 
 export const LLM_SESSION_CHANNELS = {
   create: 'llmSession/create',
   clear: 'llmSession/clear',
+  delete: 'llmSession/delete',
   getTurns: 'llmSession/getTurns',
   listByFile: 'llmSession/listByFile'
 } as const;
@@ -20,14 +23,29 @@ export const LLM_SESSION_CHANNELS = {
 interface LlmSessionHandlerDeps {
   llmChatSessionRepository: Pick<
     LlmChatSessionRepository,
-    'createSession' | 'clearSession' | 'listRecentTurns' | 'listSessionsByFile'
+    'createSession' | 'clearSession' | 'deleteSession' | 'listRecentTurns' | 'listSessionsByFile'
   >;
+  llmOrchestrator: Pick<LlmOrchestrator, 'requestAction'>;
 }
 
 function getDefaultDeps(): LlmSessionHandlerDeps {
   return {
-    llmChatSessionRepository: new LlmChatSessionRepository()
+    llmChatSessionRepository: new LlmChatSessionRepository(),
+    llmOrchestrator: new LlmOrchestrator()
   };
+}
+
+async function clearSimpleChatSessionCache(
+  llmOrchestrator: Pick<LlmOrchestrator, 'requestAction'>,
+  sessionId: string
+): Promise<void> {
+  const cacheClearResult = await llmOrchestrator.requestAction<
+    { sessionId: string },
+    { sessionId: string; cleared: boolean }
+  >('llm.simpleChat.clearSessionCache', { sessionId });
+  if (!cacheClearResult.ok) {
+    throw new Error(cacheClearResult.error.message || 'Could not clear simple-chat session cache.');
+  }
 }
 
 function normalizeSessionRequest(payload: unknown): { sessionId: string } | null {
@@ -92,6 +110,15 @@ function isClearResponse(value: unknown): value is ClearLlmSessionResponse {
   );
 }
 
+function isDeleteResponse(value: unknown): value is DeleteLlmSessionResponse {
+  return (
+    isObjectRecord(value) &&
+    typeof value.sessionId === 'string' &&
+    value.sessionId.trim().length > 0 &&
+    typeof value.deleted === 'boolean'
+  );
+}
+
 function isTurnsResponse(value: unknown): value is GetLlmSessionTurnsResponse {
   if (!isObjectRecord(value)) {
     return false;
@@ -135,8 +162,13 @@ function isSessionListResponse(value: unknown): value is ListLlmSessionsByFileRe
 
 export function registerLlmSessionHandlers(
   ipcMain: IpcMainLike,
-  deps: LlmSessionHandlerDeps = getDefaultDeps()
+  deps: Partial<LlmSessionHandlerDeps> = {}
 ): void {
+  const resolvedDeps: LlmSessionHandlerDeps = {
+    ...getDefaultDeps(),
+    ...deps
+  };
+
   ipcMain.handle(LLM_SESSION_CHANNELS.create, async (_event, payload) => {
     const normalizedPayload = normalizeSessionFileRequest(payload);
     if (!normalizedPayload) {
@@ -147,7 +179,7 @@ export function registerLlmSessionHandlers(
     }
 
     try {
-      const created = await deps.llmChatSessionRepository.createSession(
+      const created = await resolvedDeps.llmChatSessionRepository.createSession(
         normalizedPayload.sessionId,
         normalizedPayload.fileEntityUuid
       );
@@ -178,7 +210,8 @@ export function registerLlmSessionHandlers(
     }
 
     try {
-      const cleared = await deps.llmChatSessionRepository.clearSession(normalizedPayload.sessionId);
+      await clearSimpleChatSessionCache(resolvedDeps.llmOrchestrator, normalizedPayload.sessionId);
+      const cleared = await resolvedDeps.llmChatSessionRepository.clearSession(normalizedPayload.sessionId);
       if (!isClearResponse(cleared)) {
         return appErr({
           code: 'LLM_SESSION_CLEAR_INVALID_RESPONSE',
@@ -196,6 +229,35 @@ export function registerLlmSessionHandlers(
     }
   });
 
+  ipcMain.handle(LLM_SESSION_CHANNELS.delete, async (_event, payload) => {
+    const normalizedPayload = normalizeSessionRequest(payload);
+    if (!normalizedPayload) {
+      return appErr({
+        code: 'LLM_SESSION_DELETE_INVALID_PAYLOAD',
+        message: 'Delete session payload must include a non-empty sessionId string.'
+      });
+    }
+
+    try {
+      await clearSimpleChatSessionCache(resolvedDeps.llmOrchestrator, normalizedPayload.sessionId);
+      const deleted = await resolvedDeps.llmChatSessionRepository.deleteSession(normalizedPayload.sessionId);
+      if (!isDeleteResponse(deleted)) {
+        return appErr({
+          code: 'LLM_SESSION_DELETE_INVALID_RESPONSE',
+          message: 'Session repository returned invalid delete payload.',
+          details: deleted
+        });
+      }
+      return appOk<DeleteLlmSessionResponse>(deleted);
+    } catch (error) {
+      return appErr({
+        code: 'LLM_SESSION_DELETE_FAILED',
+        message: 'Could not delete chat session.',
+        details: error
+      });
+    }
+  });
+
   ipcMain.handle(LLM_SESSION_CHANNELS.getTurns, async (_event, payload) => {
     const normalizedPayload = normalizeSessionFileRequest(payload);
     if (!normalizedPayload) {
@@ -206,7 +268,7 @@ export function registerLlmSessionHandlers(
     }
 
     try {
-      const turns = await deps.llmChatSessionRepository.listRecentTurns(
+      const turns = await resolvedDeps.llmChatSessionRepository.listRecentTurns(
         normalizedPayload.sessionId,
         normalizedPayload.fileEntityUuid
       );
@@ -242,7 +304,7 @@ export function registerLlmSessionHandlers(
     }
 
     try {
-      const sessions = await deps.llmChatSessionRepository.listSessionsByFile(normalizedPayload.fileEntityUuid);
+      const sessions = await resolvedDeps.llmChatSessionRepository.listSessionsByFile(normalizedPayload.fileEntityUuid);
       const response: ListLlmSessionsByFileResponse = {
         fileEntityUuid: normalizedPayload.fileEntityUuid,
         sessions

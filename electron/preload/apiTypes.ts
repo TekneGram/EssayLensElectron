@@ -4,6 +4,8 @@ import type {
   ClearLlmSessionResponse,
   CreateLlmSessionRequest,
   CreateLlmSessionResponse,
+  DeleteLlmSessionRequest,
+  DeleteLlmSessionResponse,
   GetLlmSessionTurnsRequest,
   GetLlmSessionTurnsResponse,
   ListLlmSessionsByFileRequest,
@@ -141,6 +143,7 @@ export interface EssayLensApi {
   llmSession: {
     create(request: CreateLlmSessionRequest): Promise<ApiResult<CreateLlmSessionResponse>>;
     clear(request: ClearLlmSessionRequest): Promise<ApiResult<ClearLlmSessionResponse>>;
+    delete(request: DeleteLlmSessionRequest): Promise<ApiResult<DeleteLlmSessionResponse>>;
     getTurns(request: GetLlmSessionTurnsRequest): Promise<ApiResult<GetLlmSessionTurnsResponse>>;
     listByFile(request: ListLlmSessionsByFileRequest): Promise<ApiResult<ListLlmSessionsByFileResponse>>;
   };

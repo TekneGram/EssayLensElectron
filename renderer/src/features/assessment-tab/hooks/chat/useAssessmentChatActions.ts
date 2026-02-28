@@ -8,10 +8,16 @@ import type {
 import { usePorts } from '../../../../ports';
 import { useAppState } from '../../../../state';
 import type { FeedbackItem } from '../../../feedback/domain';
-import { toChatErrorMessage } from '../../domain/assessmentTab.logic';
+import { makeLocalId, toChatErrorMessage } from '../../domain/assessmentTab.logic';
 import { handleChatStreamChunkWorkflow, submitChatMessageWorkflow } from '../../application/chatWorkflow.service';
 import { submitCommentFeedbackWorkflow } from '../../application/commentsWorkflow.service';
-import { bumpSessionSyncForFile, selectActiveSessionIdForFile, setChatError } from '../../../chat-interface/state';
+import {
+  addChatMessage,
+  bumpSessionSyncForFile,
+  selectActiveSessionIdForFile,
+  setActiveSessionForFile,
+  setChatError
+} from '../../../chat-interface/state';
 import { resolveSessionIdForSend } from '../../../chat-interface/domain';
 import { selectIsModeLockedToChat } from '../../state';
 import type { AssessmentTabAction, AssessmentTabLocalState } from '../../state';
@@ -19,12 +25,36 @@ import type { AppAction } from '../../../../state/actions';
 import type { AssessmentTabChatBindings } from '../../types';
 
 type AddFeedbackDraft = Omit<AddInlineFeedbackRequest, 'fileId'> | Omit<AddBlockFeedbackRequest, 'fileId'>;
+const MAX_ESSAY_WORD_COUNT = 2000;
+const ESSAY_TRUNCATION_WARNING = 'Only the first 2000 words of the essay are currently being considered.';
+
+function toEssayForChat(rawEssayText: string | null): { essay?: string; wasTruncated: boolean } {
+  if (!rawEssayText) {
+    return { essay: undefined, wasTruncated: false };
+  }
+
+  const words = rawEssayText
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
+  if (words.length === 0) {
+    return { essay: undefined, wasTruncated: false };
+  }
+
+  // TODO: move this limit to configurable runtime/app settings.
+  if (words.length <= MAX_ESSAY_WORD_COUNT) {
+    return { essay: words.join(' '), wasTruncated: false };
+  }
+
+  return { essay: words.slice(0, MAX_ESSAY_WORD_COUNT).join(' '), wasTruncated: true };
+}
 
 interface UseAssessmentChatActionsParams {
   appDispatch: Dispatch<AppAction>;
   localState: AssessmentTabLocalState;
   localDispatch: Dispatch<AssessmentTabAction>;
   selectedFileId: string | null;
+  selectedEssayText: string | null;
   addFeedback: (request: AddFeedbackDraft) => Promise<FeedbackItem>;
 }
 
@@ -41,6 +71,7 @@ export function useAssessmentChatActions({
   localState,
   localDispatch,
   selectedFileId,
+  selectedEssayText,
   addFeedback
 }: UseAssessmentChatActionsParams): UseAssessmentChatActionsResult {
   const { chat: chatApi } = usePorts();
@@ -53,6 +84,8 @@ export function useAssessmentChatActions({
 
   const streamMessageByClientRequestId = useRef(new Map<string, string>());
   const streamSeqByClientRequestId = useRef(new Map<string, number>());
+  const streamSessionByClientRequestId = useRef(new Map<string, string>());
+  const essaySentBySessionId = useRef(new Set<string>());
 
   const setDraftText = useCallback(
     (text: string) => {
@@ -103,22 +136,56 @@ export function useAssessmentChatActions({
 
     try {
       localDispatch({ type: 'assessmentTab/setDraftText', payload: '' });
+      if (resolvedSessionId) {
+        appDispatch(setActiveSessionForFile({ fileId: selectedFileId, sessionId: resolvedSessionId }));
+      }
+      const preparedEssay = toEssayForChat(selectedEssayText);
+      const essay = resolvedSessionId && essaySentBySessionId.current.has(resolvedSessionId) ? undefined : preparedEssay.essay;
+      if (essay && preparedEssay.wasTruncated) {
+        toast.warn(ESSAY_TRUNCATION_WARNING);
+        appDispatch(
+          addChatMessage({
+            id: makeLocalId('system'),
+            role: 'system',
+            content: ESSAY_TRUNCATION_WARNING,
+            relatedFileId: selectedFileId ?? undefined,
+            sessionId: resolvedSessionId,
+            createdAt: new Date().toISOString()
+          })
+        );
+      }
       await submitChatMessageWorkflow({
         chatApi,
         dispatch: appDispatch,
         message,
+        essay,
         selectedFileId,
         activeSessionId: resolvedSessionId,
         pendingSelection,
         streamMessageByClientRequestId: streamMessageByClientRequestId.current,
-        streamSeqByClientRequestId: streamSeqByClientRequestId.current
+        streamSeqByClientRequestId: streamSeqByClientRequestId.current,
+        streamSessionByClientRequestId: streamSessionByClientRequestId.current
       });
+      if (resolvedSessionId && essay) {
+        essaySentBySessionId.current.add(resolvedSessionId);
+      }
       appDispatch(bumpSessionSyncForFile({ fileId: selectedFileId }));
     } catch (error) {
       const errorMessage = toChatErrorMessage(error, 'Unable to send chat message.');
       toast.error(errorMessage);
     }
-  }, [addFeedback, appDispatch, chatApi, chatMode, draftText, localDispatch, pendingSelection, resolvedSessionId, selectedFileId]);
+  }, [
+    addFeedback,
+    appDispatch,
+    chatApi,
+    chatMode,
+    draftText,
+    localDispatch,
+    pendingSelection,
+    resolvedSessionId,
+    selectedEssayText,
+    selectedFileId
+  ]);
 
   useEffect(() => {
     if (typeof chatApi.onStreamChunk !== 'function') {
@@ -130,7 +197,8 @@ export function useAssessmentChatActions({
         event,
         dispatch: appDispatch,
         streamMessageByClientRequestId: streamMessageByClientRequestId.current,
-        streamSeqByClientRequestId: streamSeqByClientRequestId.current
+        streamSeqByClientRequestId: streamSeqByClientRequestId.current,
+        streamSessionByClientRequestId: streamSessionByClientRequestId.current
       });
     });
 

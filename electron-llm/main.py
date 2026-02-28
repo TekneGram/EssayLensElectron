@@ -8,6 +8,7 @@ from typing import Any
 
 from app.pipeline_simple import (
     WorkerActionError,
+    clear_cached_session,
     run_chat,
     run_chat_stream,
     warm_runtime,
@@ -78,6 +79,7 @@ SERVER_STOP_ACTION = "llm.server.stop"
 SERVER_STATUS_ACTION = "llm.server.status"
 SESSION_CREATE_ACTION = "llm.session.create"
 SESSION_CLEAR_ACTION = "llm.session.clear"
+SIMPLE_CHAT_CLEAR_CACHE_ACTION = "llm.simpleChat.clearSessionCache"
 
 
 def _handle_request(req: dict[str, Any], lifecycle: RuntimeLifecycle) -> dict[str, Any]:
@@ -122,6 +124,8 @@ def _handle_request(req: dict[str, Any], lifecycle: RuntimeLifecycle) -> dict[st
                 "PY_ACTION_FAILED",
                 "Action deprecated: llm.session.clear is now handled by Electron session repository.",
             )
+        if action == SIMPLE_CHAT_CLEAR_CACHE_ACTION:
+            return _success(request_id, clear_cached_session(payload))
 
         route = ACTION_TO_PIPELINE.get(action)
         if route is not None:
