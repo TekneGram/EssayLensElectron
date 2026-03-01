@@ -19,6 +19,7 @@ export function ChatView({ onCollapse }: ChatViewProps) {
     sessionItems,
     isSessionTurnsLoading,
     sessionTurnsError,
+    activeSessionSendPhase,
     showLlmLoading,
     showThinking,
     actionItems,
@@ -58,6 +59,7 @@ export function ChatView({ onCollapse }: ChatViewProps) {
             items={sessionItems}
             isLoading={isSessionTurnsLoading && sessionItems.length === 0}
             error={sessionTurnsError}
+            activeSessionSendPhase={activeSessionSendPhase}
             showThinking={showThinking}
           />
         ) : null}

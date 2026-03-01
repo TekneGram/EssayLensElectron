@@ -654,6 +654,46 @@
 
 .chat-bubble-thinking {
   margin-top: 6px;
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.chat-bubble-thinking--shimmer {
+  color: color-mix(in hsl, var(--text-primary) 88%, black);
+  animation: chat-bubble-thinking-shimmer 1.7s linear infinite;
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .chat-bubble-thinking--shimmer {
+    background: linear-gradient(
+      105deg,
+      color-mix(in hsl, var(--text-primary) 92%, black) 35%,
+      color-mix(in hsl, var(--text-primary) 72%, white) 50%,
+      color-mix(in hsl, var(--text-primary) 92%, black) 65%
+    );
+    background-size: 220% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+@keyframes chat-bubble-thinking-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -20% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-bubble-thinking--shimmer {
+    animation: none;
+    background: none;
+    color: var(--text-secondary);
+  }
 }
 
 .msg.system {

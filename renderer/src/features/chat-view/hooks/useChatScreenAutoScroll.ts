@@ -2,9 +2,11 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { CHAT_SCREEN_AUTO_SCROLL_THRESHOLD_PX } from '../state/chatScreen.state';
 import { isContainerNearBottom } from '../domain/chatScreen.domain';
+import type { SessionSendPhase } from '../../chat-interface/domain/chatState.types';
 
 interface UseChatScreenAutoScrollParams {
   streamRenderKey: string;
+  activeSessionSendPhase?: SessionSendPhase;
   showThinking: boolean;
 }
 
@@ -16,6 +18,7 @@ interface UseChatScreenAutoScrollResult {
 
 export function useChatScreenAutoScroll({
   streamRenderKey,
+  activeSessionSendPhase,
   showThinking
 }: UseChatScreenAutoScrollParams): UseChatScreenAutoScrollResult {
   const listRef = useRef<HTMLUListElement | null>(null);
@@ -38,7 +41,7 @@ export function useChatScreenAutoScroll({
     if (typeof endNode?.scrollIntoView === 'function') {
       endNode.scrollIntoView({ block: 'end' });
     }
-  }, [shouldAutoFollow, streamRenderKey, showThinking]);
+  }, [activeSessionSendPhase, shouldAutoFollow, streamRenderKey, showThinking]);
 
   return {
     listRef,

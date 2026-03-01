@@ -195,6 +195,7 @@ export function useChatViewController() {
     sessionItems,
     isSessionTurnsLoading,
     sessionTurnsError,
+    activeSessionSendPhase,
     showLlmLoading: chatStatus === 'sending' && activeSessionSendPhase !== 'thinking',
     showThinking: activeSessionSendPhase === 'thinking',
     actionItems,

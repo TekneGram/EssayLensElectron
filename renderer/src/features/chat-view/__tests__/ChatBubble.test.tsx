@@ -1,8 +1,16 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatBubble } from '../components/ChatBubble';
 
 describe('ChatBubble', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders markdown content and role label', () => {
     render(
       <ul>
@@ -12,6 +20,7 @@ describe('ChatBubble', () => {
             roleClassName: 'assistant',
             text: '**Bold** item:\n\n- One\n- Two'
           }}
+          activeSessionSendPhase={undefined}
           showThinking={false}
           isLatestAssistant={true}
         />
@@ -24,7 +33,7 @@ describe('ChatBubble', () => {
     expect(screen.getByText('Two').tagName.toLowerCase()).toBe('li');
   });
 
-  it('shows thinking indicator for latest assistant bubble only', () => {
+  it('shows rotating messages while warming and thinking for latest assistant bubble only', () => {
     const { rerender } = render(
       <ul>
         <ChatBubble
@@ -33,13 +42,21 @@ describe('ChatBubble', () => {
             roleClassName: 'assistant',
             text: 'Working...'
           }}
-          showThinking={true}
+          activeSessionSendPhase="warming"
+          showThinking={false}
           isLatestAssistant={true}
         />
       </ul>
     );
 
-    expect(screen.getByText('-----thinking-----')).toBeTruthy();
+    const thinking = screen.getByTestId('chat-bubble-thinking');
+    expect(thinking.className).toContain('chat-bubble-thinking--shimmer');
+    expect(screen.getByText('-----checking essay------')).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.getByText('-----eating donuts for a bit------')).toBeTruthy();
 
     rerender(
       <ul>
@@ -49,12 +66,34 @@ describe('ChatBubble', () => {
             roleClassName: 'assistant',
             text: 'Working...'
           }}
+          activeSessionSendPhase="thinking"
+          showThinking={true}
+          isLatestAssistant={true}
+        />
+      </ul>
+    );
+    expect(screen.getByText('-----checking essay------')).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.getByText('-----eating donuts for a bit------')).toBeTruthy();
+
+    rerender(
+      <ul>
+        <ChatBubble
+          item={{
+            id: 'assistant-2',
+            roleClassName: 'assistant',
+            text: 'Working...'
+          }}
+          activeSessionSendPhase="warming"
           showThinking={true}
           isLatestAssistant={false}
         />
       </ul>
     );
 
-    expect(screen.queryByText('-----thinking-----')).toBeNull();
+    expect(screen.queryByTestId('chat-bubble-thinking')).toBeNull();
   });
 });

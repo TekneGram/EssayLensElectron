@@ -580,6 +580,7 @@ describe('ChatView session orchestration', () => {
     });
     expect(await screen.findByTestId('chat-screen')).toBeTruthy();
     expect(screen.getByText('First prompt')).toBeTruthy();
+    expect(screen.getByText('-----checking essay------')).toBeTruthy();
 
     const payload = sendMessage.mock.calls[0]?.[0] as { clientRequestId?: string } | undefined;
     const clientRequestId = payload?.clientRequestId;
